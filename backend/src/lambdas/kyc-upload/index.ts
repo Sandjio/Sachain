@@ -2,13 +2,13 @@ import { APIGatewayProxyHandler, APIGatewayProxyEvent } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+import { SNSClient } from "@aws-sdk/client-sns";
 import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
-// Removed S3UploadUtility import to avoid dependency issues
 import { KYCDocumentRepository } from "../../repositories/kyc-document-repository";
 import { ExponentialBackoff } from "../../utils/retry";
+import { NotificationService } from "../../utils/notification-service";
 import {
   UploadRequest,
   PresignedUrlRequest,
@@ -31,6 +31,13 @@ const TABLE_NAME = process.env.TABLE_NAME!;
 const BUCKET_NAME = process.env.BUCKET_NAME!;
 const SNS_TOPIC_ARN = process.env.SNS_TOPIC_ARN!;
 const ENVIRONMENT = process.env.ENVIRONMENT!;
+
+// Initialize notification service
+const notificationService = new NotificationService({
+  snsClient,
+  topicArn: SNS_TOPIC_ARN,
+  adminPortalUrl: process.env.ADMIN_PORTAL_URL,
+});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   console.log("KYC Upload Lambda triggered", { 
@@ -506,45 +513,17 @@ async function sendAdminNotification(data: {
   uploadedAt: string;
 }): Promise<void> {
   try {
-    const message = {
-      subject: "New KYC Document Uploaded - Review Required",
-      documentId: data.documentId,
-      userId: data.userId,
-      documentType: data.documentType,
-      fileName: data.fileName,
-      uploadedAt: data.uploadedAt,
-      reviewUrl: `${process.env.ADMIN_PORTAL_URL}/kyc/review/${data.documentId}`,
-      timestamp: new Date().toISOString(),
-    };
-
-    await snsClient.send(
-      new PublishCommand({
-        TopicArn: SNS_TOPIC_ARN,
-        Message: JSON.stringify(message),
-        Subject: "KYC Document Review Required",
-        MessageAttributes: {
-          documentType: {
-            DataType: "String",
-            StringValue: data.documentType,
-          },
-          userId: {
-            DataType: "String",
-            StringValue: data.userId,
-          },
-          priority: {
-            DataType: "String",
-            StringValue: "normal",
-          },
-        },
-      })
-    );
-
+    await notificationService.sendKYCReviewNotification(data);
+    
     console.log("Admin notification sent successfully", {
       documentId: data.documentId,
       userId: data.userId,
     });
+    
+    await putMetric("AdminNotificationSent", 1);
   } catch (error) {
     console.error("Failed to send admin notification:", error);
+    await putMetric("AdminNotificationError", 1);
     // Don't throw error as this is not critical for the upload process
   }
 }

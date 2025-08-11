@@ -57,6 +57,7 @@ export class LambdaConstruct extends Construct {
         ENVIRONMENT: props.environment,
         MAX_FILE_SIZE: "10485760", // 10MB
         ALLOWED_FILE_TYPES: "image/jpeg,image/png,application/pdf",
+        ADMIN_PORTAL_URL: `https://admin.sachain-${props.environment}.com`,
       },
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
@@ -156,5 +157,9 @@ export class LambdaConstruct extends Construct {
     // Add presigned URL endpoint
     const presignedResource = this.kycUploadApi.root.addResource("presigned-url");
     presignedResource.addMethod("POST", kycUploadIntegration);
+
+    // Add upload processing endpoint
+    const processResource = this.kycUploadApi.root.addResource("process-upload");
+    processResource.addMethod("POST", kycUploadIntegration);
   }
 }
