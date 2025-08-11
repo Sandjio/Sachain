@@ -1,0 +1,19 @@
+{
+  "name": "sachain",
+  "version": "1.0.0",
+  "description": "Sachain is a crowfunding platform using Hedera services",
+  "private": true,
+  "workspaces": [
+    "sachain-infrastructure",
+    "sachain-frontend",
+    "backend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "dev": "npm run dev --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
