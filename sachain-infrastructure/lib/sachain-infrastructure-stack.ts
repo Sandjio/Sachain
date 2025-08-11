@@ -94,5 +94,10 @@ export class SachainInfrastructureStack extends cdk.Stack {
       value: eventBridgeConstruct.eventBus.eventBusName,
       description: "EventBridge Bus Name",
     });
+
+    new cdk.CfnOutput(this, "KYCUploadApiUrl", {
+      value: lambdaConstruct.kycUploadApi.url,
+      description: "KYC Upload API Gateway URL",
+    });
   }
 }

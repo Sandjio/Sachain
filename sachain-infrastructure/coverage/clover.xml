@@ -1,30 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1754934955209" clover="3.2.0">
-  <project timestamp="1754934955210" name="All files">
-    <metrics statements="21" coveredstatements="21" conditionals="4" coveredconditionals="4" methods="3" coveredmethods="3" elements="28" coveredelements="28" complexity="0" loc="21" ncloc="21" packages="1" files="1" classes="1"/>
-    <file name="s3.ts" path="/home/sandjio/Projects/Personal-projects/Sachain/sachain-infrastructure/lib/constructs/s3.ts">
-      <metrics statements="21" coveredstatements="21" conditionals="4" coveredconditionals="4" methods="3" coveredmethods="3"/>
+<coverage generated="1754940152025" clover="3.2.0">
+  <project timestamp="1754940152025" name="All files">
+    <metrics statements="26" coveredstatements="26" conditionals="6" coveredconditionals="6" methods="1" coveredmethods="1" elements="33" coveredelements="33" complexity="0" loc="26" ncloc="26" packages="1" files="1" classes="1"/>
+    <file name="lambda.ts" path="/home/sandjio/Projects/Personal-projects/Sachain/sachain-infrastructure/lib/constructs/lambda.ts">
+      <metrics statements="26" coveredstatements="26" conditionals="6" coveredconditionals="6" methods="1" coveredmethods="1"/>
       <line num="1" count="1" type="stmt"/>
       <line num="2" count="1" type="stmt"/>
-      <line num="3" count="1" type="stmt"/>
-      <line num="4" count="1" type="stmt"/>
-      <line num="5" count="1" type="stmt"/>
-      <line num="12" count="1" type="stmt"/>
-      <line num="17" count="22" type="stmt"/>
-      <line num="20" count="22" type="stmt"/>
-      <line num="32" count="22" type="stmt"/>
-      <line num="54" count="22" type="stmt"/>
-      <line num="121" count="22" type="stmt"/>
-      <line num="124" count="22" type="stmt"/>
-      <line num="125" count="22" type="stmt"/>
-      <line num="126" count="22" type="stmt"/>
-      <line num="127" count="22" type="stmt"/>
-      <line num="132" count="22" type="stmt"/>
-      <line num="181" count="22" type="stmt"/>
-      <line num="196" count="22" type="stmt"/>
-      <line num="212" count="22" type="stmt"/>
-      <line num="236" count="1" type="stmt"/>
-      <line num="239" count="1" type="stmt"/>
+      <line num="6" count="1" type="stmt"/>
+      <line num="8" count="1" type="stmt"/>
+      <line num="9" count="1" type="stmt"/>
+      <line num="10" count="1" type="stmt"/>
+      <line num="20" count="1" type="stmt"/>
+      <line num="27" count="3" type="stmt"/>
+      <line num="30" count="3" type="stmt"/>
+      <line num="48" count="3" type="stmt"/>
+      <line num="70" count="3" type="stmt"/>
+      <line num="85" count="3" type="stmt"/>
+      <line num="86" count="3" type="stmt"/>
+      <line num="87" count="3" type="stmt"/>
+      <line num="90" count="3" type="cond" truecount="1" falsecount="0"/>
+      <line num="91" count="2" type="stmt"/>
+      <line num="95" count="3" type="cond" truecount="1" falsecount="0"/>
+      <line num="96" count="2" type="stmt"/>
+      <line num="100" count="3" type="stmt"/>
+      <line num="113" count="3" type="stmt"/>
+      <line num="127" count="3" type="stmt"/>
+      <line num="145" count="3" type="stmt"/>
+      <line num="153" count="3" type="stmt"/>
+      <line num="154" count="3" type="stmt"/>
+      <line num="157" count="3" type="stmt"/>
+      <line num="158" count="3" type="stmt"/>
     </file>
   </project>
 </coverage>
