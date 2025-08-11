@@ -1,20 +1,33 @@
 #!/usr/bin/env node
-import * as cdk from 'aws-cdk-lib';
-import { SachainInfrastructureStack } from '../lib/sachain-infrastructure-stack';
+/// <reference types="node" />
+import * as cdk from "aws-cdk-lib";
+import { SachainInfrastructureStack } from "../lib/sachain-infrastructure-stack";
 
 const app = new cdk.App();
-new SachainInfrastructureStack(app, 'SachainInfrastructureStack', {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
 
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
+// Get environment from context or environment variable, default to 'dev'
+const environment =
+  app.node.tryGetContext("environment") || process.env.ENVIRONMENT || "dev";
 
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
+// Get AWS account and region from environment variables or CDK defaults
+const account = process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID;
+const region =
+  process.env.CDK_DEFAULT_REGION || process.env.AWS_REGION || "us-east-1";
 
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+// Create stack with environment-specific naming
+const stackName = `SachainKYCStack-${environment}`;
+
+new SachainInfrastructureStack(app, stackName, {
+  environment,
+  env: {
+    account,
+    region,
+  },
+  description: `Sachain KYC Authentication infrastructure for ${environment} environment`,
+  tags: {
+    Environment: environment,
+    Project: "Sachain",
+    Component: "KYC-Authentication",
+    ManagedBy: "CDK",
+  },
 });

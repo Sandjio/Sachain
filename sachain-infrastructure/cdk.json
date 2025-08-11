@@ -17,6 +17,23 @@
     ]
   },
   "context": {
+    "environments": {
+      "dev": {
+        "account": "123456789012",
+        "region": "us-east-1",
+        "domainName": "dev.sachain.com"
+      },
+      "staging": {
+        "account": "123456789012",
+        "region": "us-east-1",
+        "domainName": "staging.sachain.com"
+      },
+      "prod": {
+        "account": "123456789012",
+        "region": "us-east-1",
+        "domainName": "sachain.com"
+      }
+    },
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,
     "@aws-cdk/core:target-partitions": [
