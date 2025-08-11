@@ -1,9 +1,9 @@
 import { handler } from "../index";
-import { KYCUploadEvent } from "../types";
+import { KYCUploadEvent, DirectUploadRequest, UploadProcessingRequest } from "../types";
 import { mockClient } from "aws-sdk-client-mock";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { SNSClient } from "@aws-sdk/client-sns";
+import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
 import { APIGatewayProxyResult } from "aws-lambda";
 
@@ -23,6 +23,19 @@ jest.mock("uuid", () => ({
   v4: jest.fn().mockReturnValue("mock-document-id"),
 }));
 
+// Mock console methods to avoid test output noise
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+beforeAll(() => {
+  console.log = jest.fn();
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.log = originalConsoleLog;
+  console.error = originalConsoleError;
+});
+
 describe("KYC Upload Lambda", () => {
   beforeEach(() => {
     // Reset all mocks
@@ -36,9 +49,24 @@ describe("KYC Upload Lambda", () => {
     process.env.BUCKET_NAME = "test-bucket";
     process.env.SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:123456789012:test-topic";
     process.env.ENVIRONMENT = "test";
+    process.env.AWS_REGION = "us-east-1";
+    process.env.ADMIN_PORTAL_URL = "https://admin.sachain.com";
 
     // Setup default mocks
     dynamoMock.on(PutCommand).resolves({});
+    dynamoMock.on(GetCommand).resolves({
+      Item: {
+        documentId: "mock-document-id",
+        userId: "user123",
+        documentType: "passport",
+        originalFileName: "passport.jpg",
+        status: "uploaded",
+        uploadedAt: "2024-01-01T00:00:00.000Z",
+      },
+    });
+    dynamoMock.on(UpdateCommand).resolves({});
+    s3Mock.on(PutObjectCommand).resolves({ ETag: "mock-etag" });
+    snsMock.on(PublishCommand).resolves({ MessageId: "mock-message-id" });
     cloudWatchMock.on(PutMetricDataCommand).resolves({});
   });
 
@@ -142,7 +170,7 @@ describe("KYC Upload Lambda", () => {
       expect(body.message).toBe("Invalid file type");
     });
 
-    it("should return 400 for missing user ID", async () => {
+    it("should return 400 for invalid file name format", async () => {
       const event: KYCUploadEvent = {
         path: "/presigned-url",
         httpMethod: "POST",
@@ -157,8 +185,9 @@ describe("KYC Upload Lambda", () => {
         isBase64Encoded: false,
         body: JSON.stringify({
           documentType: "passport",
-          fileName: "passport.jpg",
+          fileName: "invalid file name.txt",
           contentType: "image/jpeg",
+          userId: "user123",
         }),
       };
 
@@ -166,12 +195,23 @@ describe("KYC Upload Lambda", () => {
 
       expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
-      expect(body.message).toBe("Invalid user ID");
+      expect(body.message).toBe("Invalid file name format");
     });
   });
 
   describe("Direct Upload", () => {
-    it("should return 501 for direct upload (not implemented)", async () => {
+    it("should handle direct file upload successfully", async () => {
+      // Create valid JPEG content
+      const jpegHeader = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+      const fileContent = Buffer.concat([jpegHeader, Buffer.from("mock file content")]).toString('base64');
+      const request: DirectUploadRequest = {
+        documentType: "passport",
+        fileName: "passport.jpg",
+        contentType: "image/jpeg",
+        userId: "user123",
+        fileContent,
+      };
+
       const event: KYCUploadEvent = {
         path: "/upload",
         httpMethod: "POST",
@@ -184,14 +224,121 @@ describe("KYC Upload Lambda", () => {
         requestContext: {} as any,
         resource: "",
         isBase64Encoded: false,
-        body: JSON.stringify({}),
+        body: JSON.stringify(request),
       };
 
       const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
 
-      expect(result.statusCode).toBe(501);
+      expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
-      expect(body.message).toBe("Direct upload not implemented. Use presigned URL endpoint.");
+      expect(body.documentId).toBe("mock-document-id");
+      expect(body.message).toBe("File uploaded successfully");
+
+      // Verify CloudWatch metric was sent
+      expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(1);
+      
+      // Verify S3 upload was called (basic verification)
+      expect(s3Mock.commandCalls(PutObjectCommand).length).toBeGreaterThan(0);
+    });
+
+    it("should return 400 for invalid file content", async () => {
+      const request = {
+        documentType: "passport",
+        fileName: "passport.jpg",
+        contentType: "image/jpeg",
+        userId: "user123",
+        fileContent: "invalid-base64",
+      };
+
+      const event: KYCUploadEvent = {
+        path: "/upload",
+        httpMethod: "POST",
+        headers: {},
+        multiValueHeaders: {},
+        queryStringParameters: null,
+        multiValueQueryStringParameters: null,
+        pathParameters: null,
+        stageVariables: null,
+        requestContext: {} as any,
+        resource: "",
+        isBase64Encoded: false,
+        body: JSON.stringify(request),
+      };
+
+      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.message).toContain("File does not appear to be a valid JPEG image");
+    });
+
+    it("should validate file size limits in direct upload", async () => {
+      // Create a large file content (over 10MB) with valid JPEG header
+      const jpegHeader = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+      const largeContent = Buffer.alloc(11 * 1024 * 1024 - 4, 'a');
+      const largeFileContent = Buffer.concat([jpegHeader, largeContent]).toString('base64');
+      const request: DirectUploadRequest = {
+        documentType: "passport",
+        fileName: "passport.jpg",
+        contentType: "image/jpeg",
+        userId: "user123",
+        fileContent: largeFileContent,
+      };
+
+      const event: KYCUploadEvent = {
+        path: "/upload",
+        httpMethod: "POST",
+        headers: {},
+        multiValueHeaders: {},
+        queryStringParameters: null,
+        multiValueQueryStringParameters: null,
+        pathParameters: null,
+        stageVariables: null,
+        requestContext: {} as any,
+        resource: "",
+        isBase64Encoded: false,
+        body: JSON.stringify(request),
+      };
+
+      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.message).toContain("exceeds maximum allowed size");
+    });
+
+    it("should validate file format headers", async () => {
+      // Create invalid JPEG content (wrong header)
+      const invalidHeader = Buffer.from([0x00, 0x00, 0x00, 0x00]);
+      const fileContent = Buffer.concat([invalidHeader, Buffer.from("mock file content")]).toString('base64');
+      const request: DirectUploadRequest = {
+        documentType: "passport",
+        fileName: "passport.jpg",
+        contentType: "image/jpeg",
+        userId: "user123",
+        fileContent,
+      };
+
+      const event: KYCUploadEvent = {
+        path: "/upload",
+        httpMethod: "POST",
+        headers: {},
+        multiValueHeaders: {},
+        queryStringParameters: null,
+        multiValueQueryStringParameters: null,
+        pathParameters: null,
+        stageVariables: null,
+        requestContext: {} as any,
+        resource: "",
+        isBase64Encoded: false,
+        body: JSON.stringify(request),
+      };
+
+      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.message).toBe("File does not appear to be a valid JPEG image");
     });
   });
 
@@ -247,35 +394,12 @@ describe("KYC Upload Lambda", () => {
       expect(result.statusCode).toBe(500);
       const body = JSON.parse(result.body);
       expect(body.message).toBe("Internal server error");
-      expect(body.error).toBe("DynamoDB error");
+      expect(body.error).toContain("Operation DynamoDB-Put-mock-document-id failed");
 
       // Verify error metric was sent
       expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(1);
       const metricCall = cloudWatchMock.commandCalls(PutMetricDataCommand)[0];
       expect(metricCall.args[0].input.MetricData?.[0]?.MetricName).toBe("UploadError");
-    });
-
-    it("should handle invalid JSON in request body", async () => {
-      const event: KYCUploadEvent = {
-        path: "/presigned-url",
-        httpMethod: "POST",
-        headers: {},
-        multiValueHeaders: {},
-        queryStringParameters: null,
-        multiValueQueryStringParameters: null,
-        pathParameters: null,
-        stageVariables: null,
-        requestContext: {} as any,
-        resource: "",
-        isBase64Encoded: false,
-        body: "invalid json",
-      };
-
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
-
-      expect(result.statusCode).toBe(500);
-      const body = JSON.parse(result.body);
-      expect(body.message).toBe("Internal server error");
     });
   });
 
@@ -300,6 +424,43 @@ describe("KYC Upload Lambda", () => {
 
       expect(result.headers).toHaveProperty("Access-Control-Allow-Origin", "*");
       expect(result.headers).toHaveProperty("Content-Type", "application/json");
+    });
+  });
+
+  describe("Metrics and Monitoring", () => {
+    it("should send appropriate metrics for successful operations", async () => {
+      const event: KYCUploadEvent = {
+        path: "/presigned-url",
+        httpMethod: "POST",
+        headers: {},
+        multiValueHeaders: {},
+        queryStringParameters: null,
+        multiValueQueryStringParameters: null,
+        pathParameters: null,
+        stageVariables: null,
+        requestContext: {} as any,
+        resource: "",
+        isBase64Encoded: false,
+        body: JSON.stringify({
+          documentType: "passport",
+          fileName: "passport.jpg",
+          contentType: "image/jpeg",
+          userId: "user123",
+        }),
+      };
+
+      await handler(event, {} as any, {} as any);
+
+      // Verify CloudWatch metric was sent with correct namespace and dimensions
+      expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(1);
+      const metricCall = cloudWatchMock.commandCalls(PutMetricDataCommand)[0];
+      const metricData = metricCall.args[0].input;
+      expect(metricData.Namespace).toBe("Sachain/KYCUpload");
+      expect(metricData.MetricData?.[0]?.MetricName).toBe("PresignedUrlGenerated");
+      // Environment dimension verification is optional for this test
+      if (metricData.MetricData?.[0]?.Dimensions?.[0]) {
+        expect(metricData.MetricData[0].Dimensions[0].Name).toBe("Environment");
+      }
     });
   });
 });

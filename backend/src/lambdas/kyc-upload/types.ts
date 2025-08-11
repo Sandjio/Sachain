@@ -12,6 +12,21 @@ export interface UploadRequest {
   userId: string;
 }
 
+export interface DirectUploadRequest {
+  documentType: "passport" | "driver_license" | "national_id" | "utility_bill";
+  fileName: string;
+  contentType: string;
+  userId: string;
+  fileContent: string; // base64 encoded file content
+}
+
+export interface UploadProcessingRequest {
+  documentId: string;
+  userId: string;
+  s3Key: string;
+  fileSize: number;
+}
+
 export interface PresignedUrlRequest {
   documentType: "passport" | "driver_license" | "national_id" | "utility_bill";
   fileName: string;
@@ -54,6 +69,16 @@ export const ALLOWED_FILE_TYPES = [
 ] as const;
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+export interface FileValidationResult {
+  isValid: boolean;
+  errors: string[];
+  fileInfo?: {
+    size: number;
+    mimeType: string;
+    extension: string;
+  };
+}
 
 export const DOCUMENT_TYPES = [
   "passport",

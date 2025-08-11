@@ -678,4 +678,174 @@ describe("S3UploadUtility", () => {
       );
     });
   });
+
+  describe("Integration with KYC Upload Lambda", () => {
+    it("should handle file upload with proper validation and S3 upload", async () => {
+      const request = createValidUploadRequest();
+      const mockUploadResult = {
+        ETag: '"abc123"',
+        VersionId: "version123",
+        Location: "https://test-bucket.s3.amazonaws.com/test-key",
+      };
+
+      mockS3.upload.mockReturnValue({
+        promise: jest.fn().mockResolvedValue(mockUploadResult),
+      });
+
+      const result = await s3Upload.uploadFile(request);
+
+      // Verify successful upload
+      expect(result.success).toBe(true);
+      expect(result.s3Key).toBeDefined();
+      expect(result.uploadId).toBeDefined();
+      expect(result.fileSize).toBe(request.fileBuffer.length);
+
+      // Verify S3 was called with correct parameters
+      expect(mockS3.upload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Bucket: config.bucketName,
+          Body: request.fileBuffer,
+          ContentType: request.mimeType,
+          ServerSideEncryption: "aws:kms",
+          SSEKMSKeyId: config.kmsKeyId,
+          Metadata: expect.objectContaining({
+            "original-filename": request.fileName,
+            "user-id": request.userId,
+            "document-type": request.documentType,
+          }),
+        })
+      );
+    });
+
+    it("should handle file size validation for KYC documents", () => {
+      // Test with exactly the max file size (should pass)
+      const maxSizeBuffer = Buffer.alloc(config.maxFileSize);
+      maxSizeBuffer[0] = 0xff; // JPEG header start
+      maxSizeBuffer[1] = 0xd8;
+      maxSizeBuffer[2] = 0xff;
+      maxSizeBuffer[3] = 0xe0;
+
+      const validResult = s3Upload.validateFile(
+        maxSizeBuffer,
+        "max-size.jpg",
+        "image/jpeg"
+      );
+      expect(validResult.isValid).toBe(true);
+
+      // Test with over the max file size (should fail)
+      const oversizeBuffer = Buffer.alloc(config.maxFileSize + 1);
+      const invalidResult = s3Upload.validateFile(
+        oversizeBuffer,
+        "oversize.jpg",
+        "image/jpeg"
+      );
+      expect(invalidResult.isValid).toBe(false);
+      expect(invalidResult.errors).toContain(
+        expect.stringContaining("exceeds maximum allowed size")
+      );
+    });
+
+    it("should handle all supported KYC document types", async () => {
+      const documentTypes = ["passport", "driver_license", "national_id", "utility_bill"];
+      const mimeTypes = ["image/jpeg", "image/png", "application/pdf"];
+
+      mockS3.upload.mockReturnValue({
+        promise: jest.fn().mockResolvedValue({ ETag: '"abc123"' }),
+      });
+
+      for (const docType of documentTypes) {
+        for (const mimeType of mimeTypes) {
+          const extension = mimeType === "application/pdf" ? ".pdf" : 
+                           mimeType === "image/png" ? ".png" : ".jpg";
+          const fileName = `${docType}${extension}`;
+          
+          // Create appropriate file header
+          let fileBuffer: Buffer;
+          if (mimeType === "image/jpeg") {
+            fileBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0, ...Array(100).fill(0)]);
+          } else if (mimeType === "image/png") {
+            fileBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, ...Array(100).fill(0)]);
+          } else {
+            fileBuffer = Buffer.from([0x25, 0x50, 0x44, 0x46, ...Array(100).fill(0)]);
+          }
+
+          const request: S3UploadRequest = {
+            fileBuffer,
+            fileName,
+            mimeType,
+            userId: "user123",
+            documentType: docType,
+          };
+
+          const result = await s3Upload.uploadFile(request);
+          expect(result.success).toBe(true);
+          expect(result.s3Key).toContain(docType);
+        }
+      }
+    });
+
+    it("should generate unique document IDs for concurrent uploads", async () => {
+      const request = createValidUploadRequest();
+      const uploadIds = new Set<string>();
+      const s3Keys = new Set<string>();
+
+      mockS3.upload.mockReturnValue({
+        promise: jest.fn().mockResolvedValue({ ETag: '"abc123"' }),
+      });
+
+      // Simulate multiple concurrent uploads
+      const uploadPromises = Array(10).fill(null).map(() => s3Upload.uploadFile(request));
+      const results = await Promise.all(uploadPromises);
+
+      results.forEach(result => {
+        expect(result.success).toBe(true);
+        uploadIds.add(result.uploadId);
+        s3Keys.add(result.s3Key);
+      });
+
+      // All upload IDs and S3 keys should be unique
+      expect(uploadIds.size).toBe(10);
+      expect(s3Keys.size).toBe(10);
+    });
+
+    it("should handle network timeouts with retry logic", async () => {
+      const request = createValidUploadRequest();
+      const timeoutError = new Error("RequestTimeout");
+      (timeoutError as any).code = "RequestTimeout";
+
+      mockS3.upload
+        .mockReturnValueOnce({
+          promise: jest.fn().mockRejectedValue(timeoutError),
+        })
+        .mockReturnValueOnce({
+          promise: jest.fn().mockRejectedValue(timeoutError),
+        })
+        .mockReturnValueOnce({
+          promise: jest.fn().mockResolvedValue({ ETag: '"abc123"' }),
+        });
+
+      const result = await s3Upload.uploadFile(request);
+
+      expect(result.success).toBe(true);
+      expect(mockS3.upload).toHaveBeenCalledTimes(3);
+    });
+
+    it("should properly tag S3 objects for compliance and organization", async () => {
+      const request = createValidUploadRequest();
+
+      mockS3.upload.mockReturnValue({
+        promise: jest.fn().mockResolvedValue({ ETag: '"abc123"' }),
+      });
+
+      await s3Upload.uploadFile(request);
+
+      expect(mockS3.upload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Tagging: expect.stringMatching(
+            /user-id=user123.*document-type=national_id.*data-classification=sensitive.*purpose=kyc-verification/
+          ),
+        })
+      );
+    });
+  });
 });
