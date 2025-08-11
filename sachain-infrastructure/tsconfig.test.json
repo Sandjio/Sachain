@@ -3,7 +3,9 @@
   "compilerOptions": {
     "types": ["jest", "node"],
     "typeRoots": ["./node_modules/@types"],
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": ["test/**/*", "lib/**/*"],
   "exclude": []
