@@ -9,6 +9,9 @@ import { v4 as uuidv4 } from "uuid";
 import { KYCDocumentRepository } from "../../repositories/kyc-document-repository";
 import { ExponentialBackoff } from "../../utils/retry";
 import { NotificationService } from "../../utils/notification-service";
+import { StructuredLogger, createKYCLogger } from "../../utils/structured-logger";
+import { ErrorClassifier, AWSServiceError, ErrorCategory } from "../../utils/error-handler";
+import { S3UploadUtility, createKYCUploadUtility } from "../../utils/s3-upload";
 import {
   UploadRequest,
   PresignedUrlRequest,
@@ -31,54 +34,100 @@ const TABLE_NAME = process.env.TABLE_NAME!;
 const BUCKET_NAME = process.env.BUCKET_NAME!;
 const SNS_TOPIC_ARN = process.env.SNS_TOPIC_ARN!;
 const ENVIRONMENT = process.env.ENVIRONMENT!;
+const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+const KMS_KEY_ID = process.env.KMS_KEY_ID;
 
-// Initialize notification service
+// Initialize services
+const logger = createKYCLogger();
 const notificationService = new NotificationService({
   snsClient,
   topicArn: SNS_TOPIC_ARN,
   adminPortalUrl: process.env.ADMIN_PORTAL_URL,
 });
+const s3UploadUtility = createKYCUploadUtility(BUCKET_NAME, AWS_REGION, KMS_KEY_ID);
+const retry = new ExponentialBackoff({
+  maxRetries: 3,
+  baseDelay: 200,
+  maxDelay: 5000,
+  jitterType: "full",
+});
 
 export const handler: APIGatewayProxyHandler = async (event) => {
-  console.log("KYC Upload Lambda triggered", { 
+  const startTime = Date.now();
+  const requestId = event.requestContext.requestId;
+  
+  logger.info("KYC Upload Lambda triggered", {
+    operation: "LambdaInvocation",
+    requestId,
     path: event.path,
     httpMethod: event.httpMethod,
-    headers: event.headers 
+    userAgent: event.headers["User-Agent"],
   });
 
   try {
     const path = event.path;
+    let result;
     
     if (path.includes("/presigned-url") && event.httpMethod === "POST") {
-      return await handlePresignedUrl(event);
+      result = await handlePresignedUrl(event);
     } else if (path.includes("/upload") && event.httpMethod === "POST") {
-      return await handleDirectUpload(event);
+      result = await handleDirectUpload(event);
     } else if (path.includes("/process-upload") && event.httpMethod === "POST") {
-      return await handleUploadProcessing(event);
+      result = await handleUploadProcessing(event);
+    } else {
+      logger.warn("Endpoint not found", {
+        operation: "RouteNotFound",
+        requestId,
+        path: event.path,
+        method: event.httpMethod,
+      });
+      
+      return {
+        statusCode: 404,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ message: "Endpoint not found" }),
+      };
     }
 
-    return {
-      statusCode: 404,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({ message: "Endpoint not found" }),
-    };
+    const duration = Date.now() - startTime;
+    logger.info("KYC Upload Lambda completed successfully", {
+      operation: "LambdaInvocation",
+      requestId,
+      duration,
+      statusCode: result.statusCode,
+    });
+
+    return result;
   } catch (error) {
-    console.error("Error in KYC Upload Lambda:", error);
+    const duration = Date.now() - startTime;
+    const errorDetails = ErrorClassifier.classify(error as Error, {
+      operation: "LambdaInvocation",
+      requestId,
+      duration,
+    });
+
+    logger.error("KYC Upload Lambda failed", {
+      operation: "LambdaInvocation",
+      requestId,
+      duration,
+      errorCategory: errorDetails.category,
+      errorCode: errorDetails.errorCode,
+    }, error as Error);
     
-    await putMetric("UploadError", 1);
+    await putMetricSafe("UploadError", 1, { errorCategory: errorDetails.category });
     
     return {
-      statusCode: 500,
+      statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({ 
-        message: "Internal server error",
-        error: error instanceof Error ? error.message : "Unknown error"
+        message: errorDetails.userMessage,
+        requestId,
       }),
     };
   }
@@ -176,108 +225,114 @@ async function handlePresignedUrl(event: APIGatewayProxyEvent): Promise<any> {
 }
 
 async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
-  const request: DirectUploadRequest = JSON.parse(event.body || '{}');
+  const startTime = Date.now();
+  const requestId = event.requestContext.requestId;
   
-  // Validate request
-  const validation = validateDirectUploadRequest(request);
-  if (!validation.isValid) {
-    return {
-      statusCode: 400,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({ message: validation.error }),
-    };
-  }
+  logger.info("Direct upload started", {
+    operation: "DirectUpload",
+    requestId,
+  });
 
-  const documentId = uuidv4();
-  const timestamp = new Date().toISOString();
-  
   try {
-    // Initialize KYC document repository
-    const kycRepo = new KYCDocumentRepository({
-      tableName: TABLE_NAME,
-      region: process.env.AWS_REGION || 'us-east-1',
-    });
+    const request: DirectUploadRequest = JSON.parse(event.body || '{}');
+    
+    // Validate request
+    const validation = validateDirectUploadRequest(request);
+    if (!validation.isValid) {
+      logger.warn("Direct upload validation failed", {
+        operation: "DirectUpload",
+        requestId,
+        userId: request.userId,
+        error: validation.error,
+      });
+      
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ message: validation.error }),
+      };
+    }
 
-    // Decode base64 file content
+    const documentId = uuidv4();
     const fileBuffer = Buffer.from(request.fileContent, 'base64');
     
-    // Validate file size
-    if (fileBuffer.length > MAX_FILE_SIZE) {
-      return {
-        statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ 
-          message: `File size ${fileBuffer.length} bytes exceeds maximum allowed size of ${MAX_FILE_SIZE} bytes` 
-        }),
-      };
-    }
-
-    // Validate file type and format
-    const validation = validateFileContent(fileBuffer, request.fileName, request.contentType);
-    if (!validation.isValid) {
-      return {
-        statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ 
-          message: validation.error 
-        }),
-      };
-    }
-
-    // Generate unique S3 key
-    const s3Key = generateS3Key(request.userId, request.documentType, request.fileName, documentId);
-
-    // Upload file to S3 with retry logic
-    const retry = new ExponentialBackoff({
-      maxRetries: 3,
-      baseDelay: 200,
-      maxDelay: 5000,
-      jitterType: "full",
+    logger.info("Processing direct upload", {
+      operation: "DirectUpload",
+      requestId,
+      userId: request.userId,
+      documentId,
+      documentType: request.documentType,
+      fileName: request.fileName,
+      fileSize: fileBuffer.length,
     });
 
-    await retry.execute(
-      () => s3Client.send(
-        new PutObjectCommand({
-          Bucket: BUCKET_NAME,
-          Key: s3Key,
-          Body: fileBuffer,
-          ContentType: request.contentType,
-          ServerSideEncryption: "aws:kms",
-          ...(process.env.KMS_KEY_ID && { SSEKMSKeyId: process.env.KMS_KEY_ID }),
-          Metadata: {
-            "original-filename": request.fileName,
-            "user-id": request.userId,
-            "document-type": request.documentType,
-            "document-id": documentId,
-            "upload-timestamp": timestamp,
-          },
-          Tagging: `user-id=${request.userId}&document-type=${request.documentType}&data-classification=sensitive&purpose=kyc-verification`,
-        })
-      ),
-      `S3Upload-${documentId}`
+    // Use S3 upload utility with comprehensive error handling
+    const uploadResult = await s3UploadUtility.uploadFile({
+      fileBuffer,
+      fileName: request.fileName,
+      mimeType: request.contentType,
+      userId: request.userId,
+      documentType: request.documentType,
+      metadata: {
+        "document-id": documentId,
+        "request-id": requestId,
+      },
+    });
+
+    if (!uploadResult.success) {
+      logger.error("S3 upload failed", {
+        operation: "DirectUpload",
+        requestId,
+        userId: request.userId,
+        documentId,
+        error: uploadResult.error,
+      });
+      
+      await putMetricSafe("DirectUploadError", 1, { errorType: "S3Upload" });
+      
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ message: uploadResult.error }),
+      };
+    }
+
+    // Create KYC document record in DynamoDB with retry
+    const kycRepo = new KYCDocumentRepository({
+      tableName: TABLE_NAME,
+      region: AWS_REGION,
+    });
+
+    const kycDocument = await retry.execute(
+      () => kycRepo.createKYCDocument({
+        userId: request.userId,
+        documentType: 'national_id',
+        s3Bucket: BUCKET_NAME,
+        s3Key: uploadResult.s3Key,
+        originalFileName: request.fileName,
+        fileSize: uploadResult.fileSize,
+        mimeType: request.contentType,
+      }),
+      `DynamoDB-CreateDocument-${documentId}`
     );
 
-    // Create KYC document record in DynamoDB
-    const kycDocument = await kycRepo.createKYCDocument({
+    const duration = Date.now() - startTime;
+    logger.info("Direct upload completed successfully", {
+      operation: "DirectUpload",
+      requestId,
       userId: request.userId,
-      documentType: 'national_id', // Map to model type
-      s3Bucket: BUCKET_NAME,
-      s3Key: s3Key,
-      originalFileName: request.fileName,
-      fileSize: fileBuffer.length,
-      mimeType: request.contentType,
+      documentId,
+      s3Key: uploadResult.s3Key,
+      duration,
     });
 
-    await putMetric("DirectUploadSuccess", 1);
+    await putMetricSafe("DirectUploadSuccess", 1, { documentType: request.documentType });
 
     const response: UploadResponse = {
       documentId,
@@ -293,18 +348,31 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       body: JSON.stringify(response),
     };
   } catch (error) {
-    console.error("Error in direct upload:", error);
-    await putMetric("DirectUploadError", 1);
+    const duration = Date.now() - startTime;
+    const errorDetails = ErrorClassifier.classify(error as Error, {
+      operation: "DirectUpload",
+      requestId,
+      duration,
+    });
+
+    logger.error("Direct upload failed", {
+      operation: "DirectUpload",
+      requestId,
+      duration,
+      errorCategory: errorDetails.category,
+    }, error as Error);
+    
+    await putMetricSafe("DirectUploadError", 1, { errorCategory: errorDetails.category });
     
     return {
-      statusCode: 500,
+      statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({ 
-        message: "Internal server error during upload",
-        error: error instanceof Error ? error.message : "Unknown error"
+        message: errorDetails.userMessage,
+        requestId,
       }),
     };
   }
@@ -528,27 +596,42 @@ async function sendAdminNotification(data: {
   }
 }
 
-async function putMetric(metricName: string, value: number): Promise<void> {
+async function putMetricSafe(
+  metricName: string, 
+  value: number, 
+  dimensions: Record<string, string> = {}
+): Promise<void> {
   try {
-    await cloudWatchClient.send(
-      new PutMetricDataCommand({
-        Namespace: "Sachain/KYCUpload",
-        MetricData: [
-          {
-            MetricName: metricName,
-            Value: value,
-            Unit: "Count",
-            Dimensions: [
-              {
-                Name: "Environment",
-                Value: ENVIRONMENT,
-              },
-            ],
-          },
-        ],
-      })
+    const metricDimensions = [
+      { Name: "Environment", Value: ENVIRONMENT },
+      ...Object.entries(dimensions).map(([name, value]) => ({ Name: name, Value: value }))
+    ];
+
+    await retry.execute(
+      () => cloudWatchClient.send(
+        new PutMetricDataCommand({
+          Namespace: "Sachain/KYCUpload",
+          MetricData: [
+            {
+              MetricName: metricName,
+              Value: value,
+              Unit: "Count",
+              Dimensions: metricDimensions,
+              Timestamp: new Date(),
+            },
+          ],
+        })
+      ),
+      `CloudWatch-${metricName}`
     );
+    
+    logger.logMetricPublication(metricName, value, true);
   } catch (error) {
-    console.error("Failed to put CloudWatch metric:", error);
+    logger.logMetricPublication(metricName, value, false, error as Error);
   }
+}
+
+// Legacy function for backward compatibility
+async function putMetric(metricName: string, value: number): Promise<void> {
+  await putMetricSafe(metricName, value);
 }

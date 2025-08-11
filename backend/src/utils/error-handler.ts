@@ -1,6 +1,6 @@
 /**
- * Error classification and handling utilities for DynamoDB operations
- * Provides structured error handling with proper categorization
+ * Error classification and handling utilities for AWS operations
+ * Provides structured error handling with proper categorization for DynamoDB, S3, and other AWS services
  */
 
 export enum ErrorCategory {
@@ -23,7 +23,7 @@ export interface ErrorDetails {
   context?: Record<string, any>;
 }
 
-export class DynamoDBError extends Error {
+export class AWSServiceError extends Error {
   public readonly category: ErrorCategory;
   public readonly retryable: boolean;
   public readonly userMessage: string;
@@ -35,7 +35,7 @@ export class DynamoDBError extends Error {
 
   constructor(details: ErrorDetails, originalError?: Error) {
     super(details.technicalMessage);
-    this.name = "DynamoDBError";
+    this.name = "AWSServiceError";
     this.category = details.category;
     this.retryable = details.retryable;
     this.userMessage = details.userMessage;
@@ -52,6 +52,126 @@ export class ErrorClassifier {
    * Classify an error and return structured error details
    */
   static classify(error: any, context?: Record<string, any>): ErrorDetails {
+    // Check if it's an S3 error first
+    if (this.isS3Error(error)) {
+      return this.classifyS3Error(error, context);
+    }
+    
+    // Default to DynamoDB error classification
+    return this.classifyDynamoDBError(error, context);
+  }
+
+  /**
+   * Check if error is from S3 service
+   */
+  private static isS3Error(error: any): boolean {
+    const errorName = error.name || "";
+    const errorCode = error.code || "";
+    const serviceName = error.$metadata?.service || "";
+    
+    return serviceName === "S3" || 
+           errorName.includes("S3") ||
+           errorCode.includes("S3") ||
+           ["NoSuchBucket", "NoSuchKey", "EntityTooLarge", "SlowDown"].includes(errorName);
+  }
+
+  /**
+   * Classify S3-specific errors
+   */
+  private static classifyS3Error(error: any, context?: Record<string, any>): ErrorDetails {
+    const errorName = error.name || "UnknownError";
+    const errorMessage = error.message || "Unknown error occurred";
+    const errorCode = error.code || error.$metadata?.errorCode;
+    const httpStatusCode = error.$metadata?.httpStatusCode;
+
+    switch (errorName) {
+      case "NoSuchBucket":
+        return {
+          category: ErrorCategory.SYSTEM,
+          retryable: false,
+          userMessage: "Storage service configuration error. Please contact support.",
+          technicalMessage: "S3 bucket does not exist",
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+
+      case "NoSuchKey":
+        return {
+          category: ErrorCategory.RESOURCE_NOT_FOUND,
+          retryable: false,
+          userMessage: "The requested file was not found.",
+          technicalMessage: "S3 object does not exist",
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+
+      case "AccessDenied":
+        return {
+          category: ErrorCategory.AUTHORIZATION,
+          retryable: false,
+          userMessage: "You do not have permission to access this file.",
+          technicalMessage: "S3 access denied",
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+
+      case "EntityTooLarge":
+        return {
+          category: ErrorCategory.VALIDATION,
+          retryable: false,
+          userMessage: "File is too large to upload.",
+          technicalMessage: "S3 entity too large",
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+
+      case "SlowDown":
+        return {
+          category: ErrorCategory.RATE_LIMIT,
+          retryable: true,
+          userMessage: "Upload service is busy. Please try again in a moment.",
+          technicalMessage: "S3 slow down error",
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+
+      case "ServiceUnavailable":
+      case "InternalError":
+        return {
+          category: ErrorCategory.SYSTEM,
+          retryable: true,
+          userMessage: "Upload service is temporarily unavailable. Please try again.",
+          technicalMessage: "S3 service unavailable",
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+
+      case "RequestTimeout":
+        return {
+          category: ErrorCategory.TRANSIENT,
+          retryable: true,
+          userMessage: "Upload timed out. Please try again.",
+          technicalMessage: "S3 request timeout",
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+
+      default:
+        return this.classifyGenericError(error, context, "S3");
+    }
+  }
+
+  /**
+   * Classify DynamoDB-specific errors
+   */
+  private static classifyDynamoDBError(error: any, context?: Record<string, any>): ErrorDetails {
     const errorName = error.name || "UnknownError";
     const errorMessage = error.message || "Unknown error occurred";
     const errorCode = error.code || error.$metadata?.errorCode;
@@ -205,18 +325,62 @@ export class ErrorClassifier {
           }
         }
 
-        // Default classification for unknown errors
+        return this.classifyGenericError(error, context, "DynamoDB");
+    }
+  }
+
+  /**
+   * Classify generic AWS errors based on HTTP status codes
+   */
+  private static classifyGenericError(error: any, context?: Record<string, any>, service: string = "AWS"): ErrorDetails {
+    const errorMessage = error.message || "Unknown error occurred";
+    const errorCode = error.code || error.$metadata?.errorCode;
+    const httpStatusCode = error.$metadata?.httpStatusCode;
+
+    if (httpStatusCode) {
+      if (httpStatusCode >= 500) {
         return {
           category: ErrorCategory.SYSTEM,
-          retryable: false,
-          userMessage:
-            "An unexpected error occurred. Please try again or contact support.",
-          technicalMessage: `Unknown DynamoDB error: ${errorMessage}`,
+          retryable: true,
+          userMessage: "Service is temporarily unavailable. Please try again later.",
+          technicalMessage: `${service} server error: ${errorMessage}`,
           errorCode,
           httpStatusCode,
           context,
         };
+      } else if (httpStatusCode === 429) {
+        return {
+          category: ErrorCategory.RATE_LIMIT,
+          retryable: true,
+          userMessage: "Too many requests. Please try again in a moment.",
+          technicalMessage: `${service} rate limit exceeded`,
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+      } else if (httpStatusCode >= 400 && httpStatusCode < 500) {
+        return {
+          category: ErrorCategory.VALIDATION,
+          retryable: false,
+          userMessage: "Invalid request. Please check your input and try again.",
+          technicalMessage: `${service} client error: ${errorMessage}`,
+          errorCode,
+          httpStatusCode,
+          context,
+        };
+      }
     }
+
+    // Default classification for unknown errors
+    return {
+      category: ErrorCategory.SYSTEM,
+      retryable: false,
+      userMessage: "An unexpected error occurred. Please try again or contact support.",
+      technicalMessage: `Unknown ${service} error: ${errorMessage}`,
+      errorCode,
+      httpStatusCode,
+      context,
+    };
   }
 
   /**
@@ -398,7 +562,7 @@ export function handleDynamoDBErrors(
         duration: `${duration}ms`,
       });
 
-      throw new DynamoDBError(errorDetails, error);
+      throw new AWSServiceError(errorDetails, error);
     }
   };
 
