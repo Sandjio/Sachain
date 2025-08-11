@@ -22,6 +22,7 @@ export class LambdaConstruct extends Construct {
   public readonly kycUploadLambda: lambda.Function;
   public readonly adminReviewLambda: lambda.Function;
   public readonly kycUploadApi: apigateway.RestApi;
+  public readonly adminReviewApi: apigateway.RestApi;
 
   constructor(scope: Construct, id: string, props: LambdaConstructProps) {
     super(scope, id);
@@ -67,19 +68,23 @@ export class LambdaConstruct extends Construct {
       }),
     });
 
-    // Admin Review Lambda - will be implemented in task 7.1
+    // Admin Review Lambda
     this.adminReviewLambda = new lambda.Function(this, "AdminReviewLambda", {
       functionName: `sachain-admin-review-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
-      code: lambda.Code.fromInline(
-        "exports.handler = async () => ({ statusCode: 200 });"
-      ),
+      code: lambda.Code.fromAsset("../backend/src/lambdas/admin-review"),
       environment: {
         TABLE_NAME: props.table.tableName,
+        EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
         ENVIRONMENT: props.environment,
       },
-      timeout: cdk.Duration.seconds(30),
+      timeout: cdk.Duration.minutes(2),
+      memorySize: 512,
+      deadLetterQueue: new sqs.Queue(this, "AdminReviewDLQ", {
+        queueName: `sachain-admin-review-dlq-${props.environment}`,
+        retentionPeriod: cdk.Duration.days(14),
+      }),
     });
 
     // Grant DynamoDB permissions
@@ -95,6 +100,11 @@ export class LambdaConstruct extends Construct {
     // Grant SNS permissions for KYC Upload Lambda
     if (props.notificationTopic) {
       props.notificationTopic.grantPublish(this.kycUploadLambda);
+    }
+
+    // Grant EventBridge permissions for Admin Review Lambda
+    if (props.eventBus) {
+      props.eventBus.grantPutEventsTo(this.adminReviewLambda);
     }
 
     // Grant CloudWatch permissions
@@ -119,6 +129,19 @@ export class LambdaConstruct extends Construct {
         conditions: {
           StringEquals: {
             "cloudwatch:namespace": "Sachain/KYCUpload",
+          },
+        },
+      })
+    );
+
+    this.adminReviewLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["cloudwatch:PutMetricData"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: {
+            "cloudwatch:namespace": "Sachain/AdminReview",
           },
         },
       })
@@ -161,5 +184,40 @@ export class LambdaConstruct extends Construct {
     // Add upload processing endpoint
     const processResource = this.kycUploadApi.root.addResource("process-upload");
     processResource.addMethod("POST", kycUploadIntegration);
+
+    // Create API Gateway for Admin Review
+    this.adminReviewApi = new apigateway.RestApi(this, "AdminReviewApi", {
+      restApiName: `sachain-admin-review-api-${props.environment}`,
+      description: "API for KYC admin review operations",
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS,
+        allowHeaders: [
+          "Content-Type",
+          "X-Amz-Date",
+          "Authorization",
+          "X-Api-Key",
+          "X-Amz-Security-Token",
+        ],
+      },
+    });
+
+    // Create API Gateway integration for Admin Review
+    const adminReviewIntegration = new apigateway.LambdaIntegration(
+      this.adminReviewLambda,
+      {
+        requestTemplates: { "application/json": '{"statusCode": "200"}' },
+      }
+    );
+
+    // Add admin endpoints
+    const approveResource = this.adminReviewApi.root.addResource("approve");
+    approveResource.addMethod("POST", adminReviewIntegration);
+
+    const rejectResource = this.adminReviewApi.root.addResource("reject");
+    rejectResource.addMethod("POST", adminReviewIntegration);
+
+    const documentsResource = this.adminReviewApi.root.addResource("documents");
+    documentsResource.addMethod("GET", adminReviewIntegration);
   }
 }

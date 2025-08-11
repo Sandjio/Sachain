@@ -70,6 +70,7 @@ export class StructuredLogger {
       level,
       message,
       context: {
+        operation: context.operation || "Unknown",
         service: this.service,
         environment: this.environment,
         ...context,
