@@ -1,7 +1,7 @@
 {
   "name": "sachain",
   "version": "1.0.0",
-  "description": "Sachain is a crowfunding platform using Hedera services",
+  "description": "Sachain is an innovative fundraising platform that empowers entrepreneurs to raise capital by tokenizing shares of their projects on the Hedera Token Service (HTS). Through Sachain, entrepreneurs can seamlessly issue digital shares as tokens, allowing investors to purchase and trade these shares securely and transparently on a decentralized marketplace. This creates a fluid, trustless ecosystem where investors can buy, sell, and transfer ownership of project shares with ease, unlocking new liquidity opportunities and democratizing access to early-stage investments.",
   "private": true,
   "workspaces": [
     "sachain-infrastructure",
