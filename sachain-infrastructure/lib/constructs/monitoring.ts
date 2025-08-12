@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
+import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as sns from "aws-cdk-lib/aws-sns";
@@ -72,7 +73,7 @@ export class MonitoringConstruct extends Construct {
       evaluationPeriods: 2,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    errorAlarm.addAlarmAction(new cloudwatch.SnsAction(this.alertTopic));
+    errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(this.alertTopic));
     this.alarms.push(errorAlarm);
 
     // Duration alarm
@@ -87,7 +88,9 @@ export class MonitoringConstruct extends Construct {
       evaluationPeriods: 3,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    durationAlarm.addAlarmAction(new cloudwatch.SnsAction(this.alertTopic));
+    durationAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
     this.alarms.push(durationAlarm);
 
     // Throttle alarm
@@ -102,26 +105,34 @@ export class MonitoringConstruct extends Construct {
       evaluationPeriods: 1,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    throttleAlarm.addAlarmAction(new cloudwatch.SnsAction(this.alertTopic));
+    throttleAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
     this.alarms.push(throttleAlarm);
   }
 
   private createKYCAlarms(): void {
     // Upload failure rate alarm
-    const uploadFailureAlarm = new cloudwatch.Alarm(this, "UploadFailureAlarm", {
-      alarmName: "KYC-UploadFailureRate",
-      alarmDescription: "High KYC upload failure rate",
-      metric: new cloudwatch.Metric({
-        namespace: "Sachain/KYCUpload",
-        metricName: "DirectUploadError",
-        period: cdk.Duration.minutes(5),
-        statistic: "Sum",
-      }),
-      threshold: 10,
-      evaluationPeriods: 2,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
-    uploadFailureAlarm.addAlarmAction(new cloudwatch.SnsAction(this.alertTopic));
+    const uploadFailureAlarm = new cloudwatch.Alarm(
+      this,
+      "UploadFailureAlarm",
+      {
+        alarmName: "KYC-UploadFailureRate",
+        alarmDescription: "High KYC upload failure rate",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/KYCUpload",
+          metricName: "DirectUploadError",
+          period: cdk.Duration.minutes(5),
+          statistic: "Sum",
+        }),
+        threshold: 10,
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    uploadFailureAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
     this.alarms.push(uploadFailureAlarm);
 
     // S3 upload error alarm
@@ -141,7 +152,9 @@ export class MonitoringConstruct extends Construct {
       evaluationPeriods: 1,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    s3ErrorAlarm.addAlarmAction(new cloudwatch.SnsAction(this.alertTopic));
+    s3ErrorAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
     this.alarms.push(s3ErrorAlarm);
 
     // DynamoDB error alarm
@@ -161,22 +174,240 @@ export class MonitoringConstruct extends Construct {
       evaluationPeriods: 2,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    dynamoErrorAlarm.addAlarmAction(new cloudwatch.SnsAction(this.alertTopic));
+    dynamoErrorAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
     this.alarms.push(dynamoErrorAlarm);
+
+    // Create admin-specific alarms
+    this.createAdminOperationAlarms();
+  }
+
+  private createAdminOperationAlarms(): void {
+    // Admin operation failure rate alarm
+    const adminFailureAlarm = new cloudwatch.Alarm(
+      this,
+      "AdminOperationFailureAlarm",
+      {
+        alarmName: "KYC-AdminOperationFailures",
+        alarmDescription: "High admin operation failure rate detected",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "AdminReviewError",
+          period: cdk.Duration.minutes(5),
+          statistic: "Sum",
+        }),
+        threshold: 5,
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    adminFailureAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(adminFailureAlarm);
+
+    // Critical admin operation errors (data consistency issues)
+    const adminCriticalAlarm = new cloudwatch.Alarm(
+      this,
+      "AdminCriticalErrorAlarm",
+      {
+        alarmName: "KYC-AdminCriticalErrors",
+        alarmDescription:
+          "Critical admin operation errors that may cause data inconsistency",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "AdminOperationCriticalError",
+          period: cdk.Duration.minutes(1),
+          statistic: "Sum",
+        }),
+        threshold: 1,
+        evaluationPeriods: 1,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    adminCriticalAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(adminCriticalAlarm);
+
+    // KYC approval database errors
+    const approvalDbErrorAlarm = new cloudwatch.Alarm(
+      this,
+      "KYCApprovalDbErrorAlarm",
+      {
+        alarmName: "KYC-ApprovalDatabaseErrors",
+        alarmDescription: "Database errors during KYC approval operations",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCApprovalDatabaseError",
+          period: cdk.Duration.minutes(5),
+          statistic: "Sum",
+        }),
+        threshold: 3,
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    approvalDbErrorAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(approvalDbErrorAlarm);
+
+    // KYC rejection database errors
+    const rejectionDbErrorAlarm = new cloudwatch.Alarm(
+      this,
+      "KYCRejectionDbErrorAlarm",
+      {
+        alarmName: "KYC-RejectionDatabaseErrors",
+        alarmDescription: "Database errors during KYC rejection operations",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCRejectionDatabaseError",
+          period: cdk.Duration.minutes(5),
+          statistic: "Sum",
+        }),
+        threshold: 3,
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    rejectionDbErrorAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(rejectionDbErrorAlarm);
+
+    // KYC approval critical errors (document approved but user status not updated)
+    const approvalCriticalAlarm = new cloudwatch.Alarm(
+      this,
+      "KYCApprovalCriticalAlarm",
+      {
+        alarmName: "KYC-ApprovalCriticalErrors",
+        alarmDescription:
+          "Critical errors in KYC approval process causing data inconsistency",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCApprovalCriticalError",
+          period: cdk.Duration.minutes(1),
+          statistic: "Sum",
+        }),
+        threshold: 1,
+        evaluationPeriods: 1,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    approvalCriticalAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(approvalCriticalAlarm);
+
+    // KYC rejection critical errors (document rejected but user status not updated)
+    const rejectionCriticalAlarm = new cloudwatch.Alarm(
+      this,
+      "KYCRejectionCriticalAlarm",
+      {
+        alarmName: "KYC-RejectionCriticalErrors",
+        alarmDescription:
+          "Critical errors in KYC rejection process causing data inconsistency",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCRejectionCriticalError",
+          period: cdk.Duration.minutes(1),
+          statistic: "Sum",
+        }),
+        threshold: 1,
+        evaluationPeriods: 1,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    rejectionCriticalAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(rejectionCriticalAlarm);
+
+    // Retryable error alarm (indicates potential system issues)
+    const retryableErrorAlarm = new cloudwatch.Alarm(
+      this,
+      "AdminRetryableErrorAlarm",
+      {
+        alarmName: "KYC-AdminRetryableErrors",
+        alarmDescription:
+          "High rate of retryable errors in admin operations indicating system issues",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCApprovalRetryableError",
+          period: cdk.Duration.minutes(5),
+          statistic: "Sum",
+        }),
+        threshold: 10,
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    retryableErrorAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(retryableErrorAlarm);
+
+    // EventBridge publishing errors
+    const eventBridgeErrorAlarm = new cloudwatch.Alarm(
+      this,
+      "AdminEventBridgeErrorAlarm",
+      {
+        alarmName: "KYC-AdminEventBridgeErrors",
+        alarmDescription: "EventBridge publishing errors in admin operations",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCApprovalEventBridgeError",
+          period: cdk.Duration.minutes(5),
+          statistic: "Sum",
+        }),
+        threshold: 5,
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    eventBridgeErrorAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(eventBridgeErrorAlarm);
+
+    // Document retrieval errors
+    const getDocumentsErrorAlarm = new cloudwatch.Alarm(
+      this,
+      "GetDocumentsErrorAlarm",
+      {
+        alarmName: "KYC-GetDocumentsErrors",
+        alarmDescription: "Errors retrieving documents for admin review",
+        metric: new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "GetDocumentsDatabaseError",
+          period: cdk.Duration.minutes(5),
+          statistic: "Sum",
+        }),
+        threshold: 5,
+        evaluationPeriods: 2,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      }
+    );
+    getDocumentsErrorAlarm.addAlarmAction(
+      new cloudwatchActions.SnsAction(this.alertTopic)
+    );
+    this.alarms.push(getDocumentsErrorAlarm);
   }
 
   private createDashboardWidgets(lambdaFunctions: lambda.Function[]): void {
     // Lambda metrics widgets
     const lambdaErrorWidget = new cloudwatch.GraphWidget({
       title: "Lambda Errors",
-      left: lambdaFunctions.map(func => func.metricErrors()),
+      left: lambdaFunctions.map((func) => func.metricErrors()),
       width: 12,
       height: 6,
     });
 
     const lambdaDurationWidget = new cloudwatch.GraphWidget({
       title: "Lambda Duration",
-      left: lambdaFunctions.map(func => func.metricDuration()),
+      left: lambdaFunctions.map((func) => func.metricDuration()),
       width: 12,
       height: 6,
     });
@@ -226,12 +457,85 @@ export class MonitoringConstruct extends Construct {
       height: 6,
     });
 
+    // Admin review metrics widgets
+    const adminReviewMetricsWidget = new cloudwatch.GraphWidget({
+      title: "Admin Review Operations",
+      left: [
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCApprovalSuccess",
+          statistic: "Sum",
+        }),
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCRejectionSuccess",
+          statistic: "Sum",
+        }),
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "AdminReviewError",
+          statistic: "Sum",
+        }),
+      ],
+      width: 12,
+      height: 6,
+    });
+
+    const adminErrorCategoriesWidget = new cloudwatch.GraphWidget({
+      title: "Admin Operation Error Categories",
+      left: [
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCApprovalDatabaseError",
+          statistic: "Sum",
+        }),
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCRejectionDatabaseError",
+          statistic: "Sum",
+        }),
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "GetDocumentsDatabaseError",
+          statistic: "Sum",
+        }),
+      ],
+      width: 12,
+      height: 6,
+    });
+
+    const criticalErrorsWidget = new cloudwatch.GraphWidget({
+      title: "Critical Admin Errors",
+      left: [
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "AdminOperationCriticalError",
+          statistic: "Sum",
+        }),
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCApprovalCriticalError",
+          statistic: "Sum",
+        }),
+        new cloudwatch.Metric({
+          namespace: "Sachain/AdminReview",
+          metricName: "KYCRejectionCriticalError",
+          statistic: "Sum",
+        }),
+      ],
+      width: 12,
+      height: 6,
+    });
+
     // Add widgets to dashboard
     this.dashboard.addWidgets(
       lambdaErrorWidget,
       lambdaDurationWidget,
       uploadMetricsWidget,
-      errorCategoryWidget
+      errorCategoryWidget,
+      adminReviewMetricsWidget,
+      adminErrorCategoriesWidget,
+      criticalErrorsWidget
     );
   }
 }

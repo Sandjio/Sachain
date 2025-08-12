@@ -62,12 +62,44 @@ const eventBridgeService = createEventBridgeService({
 export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const adminUserId = extractAdminUserId(event);
+  const clientIP = getClientIP(event);
+  const userAgent = event.headers["User-Agent"];
+
+  // Log admin access attempt
+  await auditRepo
+    .createAuditLog({
+      userId: adminUserId,
+      action: "admin_access",
+      resource: `admin_endpoint:${event.path}`,
+      result: "success",
+      ipAddress: clientIP,
+      userAgent,
+      details: {
+        httpMethod: event.httpMethod,
+        path: event.path,
+        requestId,
+      },
+    })
+    .catch((error) => {
+      logger.error(
+        "Failed to create admin access audit log",
+        {
+          operation: "AuditLogging",
+          requestId,
+          adminUserId,
+        },
+        error
+      );
+    });
 
   logger.info("Admin Review Lambda triggered", {
     operation: "LambdaInvocation",
     requestId,
     path: event.path,
     httpMethod: event.httpMethod,
+    adminUserId,
+    clientIP,
   });
 
   try {
@@ -81,9 +113,43 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     } else if (path === "/documents" && event.httpMethod === "GET") {
       result = await handleGetDocuments(event);
     } else {
+      // Log unauthorized endpoint access attempt
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "admin_access",
+          resource: `admin_endpoint:${event.path}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: "Endpoint not found",
+          details: {
+            httpMethod: event.httpMethod,
+            path: event.path,
+            requestId,
+          },
+        })
+        .catch((error) => {
+          logger.error(
+            "Failed to create audit log for unknown endpoint",
+            {
+              operation: "AuditLogging",
+              requestId,
+              adminUserId,
+            },
+            error
+          );
+        });
+
       logger.warn("Endpoint not found", {
         operation: "RouteNotFound",
         requestId,
+        path: event.path,
+        method: event.httpMethod,
+        adminUserId,
+      });
+
+      await putMetricSafe("AdminEndpointNotFound", 1, {
         path: event.path,
         method: event.httpMethod,
       });
@@ -104,6 +170,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       requestId,
       duration,
       statusCode: result.statusCode,
+      adminUserId,
+    });
+
+    await putMetricSafe("AdminOperationSuccess", 1, {
+      operation: path.replace("/", ""),
+      statusCode: result.statusCode.toString(),
     });
 
     return result;
@@ -113,7 +185,39 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       operation: "LambdaInvocation",
       requestId,
       duration,
+      adminUserId,
     });
+
+    // Log critical admin operation failure
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "admin_operation_failure",
+        resource: `admin_endpoint:${event.path}`,
+        result: "failure",
+        ipAddress: clientIP,
+        userAgent,
+        errorMessage: errorDetails.technicalMessage,
+        details: {
+          httpMethod: event.httpMethod,
+          path: event.path,
+          requestId,
+          errorCategory: errorDetails.category,
+          errorCode: errorDetails.errorCode,
+          duration,
+        },
+      })
+      .catch((auditError) => {
+        logger.error(
+          "Failed to create audit log for admin operation failure",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          auditError
+        );
+      });
 
     logger.error(
       "Admin Review Lambda failed",
@@ -123,12 +227,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         duration,
         errorCategory: errorDetails.category,
         errorCode: errorDetails.errorCode,
+        adminUserId,
       },
       error as Error
     );
 
     await putMetricSafe("AdminReviewError", 1, {
       errorCategory: errorDetails.category,
+      operation: event.path.replace("/", ""),
+    });
+
+    // Send critical error alarm for admin operations
+    await putMetricSafe("AdminOperationCriticalError", 1, {
+      errorCategory: errorDetails.category,
+      operation: event.path.replace("/", ""),
+      adminUserId,
     });
 
     return {
@@ -148,93 +261,357 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const adminUserId = extractAdminUserId(event);
+  const clientIP = getClientIP(event);
+  const userAgent = event.headers["User-Agent"];
 
   logger.info("KYC approval started", {
     operation: "KYCApproval",
     requestId,
+    adminUserId,
   });
 
-  try {
-    const request: AdminReviewRequest = JSON.parse(event.body || "{}");
-    const adminUserId = extractAdminUserId(event);
+  let request: AdminReviewRequest | undefined;
+  let document: any;
 
-    // Validate request
-    const validation = validateReviewRequest(request);
-    if (!validation.isValid) {
-      return createErrorResponse(400, validation.error!);
+  try {
+    // Parse and validate request
+    try {
+      request = JSON.parse(event.body || "{}");
+    } catch (parseError) {
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_approve",
+          resource: "kyc_document:unknown",
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: "Invalid JSON in request body",
+          details: { requestId, parseError: (parseError as Error).message },
+        })
+        .catch(() => {}); // Ignore audit log failures
+
+      return createErrorResponse(
+        400,
+        "Invalid JSON in request body",
+        requestId
+      );
     }
 
-    // Get the document
-    const document = await kycRepo.getKYCDocument(
-      request.userId,
-      request.documentId
-    );
+    const validation = validateReviewRequest(request);
+    if (!validation.isValid) {
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_approve",
+          resource: `kyc_document:${request?.documentId || "unknown"}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: validation.error!,
+          details: { requestId, validationError: validation.error },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(400, validation.error!, requestId);
+    }
+
+    // Log approval attempt
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "kyc_approve_attempt",
+        resource: `kyc_document:${request.documentId}`,
+        result: "success",
+        ipAddress: clientIP,
+        userAgent,
+        details: {
+          requestId,
+          targetUserId: request.userId,
+          documentId: request.documentId,
+          hasComments: !!request.comments,
+        },
+      })
+      .catch((error) => {
+        logger.error(
+          "Failed to create approval attempt audit log",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          error
+        );
+      });
+
+    // Get the document with retry logic
+    try {
+      document = await retry.execute(
+        () => kycRepo.getKYCDocument(request.userId, request.documentId),
+        `DynamoDB-GetDocument-${request.documentId}`
+      );
+    } catch (error) {
+      const errorDetails = ErrorClassifier.classify(error as Error, {
+        operation: "GetKYCDocument",
+        requestId,
+        adminUserId,
+      });
+
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_approve",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `Failed to retrieve document: ${errorDetails.technicalMessage}`,
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            errorCategory: errorDetails.category,
+          },
+        })
+        .catch(() => {});
+
+      await putMetricSafe("KYCApprovalDatabaseError", 1, {
+        errorCategory: errorDetails.category,
+        operation: "GetDocument",
+      });
+
+      throw error;
+    }
+
     if (!document) {
-      return createErrorResponse(404, "Document not found");
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_approve",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: "Document not found",
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+          },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(404, "Document not found", requestId);
     }
 
     if (document.status !== "pending") {
-      return createErrorResponse(400, "Document is not in pending status");
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_approve",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `Document status is ${document.status}, not pending`,
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            currentStatus: document.status,
+          },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(
+        400,
+        "Document is not in pending status",
+        requestId
+      );
     }
 
-    // Approve the document with retry logic
-    await retry.execute(
-      () =>
-        kycRepo.approveDocument(
-          request.userId,
-          request.documentId,
-          adminUserId,
-          request.comments
-        ),
-      `DynamoDB-ApproveDocument-${request.documentId}`
-    );
+    // Approve the document with comprehensive error handling
+    try {
+      await retry.execute(
+        () =>
+          kycRepo.approveDocument(
+            request.userId,
+            request.documentId,
+            adminUserId,
+            request.comments
+          ),
+        `DynamoDB-ApproveDocument-${request.documentId}`
+      );
+    } catch (error) {
+      const errorDetails = ErrorClassifier.classify(error as Error, {
+        operation: "ApproveDocument",
+        requestId,
+        adminUserId,
+      });
 
-    // Update user KYC status to approved
-    await retry.execute(
-      () =>
-        userRepo.updateUserProfile({
-          userId: request.userId,
-          kycStatus: "approved",
-        }),
-      `DynamoDB-UpdateUserKYC-${request.userId}`
-    );
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_approve",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `Failed to approve document: ${errorDetails.technicalMessage}`,
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            errorCategory: errorDetails.category,
+            step: "approve_document",
+          },
+        })
+        .catch(() => {});
 
-    // Create audit log
-    await auditRepo.logKYCReview(
-      adminUserId,
-      request.userId,
-      request.documentId,
-      "approve",
-      "success",
-      getClientIP(event),
-      event.headers["User-Agent"]
-    );
+      await putMetricSafe("KYCApprovalDatabaseError", 1, {
+        errorCategory: errorDetails.category,
+        operation: "ApproveDocument",
+      });
+
+      throw error;
+    }
+
+    // Update user KYC status with error handling
+    try {
+      await retry.execute(
+        () =>
+          userRepo.updateUserProfile({
+            userId: request.userId,
+            kycStatus: "approved",
+          }),
+        `DynamoDB-UpdateUserKYC-${request.userId}`
+      );
+    } catch (error) {
+      const errorDetails = ErrorClassifier.classify(error as Error, {
+        operation: "UpdateUserKYCStatus",
+        requestId,
+        adminUserId,
+      });
+
+      // This is a critical error - document is approved but user status not updated
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_approve",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `CRITICAL: Document approved but user status update failed: ${errorDetails.technicalMessage}`,
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            errorCategory: errorDetails.category,
+            step: "update_user_status",
+            criticalError: true,
+          },
+        })
+        .catch(() => {});
+
+      await putMetricSafe("KYCApprovalCriticalError", 1, {
+        errorCategory: errorDetails.category,
+        operation: "UpdateUserStatus",
+      });
+
+      throw error;
+    }
+
+    // Create comprehensive audit log for successful approval
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "kyc_approve",
+        resource: `kyc_document:${request.documentId}`,
+        result: "success",
+        ipAddress: clientIP,
+        userAgent,
+        details: {
+          requestId,
+          targetUserId: request.userId,
+          documentId: request.documentId,
+          comments: request.comments,
+          documentType: document.documentType,
+          originalFileName: document.originalFileName,
+          processingTimeMs: Date.now() - startTime,
+        },
+      })
+      .catch((error) => {
+        logger.error(
+          "Failed to create successful approval audit log",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          error
+        );
+      });
 
     // Get user profile to determine user type
-    const userProfile = await userRepo.getUserProfile(request.userId);
+    let userProfile;
+    try {
+      userProfile = await retry.execute(
+        () => userRepo.getUserProfile(request.userId),
+        `DynamoDB-GetUserProfile-${request.userId}`
+      );
+    } catch (error) {
+      logger.warn(
+        "Failed to get user profile for EventBridge event",
+        {
+          operation: "GetUserProfile",
+          requestId,
+          userId: request.userId,
+        },
+        error
+      );
+    }
     const userType = userProfile?.userType || "entrepreneur";
 
-    // Publish EventBridge events
-    await eventBridgeService.publishKYCStatusChangeEvent({
-      userId: request.userId,
-      documentId: request.documentId,
-      previousStatus: "pending",
-      newStatus: "approved",
-      reviewedBy: adminUserId,
-      reviewComments: request.comments,
-      documentType: "national_id",
-      userType: userType as "entrepreneur" | "investor",
-    });
+    // Publish EventBridge events with error handling
+    try {
+      await Promise.all([
+        eventBridgeService.publishKYCStatusChangeEvent({
+          userId: request.userId,
+          documentId: request.documentId,
+          previousStatus: "pending",
+          newStatus: "approved",
+          reviewedBy: adminUserId,
+          reviewComments: request.comments,
+          documentType: "national_id",
+          userType: userType as "entrepreneur" | "investor",
+        }),
+        eventBridgeService.publishKYCReviewCompletedEvent({
+          userId: request.userId,
+          documentId: request.documentId,
+          reviewedBy: adminUserId,
+          reviewResult: "approved",
+          reviewComments: request.comments,
+          documentType: "national_id",
+          processingTimeMs: Date.now() - startTime,
+        }),
+      ]);
+    } catch (error) {
+      // EventBridge failures should not fail the approval process
+      logger.error(
+        "Failed to publish EventBridge events for approval",
+        {
+          operation: "EventBridgePublish",
+          requestId,
+          userId: request.userId,
+          documentId: request.documentId,
+        },
+        error
+      );
 
-    await eventBridgeService.publishKYCReviewCompletedEvent({
-      userId: request.userId,
-      documentId: request.documentId,
-      reviewedBy: adminUserId,
-      reviewResult: "approved",
-      reviewComments: request.comments,
-      documentType: "national_id",
-      processingTimeMs: Date.now() - startTime,
-    });
+      await putMetricSafe("KYCApprovalEventBridgeError", 1);
+    }
 
     const duration = Date.now() - startTime;
     logger.info("KYC approval completed successfully", {
@@ -246,7 +623,10 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
       duration,
     });
 
-    await putMetricSafe("KYCApprovalSuccess", 1);
+    await putMetricSafe("KYCApprovalSuccess", 1, {
+      userType,
+      hasComments: request.comments ? "true" : "false",
+    });
 
     const response: AdminReviewResponse = {
       message: "Document approved successfully",
@@ -270,7 +650,40 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
       operation: "KYCApproval",
       requestId,
       duration,
+      adminUserId,
     });
+
+    // Create comprehensive error audit log
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "kyc_approve",
+        resource: `kyc_document:${request?.documentId || "unknown"}`,
+        result: "failure",
+        ipAddress: clientIP,
+        userAgent,
+        errorMessage: errorDetails.technicalMessage,
+        details: {
+          requestId,
+          targetUserId: request?.userId,
+          documentId: request?.documentId,
+          errorCategory: errorDetails.category,
+          errorCode: errorDetails.errorCode,
+          duration,
+          retryable: errorDetails.retryable,
+        },
+      })
+      .catch((auditError) => {
+        logger.error(
+          "Failed to create error audit log for approval",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          auditError
+        );
+      });
 
     logger.error(
       "KYC approval failed",
@@ -279,13 +692,24 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         requestId,
         duration,
         errorCategory: errorDetails.category,
+        adminUserId,
+        userId: request?.userId,
+        documentId: request?.documentId,
       },
       error as Error
     );
 
     await putMetricSafe("KYCApprovalError", 1, {
       errorCategory: errorDetails.category,
+      retryable: errorDetails.retryable.toString(),
     });
+
+    // Send critical error alarm for retryable errors that might indicate system issues
+    if (errorDetails.retryable) {
+      await putMetricSafe("KYCApprovalRetryableError", 1, {
+        errorCategory: errorDetails.category,
+      });
+    }
 
     return createErrorResponse(
       errorDetails.httpStatusCode || 500,
@@ -298,97 +722,383 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
 async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const adminUserId = extractAdminUserId(event);
+  const clientIP = getClientIP(event);
+  const userAgent = event.headers["User-Agent"];
 
   logger.info("KYC rejection started", {
     operation: "KYCRejection",
     requestId,
+    adminUserId,
   });
 
-  try {
-    const request: AdminReviewRequest = JSON.parse(event.body || "{}");
-    const adminUserId = extractAdminUserId(event);
+  let request: AdminReviewRequest | undefined;
+  let document: any;
 
-    // Validate request
+  try {
+    // Parse and validate request
+    try {
+      request = JSON.parse(event.body || "{}");
+    } catch (parseError) {
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_reject",
+          resource: "kyc_document:unknown",
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: "Invalid JSON in request body",
+          details: { requestId, parseError: (parseError as Error).message },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(
+        400,
+        "Invalid JSON in request body",
+        requestId
+      );
+    }
+
     const validation = validateReviewRequest(request);
     if (!validation.isValid) {
-      return createErrorResponse(400, validation.error!);
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_reject",
+          resource: `kyc_document:${request?.documentId || "unknown"}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: validation.error!,
+          details: { requestId, validationError: validation.error },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(400, validation.error!, requestId);
     }
 
     if (!request.comments || request.comments.trim().length === 0) {
-      return createErrorResponse(400, "Comments are required for rejection");
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_reject",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: "Comments are required for rejection",
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            missingComments: true,
+          },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(
+        400,
+        "Comments are required for rejection",
+        requestId
+      );
     }
 
-    // Get the document
-    const document = await kycRepo.getKYCDocument(
-      request.userId,
-      request.documentId
-    );
+    // Log rejection attempt
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "kyc_reject_attempt",
+        resource: `kyc_document:${request.documentId}`,
+        result: "success",
+        ipAddress: clientIP,
+        userAgent,
+        details: {
+          requestId,
+          targetUserId: request.userId,
+          documentId: request.documentId,
+          commentsLength: request.comments.length,
+        },
+      })
+      .catch((error) => {
+        logger.error(
+          "Failed to create rejection attempt audit log",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          error
+        );
+      });
+
+    // Get the document with retry logic
+    try {
+      document = await retry.execute(
+        () => kycRepo.getKYCDocument(request.userId, request.documentId),
+        `DynamoDB-GetDocument-${request.documentId}`
+      );
+    } catch (error) {
+      const errorDetails = ErrorClassifier.classify(error as Error, {
+        operation: "GetKYCDocument",
+        requestId,
+        adminUserId,
+      });
+
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_reject",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `Failed to retrieve document: ${errorDetails.technicalMessage}`,
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            errorCategory: errorDetails.category,
+          },
+        })
+        .catch(() => {});
+
+      await putMetricSafe("KYCRejectionDatabaseError", 1, {
+        errorCategory: errorDetails.category,
+        operation: "GetDocument",
+      });
+
+      throw error;
+    }
+
     if (!document) {
-      return createErrorResponse(404, "Document not found");
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_reject",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: "Document not found",
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+          },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(404, "Document not found", requestId);
     }
 
     if (document.status !== "pending") {
-      return createErrorResponse(400, "Document is not in pending status");
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_reject",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `Document status is ${document.status}, not pending`,
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            currentStatus: document.status,
+          },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(
+        400,
+        "Document is not in pending status",
+        requestId
+      );
     }
 
-    // Reject the document with retry logic
-    await retry.execute(
-      () =>
-        kycRepo.rejectDocument(
-          request.userId,
-          request.documentId,
-          adminUserId,
-          request.comments
-        ),
-      `DynamoDB-RejectDocument-${request.documentId}`
-    );
+    // Reject the document with comprehensive error handling
+    try {
+      await retry.execute(
+        () =>
+          kycRepo.rejectDocument(
+            request.userId,
+            request.documentId,
+            adminUserId,
+            request.comments
+          ),
+        `DynamoDB-RejectDocument-${request.documentId}`
+      );
+    } catch (error) {
+      const errorDetails = ErrorClassifier.classify(error as Error, {
+        operation: "RejectDocument",
+        requestId,
+        adminUserId,
+      });
 
-    // Update user KYC status to rejected
-    await retry.execute(
-      () =>
-        userRepo.updateUserProfile({
-          userId: request.userId,
-          kycStatus: "rejected",
-        }),
-      `DynamoDB-UpdateUserKYC-${request.userId}`
-    );
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_reject",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `Failed to reject document: ${errorDetails.technicalMessage}`,
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            errorCategory: errorDetails.category,
+            step: "reject_document",
+          },
+        })
+        .catch(() => {});
 
-    // Create audit log
-    await auditRepo.logKYCReview(
-      adminUserId,
-      request.userId,
-      request.documentId,
-      "reject",
-      "success",
-      getClientIP(event),
-      event.headers["User-Agent"]
-    );
+      await putMetricSafe("KYCRejectionDatabaseError", 1, {
+        errorCategory: errorDetails.category,
+        operation: "RejectDocument",
+      });
+
+      throw error;
+    }
+
+    // Update user KYC status with error handling
+    try {
+      await retry.execute(
+        () =>
+          userRepo.updateUserProfile({
+            userId: request.userId,
+            kycStatus: "rejected",
+          }),
+        `DynamoDB-UpdateUserKYC-${request.userId}`
+      );
+    } catch (error) {
+      const errorDetails = ErrorClassifier.classify(error as Error, {
+        operation: "UpdateUserKYCStatus",
+        requestId,
+        adminUserId,
+      });
+
+      // This is a critical error - document is rejected but user status not updated
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "kyc_reject",
+          resource: `kyc_document:${request.documentId}`,
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `CRITICAL: Document rejected but user status update failed: ${errorDetails.technicalMessage}`,
+          details: {
+            requestId,
+            targetUserId: request.userId,
+            documentId: request.documentId,
+            errorCategory: errorDetails.category,
+            step: "update_user_status",
+            criticalError: true,
+          },
+        })
+        .catch(() => {});
+
+      await putMetricSafe("KYCRejectionCriticalError", 1, {
+        errorCategory: errorDetails.category,
+        operation: "UpdateUserStatus",
+      });
+
+      throw error;
+    }
+
+    // Create comprehensive audit log for successful rejection
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "kyc_reject",
+        resource: `kyc_document:${request.documentId}`,
+        result: "success",
+        ipAddress: clientIP,
+        userAgent,
+        details: {
+          requestId,
+          targetUserId: request.userId,
+          documentId: request.documentId,
+          comments: request.comments,
+          documentType: document.documentType,
+          originalFileName: document.originalFileName,
+          processingTimeMs: Date.now() - startTime,
+        },
+      })
+      .catch((error) => {
+        logger.error(
+          "Failed to create successful rejection audit log",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          error
+        );
+      });
 
     // Get user profile to determine user type
-    const userProfile = await userRepo.getUserProfile(request.userId);
+    let userProfile;
+    try {
+      userProfile = await retry.execute(
+        () => userRepo.getUserProfile(request.userId),
+        `DynamoDB-GetUserProfile-${request.userId}`
+      );
+    } catch (error) {
+      logger.warn(
+        "Failed to get user profile for EventBridge event",
+        {
+          operation: "GetUserProfile",
+          requestId,
+          userId: request.userId,
+        },
+        error
+      );
+    }
     const userType = userProfile?.userType || "entrepreneur";
 
-    // Publish EventBridge events
-    await eventBridgeService.publishKYCStatusChangeEvent({
-      userId: request.userId,
-      documentId: request.documentId,
-      previousStatus: "pending",
-      newStatus: "rejected",
-      reviewedBy: adminUserId,
-      reviewComments: request.comments,
-      documentType: "national_id",
-      userType: userType as "entrepreneur" | "investor",
-    });
+    // Publish EventBridge events with error handling
+    try {
+      await Promise.all([
+        eventBridgeService.publishKYCStatusChangeEvent({
+          userId: request.userId,
+          documentId: request.documentId,
+          previousStatus: "pending",
+          newStatus: "rejected",
+          reviewedBy: adminUserId,
+          reviewComments: request.comments,
+          documentType: "national_id",
+          userType: userType as "entrepreneur" | "investor",
+        }),
+        eventBridgeService.publishKYCReviewCompletedEvent({
+          userId: request.userId,
+          documentId: request.documentId,
+          reviewedBy: adminUserId,
+          reviewResult: "rejected",
+          reviewComments: request.comments,
+          documentType: "national_id",
+          processingTimeMs: Date.now() - startTime,
+        }),
+      ]);
+    } catch (error) {
+      // EventBridge failures should not fail the rejection process
+      logger.error(
+        "Failed to publish EventBridge events for rejection",
+        {
+          operation: "EventBridgePublish",
+          requestId,
+          userId: request.userId,
+          documentId: request.documentId,
+        },
+        error
+      );
 
-    await eventBridgeService.publishKYCReviewCompletedEvent({
-      userId: request.userId,
-      documentId: request.documentId,
-      reviewedBy: adminUserId,
-      reviewResult: "rejected",
-      reviewComments: request.comments,
-      documentType: "national_id",
-      processingTimeMs: Date.now() - startTime,
-    });
+      await putMetricSafe("KYCRejectionEventBridgeError", 1);
+    }
 
     const duration = Date.now() - startTime;
     logger.info("KYC rejection completed successfully", {
@@ -400,7 +1110,10 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
       duration,
     });
 
-    await putMetricSafe("KYCRejectionSuccess", 1);
+    await putMetricSafe("KYCRejectionSuccess", 1, {
+      userType,
+      commentsLength: request.comments.length.toString(),
+    });
 
     const response: AdminReviewResponse = {
       message: "Document rejected successfully",
@@ -425,7 +1138,40 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
       operation: "KYCRejection",
       requestId,
       duration,
+      adminUserId,
     });
+
+    // Create comprehensive error audit log
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "kyc_reject",
+        resource: `kyc_document:${request?.documentId || "unknown"}`,
+        result: "failure",
+        ipAddress: clientIP,
+        userAgent,
+        errorMessage: errorDetails.technicalMessage,
+        details: {
+          requestId,
+          targetUserId: request?.userId,
+          documentId: request?.documentId,
+          errorCategory: errorDetails.category,
+          errorCode: errorDetails.errorCode,
+          duration,
+          retryable: errorDetails.retryable,
+        },
+      })
+      .catch((auditError) => {
+        logger.error(
+          "Failed to create error audit log for rejection",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          auditError
+        );
+      });
 
     logger.error(
       "KYC rejection failed",
@@ -434,13 +1180,24 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
         requestId,
         duration,
         errorCategory: errorDetails.category,
+        adminUserId,
+        userId: request?.userId,
+        documentId: request?.documentId,
       },
       error as Error
     );
 
     await putMetricSafe("KYCRejectionError", 1, {
       errorCategory: errorDetails.category,
+      retryable: errorDetails.retryable.toString(),
     });
+
+    // Send critical error alarm for retryable errors that might indicate system issues
+    if (errorDetails.retryable) {
+      await putMetricSafe("KYCRejectionRetryableError", 1, {
+        errorCategory: errorDetails.category,
+      });
+    }
 
     return createErrorResponse(
       errorDetails.httpStatusCode || 500,
@@ -451,7 +1208,17 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
 }
 
 async function handleGetDocuments(event: APIGatewayProxyEvent): Promise<any> {
+  const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const adminUserId = extractAdminUserId(event);
+  const clientIP = getClientIP(event);
+  const userAgent = event.headers["User-Agent"];
+
+  logger.info("Get documents request started", {
+    operation: "GetDocuments",
+    requestId,
+    adminUserId,
+  });
 
   try {
     const queryParams = event.queryStringParameters || {};
@@ -462,14 +1229,153 @@ async function handleGetDocuments(event: APIGatewayProxyEvent): Promise<any> {
       | undefined;
     const limit = queryParams.limit ? parseInt(queryParams.limit) : 50;
 
-    let documents;
-    if (status) {
-      documents = await kycRepo.getDocumentsByStatus(status, { limit });
-    } else {
-      documents = await kycRepo.getPendingDocuments({ limit });
+    // Validate limit parameter
+    if (limit < 1 || limit > 100) {
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "get_documents",
+          resource: "kyc_documents",
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: "Invalid limit parameter",
+          details: {
+            requestId,
+            requestedLimit: limit,
+            validRange: "1-100",
+          },
+        })
+        .catch(() => {});
+
+      return createErrorResponse(
+        400,
+        "Limit must be between 1 and 100",
+        requestId
+      );
     }
 
-    await putMetricSafe("DocumentsRetrieved", documents.count);
+    // Log document access attempt
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "get_documents_attempt",
+        resource: "kyc_documents",
+        result: "success",
+        ipAddress: clientIP,
+        userAgent,
+        details: {
+          requestId,
+          status: status || "all_pending",
+          limit,
+        },
+      })
+      .catch((error) => {
+        logger.error(
+          "Failed to create document access attempt audit log",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          error
+        );
+      });
+
+    let documents;
+    try {
+      if (status) {
+        documents = await retry.execute(
+          () => kycRepo.getDocumentsByStatus(status, { limit }),
+          `DynamoDB-GetDocumentsByStatus-${status}`
+        );
+      } else {
+        documents = await retry.execute(
+          () => kycRepo.getPendingDocuments({ limit }),
+          `DynamoDB-GetPendingDocuments`
+        );
+      }
+    } catch (error) {
+      const errorDetails = ErrorClassifier.classify(error as Error, {
+        operation: "GetDocuments",
+        requestId,
+        adminUserId,
+      });
+
+      await auditRepo
+        .createAuditLog({
+          userId: adminUserId,
+          action: "get_documents",
+          resource: "kyc_documents",
+          result: "failure",
+          ipAddress: clientIP,
+          userAgent,
+          errorMessage: `Failed to retrieve documents: ${errorDetails.technicalMessage}`,
+          details: {
+            requestId,
+            status: status || "all_pending",
+            limit,
+            errorCategory: errorDetails.category,
+          },
+        })
+        .catch(() => {});
+
+      await putMetricSafe("GetDocumentsDatabaseError", 1, {
+        errorCategory: errorDetails.category,
+        status: status || "pending",
+      });
+
+      throw error;
+    }
+
+    const duration = Date.now() - startTime;
+
+    // Log successful document retrieval
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "get_documents",
+        resource: "kyc_documents",
+        result: "success",
+        ipAddress: clientIP,
+        userAgent,
+        details: {
+          requestId,
+          status: status || "all_pending",
+          limit,
+          documentsReturned: documents.count,
+          processingTimeMs: duration,
+        },
+      })
+      .catch((error) => {
+        logger.error(
+          "Failed to create successful document retrieval audit log",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          error
+        );
+      });
+
+    logger.info("Get documents request completed successfully", {
+      operation: "GetDocuments",
+      requestId,
+      adminUserId,
+      documentsCount: documents.count,
+      duration,
+    });
+
+    await putMetricSafe("DocumentsRetrieved", documents.count, {
+      status: status || "pending",
+      adminUserId,
+    });
+
+    await putMetricSafe("GetDocumentsSuccess", 1, {
+      status: status || "pending",
+      documentsCount: documents.count.toString(),
+    });
 
     return {
       statusCode: 200,
@@ -484,16 +1390,66 @@ async function handleGetDocuments(event: APIGatewayProxyEvent): Promise<any> {
       }),
     };
   } catch (error) {
+    const duration = Date.now() - startTime;
+    const errorDetails = ErrorClassifier.classify(error as Error, {
+      operation: "GetDocuments",
+      requestId,
+      duration,
+      adminUserId,
+    });
+
+    // Create comprehensive error audit log
+    await auditRepo
+      .createAuditLog({
+        userId: adminUserId,
+        action: "get_documents",
+        resource: "kyc_documents",
+        result: "failure",
+        ipAddress: clientIP,
+        userAgent,
+        errorMessage: errorDetails.technicalMessage,
+        details: {
+          requestId,
+          errorCategory: errorDetails.category,
+          errorCode: errorDetails.errorCode,
+          duration,
+          retryable: errorDetails.retryable,
+        },
+      })
+      .catch((auditError) => {
+        logger.error(
+          "Failed to create error audit log for get documents",
+          {
+            operation: "AuditLogging",
+            requestId,
+            adminUserId,
+          },
+          auditError
+        );
+      });
+
     logger.error(
       "Failed to retrieve documents",
       {
         operation: "GetDocuments",
         requestId,
+        duration,
+        errorCategory: errorDetails.category,
+        adminUserId,
       },
       error as Error
     );
 
-    return createErrorResponse(500, "Failed to retrieve documents", requestId);
+    await putMetricSafe("GetDocumentsError", 1, {
+      errorCategory: errorDetails.category,
+      retryable: errorDetails.retryable.toString(),
+    });
+
+    return createErrorResponse(
+      errorDetails.httpStatusCode || 500,
+      errorDetails.userMessage,
+      requestId
+    );
   }
 }
 
