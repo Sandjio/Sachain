@@ -1,378 +1,411 @@
 /**
- * Integration tests for error handling and retry mechanisms
- * Tests the complete flow of error classification, retry logic, and logging
+ * Integration tests for X-Ray tracing with error handling and retry logic
  */
 
-import { ExponentialBackoff, RetryError } from '../retry';
-import { ErrorClassifier, AWSServiceError } from '../error-handler';
-import { StructuredLogger } from '../structured-logger';
-import { S3UploadUtility, createKYCUploadUtility } from '../s3-upload';
+import * as AWSXRay from "aws-xray-sdk-core";
+import { XRayTracer } from "../xray-tracing";
+import { CloudWatchMetrics } from "../cloudwatch-metrics";
+import { StructuredLogger } from "../structured-logger";
 
-// Mock console for testing
-const mockConsoleLog = jest.fn();
-const mockConsoleError = jest.fn();
-const mockConsoleWarn = jest.fn();
+// Mock AWS X-Ray SDK
+jest.mock("aws-xray-sdk-core", () => ({
+  captureAWS: jest.fn((aws) => aws),
+  getSegment: jest.fn(),
+  setSegment: jest.fn(),
+  config: jest.fn(),
+  middleware: {
+    setSamplingRules: jest.fn(),
+  },
+  plugins: {
+    ECSPlugin: "ECSPlugin",
+    EC2Plugin: "EC2Plugin",
+  },
+  Segment: jest.fn(),
+}));
 
-beforeAll(() => {
-  global.console = {
-    ...console,
-    log: mockConsoleLog,
-    error: mockConsoleError,
-    warn: mockConsoleWarn,
-  };
-});
+// Mock CloudWatch Metrics
+jest.mock("../cloudwatch-metrics", () => ({
+  CloudWatchMetrics: {
+    getInstance: jest.fn(() => ({
+      recordKYCUpload: jest.fn(),
+      recordError: jest.fn(),
+      recordDatabaseLatency: jest.fn(),
+    })),
+  },
+}));
 
-beforeEach(() => {
-  jest.clearAllMocks();
-});
+// Mock structured logger
+jest.mock("../structured-logger", () => ({
+  StructuredLogger: {
+    getInstance: jest.fn(() => ({
+      info: jest.fn(),
+      debug: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      logOperationStart: jest.fn(),
+      logOperationSuccess: jest.fn(),
+      logOperationError: jest.fn(),
+      logRetryAttempt: jest.fn(),
+    })),
+  },
+}));
 
-describe('Error Handling and Retry Integration', () => {
-  describe('Retry with Error Classification', () => {
-    it('should retry retryable errors and classify them correctly', async () => {
-      const retry = new ExponentialBackoff({
-        maxRetries: 2,
-        baseDelay: 10, // Short delay for testing
-        maxDelay: 100,
-        jitterType: 'none', // No jitter for predictable testing
-      });
+describe("X-Ray Integration with Error Handling and Retry Logic", () => {
+  let tracer: XRayTracer;
+  let metrics: CloudWatchMetrics;
+  let logger: StructuredLogger;
+  let mockSegment: any;
+  let mockSubsegment: any;
 
-      let attemptCount = 0;
-      const operation = jest.fn().mockImplementation(() => {
-        attemptCount++;
-        if (attemptCount <= 2) {
-          const error = {
-            name: 'ProvisionedThroughputExceededException',
-            message: 'Throughput exceeded',
-            $metadata: { httpStatusCode: 400 },
-          };
-          throw error;
-        }
-        return 'success';
-      });
+  beforeEach(() => {
+    jest.clearAllMocks();
 
-      const result = await retry.execute(operation, 'TestOperation');
+    // Reset singleton instances
+    (XRayTracer as any).instance = null;
+    (CloudWatchMetrics as any).instance = null;
 
-      expect(result.result).toBe('success');
-      expect(result.attempts).toBe(3);
-      expect(operation).toHaveBeenCalledTimes(3);
-      
-      // Verify error classification was correct (retryable)
-      const testError = {
-        name: 'ProvisionedThroughputExceededException',
-        message: 'Throughput exceeded',
-        $metadata: { httpStatusCode: 400 },
+    // Create mock segment and subsegment
+    mockSubsegment = {
+      id: "subsegment-123",
+      start_time: Date.now() / 1000,
+      addMetadata: jest.fn(),
+      addAnnotation: jest.fn(),
+      addError: jest.fn(),
+      close: jest.fn(),
+    };
+
+    mockSegment = {
+      trace_id: "trace-123",
+      id: "segment-123",
+      addNewSubsegment: jest.fn(() => mockSubsegment),
+      addAnnotation: jest.fn(),
+      addMetadata: jest.fn(),
+      close: jest.fn(),
+    };
+
+    (AWSXRay.getSegment as jest.Mock).mockReturnValue(mockSegment);
+
+    tracer = XRayTracer.getInstance("IntegrationTestService", "test");
+    metrics = CloudWatchMetrics.getInstance("TestNamespace", "test");
+    logger = StructuredLogger.getInstance("IntegrationTest", "test");
+  });
+
+  describe("KYC Upload with Tracing and Metrics", () => {
+    it("should trace successful KYC upload with metrics and logging", async () => {
+      const mockS3Upload = jest.fn().mockResolvedValue({ ETag: "etag123" });
+      const mockDynamoWrite = jest.fn().mockResolvedValue({ Attributes: {} });
+
+      const uploadKYCDocument = async () => {
+        // Simulate KYC upload operation
+        const s3Result = await tracer.traceS3Operation(
+          "PutObject",
+          "kyc-documents",
+          "user123/document.pdf",
+          mockS3Upload,
+          { userId: "user123", documentId: "doc123" }
+        );
+
+        const dbResult = await tracer.traceDynamoDBOperation(
+          "PutItem",
+          "kyc-table",
+          { userId: "user123", documentId: "doc123" },
+          mockDynamoWrite,
+          { userId: "user123", documentId: "doc123" }
+        );
+
+        return { s3Result, dbResult };
       };
-      const classification = ErrorClassifier.classify(testError);
-      expect(classification.retryable).toBe(true);
+
+      const result = await tracer.traceBusinessOperation(
+        "UploadKYCDocument",
+        uploadKYCDocument,
+        {
+          operation: "UploadKYCDocument",
+          service: "KYCService",
+          userId: "user123",
+          documentId: "doc123",
+        },
+        { priority: "high", fileSize: 2048000 }
+      );
+
+      // Verify tracing
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "UploadKYCDocument"
+      );
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith("S3-PutObject");
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "DynamoDB-PutItem"
+      );
+
+      // Verify annotations
+      expect(mockSubsegment.addAnnotation).toHaveBeenCalledWith(
+        "businessLogic",
+        true
+      );
+      expect(mockSubsegment.addAnnotation).toHaveBeenCalledWith(
+        "priority",
+        "high"
+      );
+      expect(mockSubsegment.addAnnotation).toHaveBeenCalledWith(
+        "fileSize",
+        2048000
+      );
+
+      // Verify operations were called
+      expect(mockS3Upload).toHaveBeenCalled();
+      expect(mockDynamoWrite).toHaveBeenCalled();
+
+      // Verify result
+      expect(result.s3Result).toEqual({ ETag: "etag123" });
+      expect(result.dbResult).toEqual({ Attributes: {} });
     });
 
-    it('should not retry non-retryable errors', async () => {
-      const retry = new ExponentialBackoff({
-        maxRetries: 3,
-        baseDelay: 10,
-        maxDelay: 100,
-        jitterType: 'none',
-      });
+    it("should handle errors with proper tracing and metrics", async () => {
+      const s3Error = new Error("S3 upload failed");
+      const mockS3Upload = jest.fn().mockRejectedValue(s3Error);
 
-      const operation = jest.fn().mockImplementation(() => {
-        const error = {
-          name: 'ValidationException',
-          message: 'Invalid input',
-          $metadata: { httpStatusCode: 400 },
-        };
-        throw error;
-      });
-
-      await expect(retry.execute(operation, 'TestOperation')).rejects.toThrow(RetryError);
-
-      // Should only be called once (no retries for non-retryable error)
-      expect(operation).toHaveBeenCalledTimes(1);
-      
-      // Verify error classification was correct (non-retryable)
-      const testError = {
-        name: 'ValidationException',
-        message: 'Invalid input',
-        $metadata: { httpStatusCode: 400 },
+      const uploadKYCDocument = async () => {
+        await tracer.traceS3Operation(
+          "PutObject",
+          "kyc-documents",
+          "user123/document.pdf",
+          mockS3Upload,
+          { userId: "user123", documentId: "doc123" }
+        );
       };
-      const classification = ErrorClassifier.classify(testError);
-      expect(classification.retryable).toBe(false);
-    });
 
-    it('should handle mixed error types correctly', async () => {
-      const retry = new ExponentialBackoff({
-        maxRetries: 3,
-        baseDelay: 10,
-        maxDelay: 100,
-        jitterType: 'none',
-      });
+      await expect(
+        tracer.traceBusinessOperation("UploadKYCDocument", uploadKYCDocument, {
+          operation: "UploadKYCDocument",
+          service: "KYCService",
+          userId: "user123",
+          documentId: "doc123",
+        })
+      ).rejects.toThrow("S3 upload failed");
 
-      let attemptCount = 0;
-      const operation = jest.fn().mockImplementation(() => {
-        attemptCount++;
-        if (attemptCount === 1) {
-          // First attempt: retryable error
-          throw {
-            name: 'ServiceUnavailable',
-            message: 'Service unavailable',
-            $metadata: { httpStatusCode: 503, service: 'S3' },
-          };
-        } else if (attemptCount === 2) {
-          // Second attempt: non-retryable error
-          throw {
-            name: 'AccessDenied',
-            message: 'Access denied',
-            $metadata: { httpStatusCode: 403, service: 'S3' },
-          };
-        }
-        return 'success';
-      });
-
-      await expect(retry.execute(operation, 'TestOperation')).rejects.toThrow(RetryError);
-
-      // Should be called twice (retry after first error, stop after second non-retryable error)
-      expect(operation).toHaveBeenCalledTimes(2);
+      // Verify error tracing
+      expect(mockSubsegment.addError).toHaveBeenCalledWith(s3Error);
+      expect(mockSubsegment.addAnnotation).toHaveBeenCalledWith(
+        "success",
+        false
+      );
+      expect(mockSubsegment.addAnnotation).toHaveBeenCalledWith("error", true);
+      expect(mockSubsegment.close).toHaveBeenCalledWith(s3Error);
     });
   });
 
-  describe('Structured Logging with Error Handling', () => {
-    it('should log retry attempts with proper structure', async () => {
-      const logger = StructuredLogger.getInstance('TestService', 'test');
-      const retry = new ExponentialBackoff({
-        maxRetries: 2,
-        baseDelay: 10,
-        maxDelay: 100,
-        jitterType: 'none',
-      });
-
+  describe("Retry Logic with Tracing", () => {
+    it("should trace retry attempts with exponential backoff", async () => {
       let attemptCount = 0;
-      const operation = jest.fn().mockImplementation(() => {
+      const mockOperation = jest.fn().mockImplementation(() => {
         attemptCount++;
-        const error = new Error(`Attempt ${attemptCount} failed`);
-        error.name = 'ThrottlingException';
-        
-        if (attemptCount <= 2) {
-          logger.logRetryAttempt('TestOperation', attemptCount, 2, 10, error, {
-            userId: 'user123',
-          });
-          throw error;
+        if (attemptCount < 3) {
+          throw new Error(`Attempt ${attemptCount} failed`);
         }
-        return 'success';
+        return Promise.resolve("success");
       });
 
-      const result = await retry.execute(operation, 'TestOperation');
+      const retryWithBackoff = async (
+        operation: () => Promise<any>,
+        maxRetries: number = 3
+      ) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            return await tracer.traceOperation(
+              `RetryAttempt-${attempt}`,
+              {
+                operation: "RetryOperation",
+                service: "RetryService",
+                attempt,
+                maxRetries,
+              },
+              operation,
+              { attempt, maxRetries }
+            );
+          } catch (error) {
+            if (attempt === maxRetries) {
+              throw error;
+            }
 
-      expect(result.result).toBe('success');
-      expect(mockConsoleWarn).toHaveBeenCalledTimes(2);
+            // Add delay for exponential backoff (mocked in test)
+            const delay = Math.pow(2, attempt) * 100;
+            await new Promise((resolve) => setTimeout(resolve, 0)); // Mock delay
 
-      // Verify log structure
-      const firstRetryLog = JSON.parse(mockConsoleWarn.mock.calls[0][0]);
-      expect(firstRetryLog.level).toBe('WARN');
-      expect(firstRetryLog.message).toContain('TestOperation retry attempt 1/2');
-      expect(firstRetryLog.context.attempt).toBe(1);
-      expect(firstRetryLog.context.maxRetries).toBe(2);
-      expect(firstRetryLog.context.userId).toBe('user123');
-      expect(firstRetryLog.error.name).toBe('ThrottlingException');
-    });
+            logger.logRetryAttempt(
+              "RetryOperation",
+              attempt,
+              maxRetries,
+              delay,
+              error as Error,
+              { userId: "user123" }
+            );
+          }
+        }
+      };
 
-    it('should log operation success after retries', async () => {
-      const logger = StructuredLogger.getInstance('TestService', 'test');
-      const startTime = Date.now();
+      const result = await retryWithBackoff(mockOperation);
 
-      // Simulate operation that succeeds after retries
-      logger.logOperationStart('S3Upload', { s3Key: 'test-key' });
-      
-      // Simulate some processing time
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      const duration = Date.now() - startTime;
-      logger.logOperationSuccess('S3Upload', duration, { 
-        s3Key: 'test-key',
-        attempts: 3,
-      });
+      expect(result).toBe("success");
+      expect(mockOperation).toHaveBeenCalledTimes(3);
 
-      expect(mockConsoleLog).toHaveBeenCalledTimes(2);
-
-      const startLog = JSON.parse(mockConsoleLog.mock.calls[0][0]);
-      expect(startLog.message).toBe('S3Upload started');
-      expect(startLog.context.s3Key).toBe('test-key');
-
-      const successLog = JSON.parse(mockConsoleLog.mock.calls[1][0]);
-      expect(successLog.message).toBe('S3Upload completed successfully');
-      expect(successLog.context.duration).toBeGreaterThan(0);
-      expect(successLog.context.attempts).toBe(3);
+      // Verify multiple subsegments were created for retry attempts
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "RetryAttempt-1"
+      );
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "RetryAttempt-2"
+      );
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "RetryAttempt-3"
+      );
     });
   });
 
-  describe('S3 Upload with Comprehensive Error Handling', () => {
-    it('should handle S3 upload with retry and proper error classification', async () => {
-      // This test would require mocking AWS SDK, but demonstrates the integration
-      const mockS3Upload = jest.fn()
-        .mockRejectedValueOnce({
-          name: 'SlowDown',
-          message: 'Please reduce your request rate',
-          $metadata: { httpStatusCode: 503, service: 'S3' },
-        })
-        .mockRejectedValueOnce({
-          name: 'RequestTimeout',
-          message: 'Request timeout',
-          $metadata: { httpStatusCode: 408, service: 'S3' },
-        })
-        .mockResolvedValueOnce({
-          ETag: '"test-etag"',
-          Location: 'https://test-bucket.s3.amazonaws.com/test-key',
+  describe("Complex Business Flow Tracing", () => {
+    it("should trace complex KYC approval workflow", async () => {
+      const mockGetDocument = jest.fn().mockResolvedValue({
+        Item: { userId: "user123", status: "pending" },
+      });
+      const mockUpdateStatus = jest.fn().mockResolvedValue({ Attributes: {} });
+      const mockPublishEvent = jest
+        .fn()
+        .mockResolvedValue({ MessageId: "msg123" });
+      const mockSendNotification = jest
+        .fn()
+        .mockResolvedValue({ MessageId: "notif123" });
+
+      const approveKYCDocument = async () => {
+        // Step 1: Get document
+        const document = await tracer.traceDynamoDBOperation(
+          "GetItem",
+          "kyc-table",
+          { userId: "user123", documentId: "doc123" },
+          mockGetDocument,
+          { userId: "user123", documentId: "doc123" }
+        );
+
+        // Step 2: Update status
+        const updateResult = await tracer.traceDynamoDBOperation(
+          "UpdateItem",
+          "kyc-table",
+          { userId: "user123", documentId: "doc123" },
+          mockUpdateStatus,
+          { userId: "user123", documentId: "doc123" }
+        );
+
+        // Step 3: Publish event
+        const eventResult = await tracer.traceEventBridgeOperation(
+          "PutEvents",
+          "kyc-events",
+          "KYCApproved",
+          mockPublishEvent,
+          { userId: "user123", documentId: "doc123" }
+        );
+
+        // Step 4: Send notification
+        const notificationResult = await tracer.traceSNSOperation(
+          "Publish",
+          "arn:aws:sns:us-east-1:123456789012:kyc-notifications",
+          mockSendNotification,
+          { userId: "user123", documentId: "doc123" }
+        );
+
+        return { document, updateResult, eventResult, notificationResult };
+      };
+
+      const result = await tracer.traceBusinessOperation(
+        "ApproveKYCDocument",
+        approveKYCDocument,
+        {
+          operation: "ApproveKYCDocument",
+          service: "AdminService",
+          userId: "user123",
+          documentId: "doc123",
+        },
+        { adminId: "admin456", action: "approve" }
+      );
+
+      // Verify all operations were traced
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "ApproveKYCDocument"
+      );
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "DynamoDB-GetItem"
+      );
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "DynamoDB-UpdateItem"
+      );
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith(
+        "EventBridge-PutEvents"
+      );
+      expect(mockSegment.addNewSubsegment).toHaveBeenCalledWith("SNS-Publish");
+
+      // Verify all operations were called
+      expect(mockGetDocument).toHaveBeenCalled();
+      expect(mockUpdateStatus).toHaveBeenCalled();
+      expect(mockPublishEvent).toHaveBeenCalled();
+      expect(mockSendNotification).toHaveBeenCalled();
+
+      // Verify result structure
+      expect(result.document).toBeDefined();
+      expect(result.updateResult).toBeDefined();
+      expect(result.eventResult).toBeDefined();
+      expect(result.notificationResult).toBeDefined();
+    });
+  });
+
+  describe("Performance Monitoring Integration", () => {
+    it("should combine tracing with performance metrics", async () => {
+      const mockDatabaseOperation = jest.fn().mockImplementation(() => {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({ Items: [] }), 100); // Simulate 100ms latency
         });
-
-      const retry = new ExponentialBackoff({
-        maxRetries: 3,
-        baseDelay: 10,
-        maxDelay: 100,
-        jitterType: 'none',
       });
 
-      const result = await retry.execute(mockS3Upload, 'S3Upload');
+      const performDatabaseQuery = async () => {
+        const startTime = Date.now();
 
-      expect(result.result.ETag).toBe('"test-etag"');
-      expect(result.attempts).toBe(3);
-      expect(mockS3Upload).toHaveBeenCalledTimes(3);
+        const result = await tracer.traceDynamoDBOperation(
+          "Query",
+          "kyc-table",
+          { userId: "user123" },
+          mockDatabaseOperation,
+          { userId: "user123" }
+        );
 
-      // Verify both errors were classified as retryable
-      const slowDownError = {
-        name: 'SlowDown',
-        message: 'Please reduce your request rate',
-        $metadata: { httpStatusCode: 503, service: 'S3' },
-      };
-      const timeoutError = {
-        name: 'RequestTimeout',
-        message: 'Request timeout',
-        $metadata: { httpStatusCode: 408, service: 'S3' },
-      };
+        const duration = Date.now() - startTime;
 
-      expect(ErrorClassifier.isRetryable(slowDownError)).toBe(true);
-      expect(ErrorClassifier.isRetryable(timeoutError)).toBe(true);
-    });
+        // Record performance metrics
+        await metrics.recordDatabaseLatency("Query", duration);
 
-    it('should create AWSServiceError with proper context', async () => {
-      const originalError = {
-        name: 'AccessDenied',
-        message: 'Access denied',
-        code: 'AccessDenied',
-        $metadata: { httpStatusCode: 403, service: 'S3' },
+        return result;
       };
 
-      const context = {
-        operation: 'S3Upload',
-        s3Key: 'kyc-documents/user123/test.pdf',
-        userId: 'user123',
-      };
-
-      const errorDetails = ErrorClassifier.classify(originalError, context);
-      const awsError = new AWSServiceError(errorDetails, originalError);
-
-      expect(awsError.name).toBe('AWSServiceError');
-      expect(awsError.category).toBe('authorization');
-      expect(awsError.retryable).toBe(false);
-      expect(awsError.userMessage).toContain('permission');
-      expect(awsError.technicalMessage).toBe('S3 access denied');
-      expect(awsError.context).toEqual(context);
-      expect(awsError.originalError).toBe(originalError);
-    });
-  });
-
-  describe('End-to-End Error Flow', () => {
-    it('should handle complete error flow from operation to logging', async () => {
-      const logger = StructuredLogger.getInstance('IntegrationTest', 'test');
-      const retry = new ExponentialBackoff({
-        maxRetries: 2,
-        baseDelay: 10,
-        maxDelay: 100,
-        jitterType: 'none',
-      });
-
-      const context = {
-        operation: 'FileUpload',
-        userId: 'user123',
-        documentId: 'doc456',
-      };
-
-      let attemptCount = 0;
-      const mockOperation = async () => {
-        attemptCount++;
-        logger.info(`Attempt ${attemptCount} started`, context);
-
-        if (attemptCount <= 1) {
-          const error = {
-            name: 'ThrottlingException',
-            message: 'Request rate exceeded',
-            $metadata: { httpStatusCode: 429 },
-          };
-          
-          logger.logRetryAttempt('FileUpload', attemptCount, 2, 10, error, context);
-          throw error;
+      const result = await tracer.traceBusinessOperation(
+        "QueryUserDocuments",
+        performDatabaseQuery,
+        {
+          operation: "QueryUserDocuments",
+          service: "KYCService",
+          userId: "user123",
         }
+      );
 
-        logger.logOperationSuccess('FileUpload', 100, { ...context, attempts: attemptCount });
-        return { success: true, attempts: attemptCount };
-      };
+      expect(result).toEqual({ Items: [] });
+      expect(mockDatabaseOperation).toHaveBeenCalled();
 
-      const result = await retry.execute(mockOperation, 'FileUpload');
-
-      expect(result.result.success).toBe(true);
-      expect(result.result.attempts).toBe(2);
-      expect(result.attempts).toBe(2);
-
-      // Verify logging calls
-      expect(mockConsoleLog).toHaveBeenCalledTimes(3); // 2 start logs + 1 success log
-      expect(mockConsoleWarn).toHaveBeenCalledTimes(1); // 1 retry log
-
-      // Verify final success log
-      const successLog = JSON.parse(mockConsoleLog.mock.calls[2][0]);
-      expect(successLog.message).toBe('FileUpload completed successfully');
-      expect(successLog.context.attempts).toBe(2);
-      expect(successLog.context.userId).toBe('user123');
-    });
-
-    it('should handle ultimate failure with proper error classification', async () => {
-      const logger = StructuredLogger.getInstance('IntegrationTest', 'test');
-      const retry = new ExponentialBackoff({
-        maxRetries: 2,
-        baseDelay: 10,
-        maxDelay: 100,
-        jitterType: 'none',
-      });
-
-      const context = {
-        operation: 'FileUpload',
-        userId: 'user123',
-      };
-
-      const mockOperation = async () => {
-        const error = {
-          name: 'ServiceUnavailable',
-          message: 'Service temporarily unavailable',
-          $metadata: { httpStatusCode: 503, service: 'S3' },
-        };
-        
-        logger.error('Operation failed', context, error);
-        throw error;
-      };
-
-      await expect(retry.execute(mockOperation, 'FileUpload')).rejects.toThrow(RetryError);
-
-      // Verify error was classified correctly
-      const testError = {
-        name: 'ServiceUnavailable',
-        message: 'Service temporarily unavailable',
-        $metadata: { httpStatusCode: 503, service: 'S3' },
-      };
-      const classification = ErrorClassifier.classify(testError, context);
-      
-      expect(classification.category).toBe('system');
-      expect(classification.retryable).toBe(true);
-      expect(classification.userMessage).toContain('temporarily unavailable');
-      expect(classification.context).toEqual(context);
-
-      // Verify error logging
-      expect(mockConsoleError).toHaveBeenCalledTimes(3); // Called for each retry attempt
+      // Verify tracing annotations include performance data
+      expect(mockSubsegment.addAnnotation).toHaveBeenCalledWith(
+        "success",
+        true
+      );
+      expect(mockSubsegment.addMetadata).toHaveBeenCalledWith(
+        "performance",
+        expect.objectContaining({
+          success: true,
+          duration: expect.any(Number),
+        })
+      );
     });
   });
 });

@@ -11,6 +11,8 @@ export interface MonitoringConstructProps {
   lambdaFunctions: lambda.Function[];
   environment: string;
   alertEmail?: string;
+  logRetentionDays?: logs.RetentionDays;
+  enableDetailedMonitoring?: boolean;
 }
 
 export class MonitoringConstruct extends Construct {
@@ -41,11 +43,13 @@ export class MonitoringConstruct extends Construct {
 
     // Log groups and alarms for Lambda functions
     this.alarms = [];
+    const logRetention = props.logRetentionDays || logs.RetentionDays.ONE_MONTH;
+
     props.lambdaFunctions.forEach((func, index) => {
-      // Create log group
+      // Create log group with configurable retention
       new logs.LogGroup(this, `LogGroup${index}`, {
         logGroupName: `/aws/lambda/${func.functionName}`,
-        retention: logs.RetentionDays.ONE_MONTH,
+        retention: logRetention,
         removalPolicy: cdk.RemovalPolicy.DESTROY,
       });
 
@@ -53,11 +57,56 @@ export class MonitoringConstruct extends Construct {
       this.createLambdaAlarms(func, index);
     });
 
+    // Create additional log groups for system components
+    this.createSystemLogGroups(props.environment, logRetention);
+
     // Create KYC-specific alarms
     this.createKYCAlarms();
 
     // Add widgets to dashboard
     this.createDashboardWidgets(props.lambdaFunctions);
+  }
+
+  private createSystemLogGroups(
+    environment: string,
+    retention: logs.RetentionDays
+  ): void {
+    // Create log groups for system components that might not be automatically created
+
+    // API Gateway access logs
+    new logs.LogGroup(this, "APIGatewayAccessLogs", {
+      logGroupName: `/aws/apigateway/sachain-kyc-${environment}`,
+      retention,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // EventBridge logs
+    new logs.LogGroup(this, "EventBridgeLogs", {
+      logGroupName: `/aws/events/sachain-kyc-${environment}`,
+      retention,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Custom application logs
+    new logs.LogGroup(this, "ApplicationLogs", {
+      logGroupName: `/sachain/application/${environment}`,
+      retention,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Audit logs (longer retention for compliance)
+    new logs.LogGroup(this, "AuditLogs", {
+      logGroupName: `/sachain/audit/${environment}`,
+      retention: logs.RetentionDays.ONE_YEAR, // Longer retention for audit logs
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain audit logs even after stack deletion
+    });
+
+    // Security logs
+    new logs.LogGroup(this, "SecurityLogs", {
+      logGroupName: `/sachain/security/${environment}`,
+      retention: logs.RetentionDays.SIX_MONTHS,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
   }
 
   private createLambdaAlarms(func: lambda.Function, index: number): void {
