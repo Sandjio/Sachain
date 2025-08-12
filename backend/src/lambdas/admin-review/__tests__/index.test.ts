@@ -1,10 +1,9 @@
 import { handler } from "../index";
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
-import { KYCDocumentRepository } from "../../../repositories/kyc-document-repository";
-import { UserRepository } from "../../../repositories/user-repository";
-import { AuditLogRepository } from "../../../repositories/audit-log-repository";
-import { EventBridgeClient } from "@aws-sdk/client-eventbridge";
-import { CloudWatchClient } from "@aws-sdk/client-cloudwatch";
+import {
+  APIGatewayProxyEvent,
+  APIGatewayProxyResult,
+  Context,
+} from "aws-lambda";
 
 // Mock AWS SDK clients
 jest.mock("@aws-sdk/client-dynamodb");
@@ -42,12 +41,6 @@ jest.mock("../../../utils/error-handler", () => ({
   },
 }));
 
-const mockKYCRepo = KYCDocumentRepository as jest.MockedClass<typeof KYCDocumentRepository>;
-const mockUserRepo = UserRepository as jest.MockedClass<typeof UserRepository>;
-const mockAuditRepo = AuditLogRepository as jest.MockedClass<typeof AuditLogRepository>;
-const mockEventBridgeClient = EventBridgeClient as jest.MockedClass<typeof EventBridgeClient>;
-const mockCloudWatchClient = CloudWatchClient as jest.MockedClass<typeof CloudWatchClient>;
-
 // Mock environment variables
 process.env.TABLE_NAME = "test-table";
 process.env.EVENT_BUS_NAME = "test-event-bus";
@@ -56,18 +49,21 @@ process.env.AWS_REGION = "us-east-1";
 
 describe("Admin Review Lambda", () => {
   let mockContext: Context;
-  let mockKYCRepoInstance: jest.Mocked<KYCDocumentRepository>;
-  let mockUserRepoInstance: jest.Mocked<UserRepository>;
-  let mockAuditRepoInstance: jest.Mocked<AuditLogRepository>;
+  let mockKYCRepo: any;
+  let mockUserRepo: any;
+  let mockAuditRepo: any;
+  let mockEventBridgeClient: any;
+  let mockCloudWatchClient: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockContext = {
       callbackWaitsForEmptyEventLoop: false,
       functionName: "test-function",
       functionVersion: "1",
-      invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test-function",
+      invokedFunctionArn:
+        "arn:aws:lambda:us-east-1:123456789012:function:test-function",
       memoryLimitInMB: "512",
       awsRequestId: "test-request-id",
       logGroupName: "/aws/lambda/test-function",
@@ -79,29 +75,50 @@ describe("Admin Review Lambda", () => {
     };
 
     // Setup repository mocks
-    mockKYCRepoInstance = {
+    const {
+      KYCDocumentRepository,
+    } = require("../../../repositories/kyc-document-repository");
+    const { UserRepository } = require("../../../repositories/user-repository");
+    const {
+      AuditLogRepository,
+    } = require("../../../repositories/audit-log-repository");
+    const { EventBridgeClient } = require("@aws-sdk/client-eventbridge");
+    const { CloudWatchClient } = require("@aws-sdk/client-cloudwatch");
+
+    mockKYCRepo = {
       getKYCDocument: jest.fn(),
       approveDocument: jest.fn(),
       rejectDocument: jest.fn(),
       getPendingDocuments: jest.fn(),
       getDocumentsByStatus: jest.fn(),
-    } as any;
+    };
 
-    mockUserRepoInstance = {
+    mockUserRepo = {
       updateUserProfile: jest.fn(),
-    } as any;
+    };
 
-    mockAuditRepoInstance = {
+    mockAuditRepo = {
       logKYCReview: jest.fn(),
-    } as any;
+    };
 
-    mockKYCRepo.mockImplementation(() => mockKYCRepoInstance);
-    mockUserRepo.mockImplementation(() => mockUserRepoInstance);
-    mockAuditRepo.mockImplementation(() => mockAuditRepoInstance);
+    mockEventBridgeClient = {
+      send: jest.fn().mockResolvedValue({}),
+    };
 
-    // Mock EventBridge and CloudWatch clients
-    mockEventBridgeClient.prototype.send = jest.fn().mockResolvedValue({});
-    mockCloudWatchClient.prototype.send = jest.fn().mockResolvedValue({});
+    mockCloudWatchClient = {
+      send: jest.fn().mockResolvedValue({}),
+    };
+
+    // Mock the constructors to return our mock instances
+    (KYCDocumentRepository as jest.Mock).mockImplementation(() => mockKYCRepo);
+    (UserRepository as jest.Mock).mockImplementation(() => mockUserRepo);
+    (AuditLogRepository as jest.Mock).mockImplementation(() => mockAuditRepo);
+    (EventBridgeClient as jest.Mock).mockImplementation(
+      () => mockEventBridgeClient
+    );
+    (CloudWatchClient as jest.Mock).mockImplementation(
+      () => mockCloudWatchClient
+    );
   });
 
   describe("Document Approval", () => {
@@ -127,27 +144,31 @@ describe("Admin Review Lambda", () => {
       } as any;
 
       // Mock document exists and is pending
-      mockKYCRepoInstance.getKYCDocument.mockResolvedValue({
+      mockKYCRepo.getKYCDocument.mockResolvedValue({
         documentId: "doc-456",
         userId: "user-123",
         status: "pending",
         documentType: "national_id",
-      } as any);
+      });
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(200);
-      expect(mockKYCRepoInstance.approveDocument).toHaveBeenCalledWith(
+      expect(mockKYCRepo.approveDocument).toHaveBeenCalledWith(
         "user-123",
         "doc-456",
         "admin-user-placeholder",
         "Document looks good"
       );
-      expect(mockUserRepoInstance.updateUserProfile).toHaveBeenCalledWith({
+      expect(mockUserRepo.updateUserProfile).toHaveBeenCalledWith({
         userId: "user-123",
         kycStatus: "approved",
       });
-      expect(mockAuditRepoInstance.logKYCReview).toHaveBeenCalled();
+      expect(mockAuditRepo.logKYCReview).toHaveBeenCalled();
 
       const responseBody = JSON.parse(result.body);
       expect(responseBody.message).toBe("Document approved successfully");
@@ -169,9 +190,13 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      mockKYCRepoInstance.getKYCDocument.mockResolvedValue(null);
+      mockKYCRepo.getKYCDocument.mockResolvedValue(null);
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(404);
       const responseBody = JSON.parse(result.body);
@@ -193,14 +218,18 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      mockKYCRepoInstance.getKYCDocument.mockResolvedValue({
+      mockKYCRepo.getKYCDocument.mockResolvedValue({
         documentId: "doc-456",
         userId: "user-123",
         status: "approved",
         documentType: "national_id",
-      } as any);
+      });
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body);
@@ -222,7 +251,11 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body);
@@ -251,23 +284,27 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      mockKYCRepoInstance.getKYCDocument.mockResolvedValue({
+      mockKYCRepo.getKYCDocument.mockResolvedValue({
         documentId: "doc-456",
         userId: "user-123",
         status: "pending",
         documentType: "national_id",
-      } as any);
+      });
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(200);
-      expect(mockKYCRepoInstance.rejectDocument).toHaveBeenCalledWith(
+      expect(mockKYCRepo.rejectDocument).toHaveBeenCalledWith(
         "user-123",
         "doc-456",
         "admin-user-placeholder",
         "Document quality is poor"
       );
-      expect(mockUserRepoInstance.updateUserProfile).toHaveBeenCalledWith({
+      expect(mockUserRepo.updateUserProfile).toHaveBeenCalledWith({
         userId: "user-123",
         kycStatus: "rejected",
       });
@@ -294,7 +331,11 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body);
@@ -351,15 +392,21 @@ describe("Admin Review Lambda", () => {
         },
       ];
 
-      mockKYCRepoInstance.getPendingDocuments.mockResolvedValue({
+      mockKYCRepo.getPendingDocuments.mockResolvedValue({
         items: mockDocuments,
         count: 2,
       });
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(200);
-      expect(mockKYCRepoInstance.getPendingDocuments).toHaveBeenCalledWith({ limit: 50 });
+      expect(mockKYCRepo.getPendingDocuments).toHaveBeenCalledWith({
+        limit: 50,
+      });
 
       const responseBody = JSON.parse(result.body);
       expect(responseBody.documents).toEqual(mockDocuments);
@@ -401,15 +448,22 @@ describe("Admin Review Lambda", () => {
         },
       ];
 
-      mockKYCRepoInstance.getDocumentsByStatus.mockResolvedValue({
+      mockKYCRepo.getDocumentsByStatus.mockResolvedValue({
         items: mockDocuments,
         count: 1,
       });
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(200);
-      expect(mockKYCRepoInstance.getDocumentsByStatus).toHaveBeenCalledWith("approved", { limit: 25 });
+      expect(mockKYCRepo.getDocumentsByStatus).toHaveBeenCalledWith(
+        "approved",
+        { limit: 25 }
+      );
 
       const responseBody = JSON.parse(result.body);
       expect(responseBody.documents).toEqual(mockDocuments);
@@ -430,7 +484,11 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(404);
       const responseBody = JSON.parse(result.body);
@@ -452,9 +510,15 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      mockKYCRepoInstance.getKYCDocument.mockRejectedValue(new Error("Database connection failed"));
+      mockKYCRepo.getKYCDocument.mockRejectedValue(
+        new Error("Database connection failed")
+      );
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(500);
       const responseBody = JSON.parse(result.body);
@@ -479,16 +543,16 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      mockKYCRepoInstance.getKYCDocument.mockResolvedValue({
+      mockKYCRepo.getKYCDocument.mockResolvedValue({
         documentId: "doc-456",
         userId: "user-123",
         status: "pending",
         documentType: "national_id",
-      } as any);
+      });
 
-      await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      (await handler(event, mockContext, jest.fn())) as APIGatewayProxyResult;
 
-      expect(mockEventBridgeClient.prototype.send).toHaveBeenCalled();
+      expect(mockEventBridgeClient.send).toHaveBeenCalled();
     });
 
     it("should continue processing even if EventBridge fails", async () => {
@@ -506,17 +570,23 @@ describe("Admin Review Lambda", () => {
         } as any,
       } as any;
 
-      mockKYCRepoInstance.getKYCDocument.mockResolvedValue({
+      mockKYCRepo.getKYCDocument.mockResolvedValue({
         documentId: "doc-456",
         userId: "user-123",
         status: "pending",
         documentType: "national_id",
-      } as any);
+      });
 
       // Mock EventBridge failure
-      (mockEventBridgeClient.prototype.send as jest.Mock).mockRejectedValue(new Error("EventBridge failed"));
+      mockEventBridgeClient.send.mockRejectedValue(
+        new Error("EventBridge failed")
+      );
 
-      const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        mockContext,
+        jest.fn()
+      )) as APIGatewayProxyResult;
 
       // Should still succeed despite EventBridge failure
       expect(result.statusCode).toBe(200);

@@ -1,14 +1,44 @@
 import { handler } from "../index";
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
+import {
+  APIGatewayProxyEvent,
+  APIGatewayProxyResult,
+  Context,
+} from "aws-lambda";
 
 // Mock all dependencies
 jest.mock("@aws-sdk/client-dynamodb");
 jest.mock("@aws-sdk/lib-dynamodb");
 jest.mock("@aws-sdk/client-eventbridge");
 jest.mock("@aws-sdk/client-cloudwatch");
-jest.mock("../../../repositories/kyc-document-repository");
-jest.mock("../../../repositories/user-repository");
-jest.mock("../../../repositories/audit-log-repository");
+
+// Mock repository instances
+const mockKYCRepoInstance = {
+  getKYCDocument: jest.fn(),
+  approveDocument: jest.fn(),
+  rejectDocument: jest.fn(),
+  getPendingDocuments: jest.fn(),
+  getDocumentsByStatus: jest.fn(),
+};
+
+const mockUserRepoInstance = {
+  updateUserProfile: jest.fn(),
+};
+
+const mockAuditRepoInstance = {
+  logKYCReview: jest.fn(),
+};
+
+jest.mock("../../../repositories/kyc-document-repository", () => ({
+  KYCDocumentRepository: jest
+    .fn()
+    .mockImplementation(() => mockKYCRepoInstance),
+}));
+jest.mock("../../../repositories/user-repository", () => ({
+  UserRepository: jest.fn().mockImplementation(() => mockUserRepoInstance),
+}));
+jest.mock("../../../repositories/audit-log-repository", () => ({
+  AuditLogRepository: jest.fn().mockImplementation(() => mockAuditRepoInstance),
+}));
 jest.mock("../../../utils/retry", () => ({
   ExponentialBackoff: jest.fn().mockImplementation(() => ({
     execute: jest.fn().mockImplementation((fn) => fn()),
@@ -47,7 +77,8 @@ describe("Admin Review Lambda Basic Tests", () => {
       callbackWaitsForEmptyEventLoop: false,
       functionName: "test-function",
       functionVersion: "1",
-      invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test-function",
+      invokedFunctionArn:
+        "arn:aws:lambda:us-east-1:123456789012:function:test-function",
       memoryLimitInMB: "512",
       awsRequestId: "test-request-id",
       logGroupName: "/aws/lambda/test-function",
@@ -71,7 +102,11 @@ describe("Admin Review Lambda Basic Tests", () => {
       } as any,
     } as any;
 
-    const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+    const result = (await handler(
+      event,
+      mockContext,
+      jest.fn()
+    )) as APIGatewayProxyResult;
 
     expect(result.statusCode).toBe(404);
     const responseBody = JSON.parse(result.body);
@@ -93,7 +128,11 @@ describe("Admin Review Lambda Basic Tests", () => {
       } as any,
     } as any;
 
-    const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+    const result = (await handler(
+      event,
+      mockContext,
+      jest.fn()
+    )) as APIGatewayProxyResult;
 
     // Should not be 404 (endpoint not found)
     expect(result.statusCode).not.toBe(404);
@@ -115,7 +154,11 @@ describe("Admin Review Lambda Basic Tests", () => {
       } as any,
     } as any;
 
-    const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+    const result = (await handler(
+      event,
+      mockContext,
+      jest.fn()
+    )) as APIGatewayProxyResult;
 
     // Should not be 404 (endpoint not found)
     expect(result.statusCode).not.toBe(404);
@@ -134,7 +177,11 @@ describe("Admin Review Lambda Basic Tests", () => {
       } as any,
     } as any;
 
-    const result = await handler(event, mockContext, jest.fn()) as APIGatewayProxyResult;
+    const result = (await handler(
+      event,
+      mockContext,
+      jest.fn()
+    )) as APIGatewayProxyResult;
 
     // Should not be 404 (endpoint not found)
     expect(result.statusCode).not.toBe(404);
