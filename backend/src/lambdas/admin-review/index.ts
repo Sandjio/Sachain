@@ -1,30 +1,33 @@
 import { APIGatewayProxyHandler, APIGatewayProxyEvent } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
-import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
+import {
+  CloudWatchClient,
+  PutMetricDataCommand,
+} from "@aws-sdk/client-cloudwatch";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { KYCDocumentRepository } from "../../repositories/kyc-document-repository";
 import { UserRepository } from "../../repositories/user-repository";
 import { AuditLogRepository } from "../../repositories/audit-log-repository";
 import { ExponentialBackoff } from "../../utils/retry";
-import { StructuredLogger, createKYCLogger } from "../../utils/structured-logger";
+import {
+  StructuredLogger,
+  createKYCLogger,
+} from "../../utils/structured-logger";
 import { ErrorClassifier } from "../../utils/error-handler";
 import {
-  AdminReviewRequest,
-  AdminReviewResponse,
-  KYCStatusChangeEvent,
-  AdminAction,
-} from "./types";
+  EventBridgeService,
+  createEventBridgeService,
+} from "../../utils/eventbridge-service";
+import { AdminReviewRequest, AdminReviewResponse, AdminAction } from "./types";
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const eventBridgeClient = new EventBridgeClient({});
 const cloudWatchClient = new CloudWatchClient({});
 
 const TABLE_NAME = process.env.TABLE_NAME!;
 const EVENT_BUS_NAME = process.env.EVENT_BUS_NAME!;
 const ENVIRONMENT = process.env.ENVIRONMENT!;
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+const AWS_REGION = process.env.AWS_REGION || "us-east-1";
 
 // Initialize services
 const logger = createKYCLogger();
@@ -50,10 +53,16 @@ const auditRepo = new AuditLogRepository({
   region: AWS_REGION,
 });
 
+const eventBridgeService = createEventBridgeService({
+  eventBusName: EVENT_BUS_NAME,
+  region: AWS_REGION,
+  maxRetries: 3,
+});
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
-  
+
   logger.info("Admin Review Lambda triggered", {
     operation: "LambdaInvocation",
     requestId,
@@ -64,7 +73,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const path = event.path;
     let result;
-    
+
     if (path === "/approve" && event.httpMethod === "POST") {
       result = await handleApproval(event);
     } else if (path === "/reject" && event.httpMethod === "POST") {
@@ -78,7 +87,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         path: event.path,
         method: event.httpMethod,
       });
-      
+
       return {
         statusCode: 404,
         headers: {
@@ -106,23 +115,29 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       duration,
     });
 
-    logger.error("Admin Review Lambda failed", {
-      operation: "LambdaInvocation",
-      requestId,
-      duration,
+    logger.error(
+      "Admin Review Lambda failed",
+      {
+        operation: "LambdaInvocation",
+        requestId,
+        duration,
+        errorCategory: errorDetails.category,
+        errorCode: errorDetails.errorCode,
+      },
+      error as Error
+    );
+
+    await putMetricSafe("AdminReviewError", 1, {
       errorCategory: errorDetails.category,
-      errorCode: errorDetails.errorCode,
-    }, error as Error);
-    
-    await putMetricSafe("AdminReviewError", 1, { errorCategory: errorDetails.category });
-    
+    });
+
     return {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         message: errorDetails.userMessage,
         requestId,
       }),
@@ -133,16 +148,16 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
-  
+
   logger.info("KYC approval started", {
     operation: "KYCApproval",
     requestId,
   });
 
   try {
-    const request: AdminReviewRequest = JSON.parse(event.body || '{}');
+    const request: AdminReviewRequest = JSON.parse(event.body || "{}");
     const adminUserId = extractAdminUserId(event);
-    
+
     // Validate request
     const validation = validateReviewRequest(request);
     if (!validation.isValid) {
@@ -150,7 +165,10 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
     }
 
     // Get the document
-    const document = await kycRepo.getKYCDocument(request.userId, request.documentId);
+    const document = await kycRepo.getKYCDocument(
+      request.userId,
+      request.documentId
+    );
     if (!document) {
       return createErrorResponse(404, "Document not found");
     }
@@ -161,21 +179,23 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
 
     // Approve the document with retry logic
     await retry.execute(
-      () => kycRepo.approveDocument(
-        request.userId,
-        request.documentId,
-        adminUserId,
-        request.comments
-      ),
+      () =>
+        kycRepo.approveDocument(
+          request.userId,
+          request.documentId,
+          adminUserId,
+          request.comments
+        ),
       `DynamoDB-ApproveDocument-${request.documentId}`
     );
 
     // Update user KYC status to approved
     await retry.execute(
-      () => userRepo.updateUserProfile({
-        userId: request.userId,
-        kycStatus: "approved",
-      }),
+      () =>
+        userRepo.updateUserProfile({
+          userId: request.userId,
+          kycStatus: "approved",
+        }),
       `DynamoDB-UpdateUserKYC-${request.userId}`
     );
 
@@ -190,15 +210,30 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
       event.headers["User-Agent"]
     );
 
-    // Publish EventBridge event
-    await publishKYCStatusChangeEvent({
+    // Get user profile to determine user type
+    const userProfile = await userRepo.getUserProfile(request.userId);
+    const userType = userProfile?.userType || "entrepreneur";
+
+    // Publish EventBridge events
+    await eventBridgeService.publishKYCStatusChangeEvent({
       userId: request.userId,
       documentId: request.documentId,
       previousStatus: "pending",
       newStatus: "approved",
       reviewedBy: adminUserId,
       reviewComments: request.comments,
-      timestamp: new Date().toISOString(),
+      documentType: "national_id",
+      userType: userType as "entrepreneur" | "investor",
+    });
+
+    await eventBridgeService.publishKYCReviewCompletedEvent({
+      userId: request.userId,
+      documentId: request.documentId,
+      reviewedBy: adminUserId,
+      reviewResult: "approved",
+      reviewComments: request.comments,
+      documentType: "national_id",
+      processingTimeMs: Date.now() - startTime,
     });
 
     const duration = Date.now() - startTime;
@@ -237,15 +272,21 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
       duration,
     });
 
-    logger.error("KYC approval failed", {
-      operation: "KYCApproval",
-      requestId,
-      duration,
+    logger.error(
+      "KYC approval failed",
+      {
+        operation: "KYCApproval",
+        requestId,
+        duration,
+        errorCategory: errorDetails.category,
+      },
+      error as Error
+    );
+
+    await putMetricSafe("KYCApprovalError", 1, {
       errorCategory: errorDetails.category,
-    }, error as Error);
-    
-    await putMetricSafe("KYCApprovalError", 1, { errorCategory: errorDetails.category });
-    
+    });
+
     return createErrorResponse(
       errorDetails.httpStatusCode || 500,
       errorDetails.userMessage,
@@ -257,16 +298,16 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
 async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
-  
+
   logger.info("KYC rejection started", {
     operation: "KYCRejection",
     requestId,
   });
 
   try {
-    const request: AdminReviewRequest = JSON.parse(event.body || '{}');
+    const request: AdminReviewRequest = JSON.parse(event.body || "{}");
     const adminUserId = extractAdminUserId(event);
-    
+
     // Validate request
     const validation = validateReviewRequest(request);
     if (!validation.isValid) {
@@ -278,7 +319,10 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
     }
 
     // Get the document
-    const document = await kycRepo.getKYCDocument(request.userId, request.documentId);
+    const document = await kycRepo.getKYCDocument(
+      request.userId,
+      request.documentId
+    );
     if (!document) {
       return createErrorResponse(404, "Document not found");
     }
@@ -289,21 +333,23 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
 
     // Reject the document with retry logic
     await retry.execute(
-      () => kycRepo.rejectDocument(
-        request.userId,
-        request.documentId,
-        adminUserId,
-        request.comments
-      ),
+      () =>
+        kycRepo.rejectDocument(
+          request.userId,
+          request.documentId,
+          adminUserId,
+          request.comments
+        ),
       `DynamoDB-RejectDocument-${request.documentId}`
     );
 
     // Update user KYC status to rejected
     await retry.execute(
-      () => userRepo.updateUserProfile({
-        userId: request.userId,
-        kycStatus: "rejected",
-      }),
+      () =>
+        userRepo.updateUserProfile({
+          userId: request.userId,
+          kycStatus: "rejected",
+        }),
       `DynamoDB-UpdateUserKYC-${request.userId}`
     );
 
@@ -318,15 +364,30 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
       event.headers["User-Agent"]
     );
 
-    // Publish EventBridge event
-    await publishKYCStatusChangeEvent({
+    // Get user profile to determine user type
+    const userProfile = await userRepo.getUserProfile(request.userId);
+    const userType = userProfile?.userType || "entrepreneur";
+
+    // Publish EventBridge events
+    await eventBridgeService.publishKYCStatusChangeEvent({
       userId: request.userId,
       documentId: request.documentId,
       previousStatus: "pending",
       newStatus: "rejected",
       reviewedBy: adminUserId,
       reviewComments: request.comments,
-      timestamp: new Date().toISOString(),
+      documentType: "national_id",
+      userType: userType as "entrepreneur" | "investor",
+    });
+
+    await eventBridgeService.publishKYCReviewCompletedEvent({
+      userId: request.userId,
+      documentId: request.documentId,
+      reviewedBy: adminUserId,
+      reviewResult: "rejected",
+      reviewComments: request.comments,
+      documentType: "national_id",
+      processingTimeMs: Date.now() - startTime,
     });
 
     const duration = Date.now() - startTime;
@@ -366,15 +427,21 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
       duration,
     });
 
-    logger.error("KYC rejection failed", {
-      operation: "KYCRejection",
-      requestId,
-      duration,
+    logger.error(
+      "KYC rejection failed",
+      {
+        operation: "KYCRejection",
+        requestId,
+        duration,
+        errorCategory: errorDetails.category,
+      },
+      error as Error
+    );
+
+    await putMetricSafe("KYCRejectionError", 1, {
       errorCategory: errorDetails.category,
-    }, error as Error);
-    
-    await putMetricSafe("KYCRejectionError", 1, { errorCategory: errorDetails.category });
-    
+    });
+
     return createErrorResponse(
       errorDetails.httpStatusCode || 500,
       errorDetails.userMessage,
@@ -385,12 +452,16 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
 
 async function handleGetDocuments(event: APIGatewayProxyEvent): Promise<any> {
   const requestId = event.requestContext.requestId;
-  
+
   try {
     const queryParams = event.queryStringParameters || {};
-    const status = queryParams.status as "pending" | "approved" | "rejected" | undefined;
+    const status = queryParams.status as
+      | "pending"
+      | "approved"
+      | "rejected"
+      | undefined;
     const limit = queryParams.limit ? parseInt(queryParams.limit) : 50;
-    
+
     let documents;
     if (status) {
       documents = await kycRepo.getDocumentsByStatus(status, { limit });
@@ -413,54 +484,23 @@ async function handleGetDocuments(event: APIGatewayProxyEvent): Promise<any> {
       }),
     };
   } catch (error) {
-    logger.error("Failed to retrieve documents", {
-      operation: "GetDocuments",
-      requestId,
-    }, error as Error);
-    
+    logger.error(
+      "Failed to retrieve documents",
+      {
+        operation: "GetDocuments",
+        requestId,
+      },
+      error as Error
+    );
+
     return createErrorResponse(500, "Failed to retrieve documents", requestId);
   }
 }
 
-async function publishKYCStatusChangeEvent(eventData: KYCStatusChangeEvent): Promise<void> {
-  try {
-    await retry.execute(
-      () => eventBridgeClient.send(
-        new PutEventsCommand({
-          Entries: [
-            {
-              Source: "sachain.kyc",
-              DetailType: "KYC Status Change",
-              Detail: JSON.stringify(eventData),
-              EventBusName: EVENT_BUS_NAME,
-            },
-          ],
-        })
-      ),
-      `EventBridge-KYCStatusChange-${eventData.documentId}`
-    );
-
-    logger.info("KYC status change event published", {
-      operation: "EventBridgePublish",
-      userId: eventData.userId,
-      documentId: eventData.documentId,
-      newStatus: eventData.newStatus,
-    });
-
-    await putMetricSafe("EventPublished", 1, { eventType: "KYCStatusChange" });
-  } catch (error) {
-    logger.error("Failed to publish KYC status change event", {
-      operation: "EventBridgePublish",
-      userId: eventData.userId,
-      documentId: eventData.documentId,
-    }, error as Error);
-    
-    await putMetricSafe("EventPublishError", 1, { eventType: "KYCStatusChange" });
-    // Don't throw error as this is not critical for the review process
-  }
-}
-
-function validateReviewRequest(request: any): { isValid: boolean; error?: string } {
+function validateReviewRequest(request: any): {
+  isValid: boolean;
+  error?: string;
+} {
   if (!request.userId || typeof request.userId !== "string") {
     return { isValid: false, error: "Invalid user ID" };
   }
@@ -487,14 +527,18 @@ function getClientIP(event: APIGatewayProxyEvent): string | undefined {
   return event.requestContext.identity?.sourceIp;
 }
 
-function createErrorResponse(statusCode: number, message: string, requestId?: string): any {
+function createErrorResponse(
+  statusCode: number,
+  message: string,
+  requestId?: string
+): any {
   return {
     statusCode,
     headers: {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*",
     },
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       message,
       ...(requestId && { requestId }),
     }),
@@ -502,34 +546,38 @@ function createErrorResponse(statusCode: number, message: string, requestId?: st
 }
 
 async function putMetricSafe(
-  metricName: string, 
-  value: number, 
+  metricName: string,
+  value: number,
   dimensions: Record<string, string> = {}
 ): Promise<void> {
   try {
     const metricDimensions = [
       { Name: "Environment", Value: ENVIRONMENT },
-      ...Object.entries(dimensions).map(([name, value]) => ({ Name: name, Value: value }))
+      ...Object.entries(dimensions).map(([name, value]) => ({
+        Name: name,
+        Value: value,
+      })),
     ];
 
     await retry.execute(
-      () => cloudWatchClient.send(
-        new PutMetricDataCommand({
-          Namespace: "Sachain/AdminReview",
-          MetricData: [
-            {
-              MetricName: metricName,
-              Value: value,
-              Unit: "Count",
-              Dimensions: metricDimensions,
-              Timestamp: new Date(),
-            },
-          ],
-        })
-      ),
+      () =>
+        cloudWatchClient.send(
+          new PutMetricDataCommand({
+            Namespace: "Sachain/AdminReview",
+            MetricData: [
+              {
+                MetricName: metricName,
+                Value: value,
+                Unit: "Count",
+                Dimensions: metricDimensions,
+                Timestamp: new Date(),
+              },
+            ],
+          })
+        ),
       `CloudWatch-${metricName}`
     );
-    
+
     logger.logMetricPublication(metricName, value, true);
   } catch (error) {
     logger.logMetricPublication(metricName, value, false, error as Error);
