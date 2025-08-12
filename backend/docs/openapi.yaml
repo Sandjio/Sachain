@@ -1,0 +1,703 @@
+openapi: 3.0.3
+info:
+  title: Sachain API
+  description: |
+    Sachain is an innovative fundraising platform that empowers entrepreneurs to raise capital by tokenizing shares of their projects on the Hedera Token Service (HTS).
+    
+    This API provides endpoints for:
+    - User authentication and KYC verification
+    - Document upload and management
+    - Admin review and approval workflows
+    - Compliance and audit logging
+  version: 1.0.0
+  contact:
+    name: Sachain Development Team
+    email: dev@sachain.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.sachain.com/v1
+    description: Production server
+  - url: https://staging-api.sachain.com/v1
+    description: Staging server
+  - url: http://localhost:3000/v1
+    description: Local development server
+
+security:
+  - CognitoAuth: []
+
+paths:
+  # KYC Upload Endpoints
+  /kyc/presigned-url:
+    post:
+      tags:
+        - KYC Upload
+      summary: Generate presigned URL for document upload
+      description: |
+        Generates a presigned S3 URL for secure document upload. The URL expires in 1 hour.
+        Use this endpoint when implementing client-side direct uploads to S3.
+      operationId: generatePresignedUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresignedUrlRequest'
+            examples:
+              national_id:
+                summary: National ID upload
+                value:
+                  userId: "user-123"
+                  documentType: "national_id"
+                  fileName: "national_id.jpg"
+                  contentType: "image/jpeg"
+      responses:
+        '200':
+          description: Presigned URL generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+              examples:
+                success:
+                  summary: Successful response
+                  value:
+                    documentId: "doc-456"
+                    uploadUrl: "https://s3.amazonaws.com/bucket/key?signature=..."
+                    message: "Presigned URL generated successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /kyc/upload:
+    post:
+      tags:
+        - KYC Upload
+      summary: Direct document upload
+      description: |
+        Upload document directly through the API using base64 encoded content.
+        Maximum file size is 10MB. Supported formats: JPEG, PNG, PDF.
+      operationId: directUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DirectUploadRequest'
+            examples:
+              passport:
+                summary: Passport upload
+                value:
+                  userId: "user-123"
+                  documentType: "passport"
+                  fileName: "passport.pdf"
+                  contentType: "application/pdf"
+                  fileContent: "JVBERi0xLjQKJcOkw7zDtsO..."
+      responses:
+        '200':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+              examples:
+                success:
+                  summary: Successful upload
+                  value:
+                    documentId: "doc-789"
+                    message: "File uploaded successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                message: "File size exceeds 10MB limit"
+                requestId: "req-123"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /kyc/process-upload:
+    post:
+      tags:
+        - KYC Upload
+      summary: Process uploaded document
+      description: |
+        Process a document that was uploaded via presigned URL.
+        This endpoint updates the document status and triggers admin review notifications.
+      operationId: processUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadProcessingRequest'
+      responses:
+        '200':
+          description: Upload processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Upload processed successfully"
+                  documentId:
+                    type: string
+                    example: "doc-456"
+                  status:
+                    type: string
+                    example: "pending_review"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # Admin Review Endpoints
+  /admin/approve:
+    post:
+      tags:
+        - Admin Review
+      summary: Approve KYC document
+      description: |
+        Approve a KYC document after review. This action:
+        - Updates document status to 'approved'
+        - Updates user KYC status to 'approved'
+        - Publishes EventBridge events for downstream processing
+        - Creates comprehensive audit logs
+      operationId: approveDocument
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReviewRequest'
+            examples:
+              with_comments:
+                summary: Approval with comments
+                value:
+                  userId: "user-123"
+                  documentId: "doc-456"
+                  comments: "Document verified successfully"
+              without_comments:
+                summary: Simple approval
+                value:
+                  userId: "user-123"
+                  documentId: "doc-456"
+      responses:
+        '200':
+          description: Document approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReviewResponse'
+              examples:
+                success:
+                  summary: Successful approval
+                  value:
+                    message: "Document approved successfully"
+                    documentId: "doc-456"
+                    status: "approved"
+                    reviewedBy: "admin-123"
+                    reviewedAt: "2024-01-15T10:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/reject:
+    post:
+      tags:
+        - Admin Review
+      summary: Reject KYC document
+      description: |
+        Reject a KYC document after review. Comments are required for rejection.
+        This action:
+        - Updates document status to 'rejected'
+        - Updates user KYC status to 'rejected'
+        - Publishes EventBridge events for user notification
+        - Creates comprehensive audit logs
+      operationId: rejectDocument
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AdminReviewRequest'
+                - type: object
+                  required:
+                    - comments
+                  properties:
+                    comments:
+                      minLength: 1
+            examples:
+              rejection:
+                summary: Document rejection
+                value:
+                  userId: "user-123"
+                  documentId: "doc-456"
+                  comments: "Document is blurry and unreadable. Please upload a clearer image."
+      responses:
+        '200':
+          description: Document rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReviewResponse'
+              examples:
+                success:
+                  summary: Successful rejection
+                  value:
+                    message: "Document rejected successfully"
+                    documentId: "doc-456"
+                    status: "rejected"
+                    reviewedBy: "admin-123"
+                    reviewedAt: "2024-01-15T10:30:00Z"
+                    comments: "Document is blurry and unreadable. Please upload a clearer image."
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/documents:
+    get:
+      tags:
+        - Admin Review
+      summary: Get documents for review
+      description: |
+        Retrieve KYC documents for admin review. Supports filtering by status and pagination.
+        Default behavior returns pending documents only.
+      operationId: getDocuments
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter documents by status
+          required: false
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+            default: pending
+          examples:
+            pending:
+              summary: Pending documents
+              value: pending
+            approved:
+              summary: Approved documents
+              value: approved
+        - name: limit
+          in: query
+          description: Maximum number of documents to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          examples:
+            default:
+              summary: Default limit
+              value: 50
+            small:
+              summary: Small batch
+              value: 10
+      responses:
+        '200':
+          description: Documents retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDocumentsResponse'
+              examples:
+                pending_documents:
+                  summary: Pending documents response
+                  value:
+                    documents:
+                      - documentId: "doc-456"
+                        userId: "user-123"
+                        documentType: "national_id"
+                        originalFileName: "national_id.jpg"
+                        fileSize: 2048576
+                        status: "pending"
+                        uploadedAt: "2024-01-15T09:00:00Z"
+                    count: 1
+                    lastEvaluatedKey: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: AWS Cognito JWT token for user authentication
+    AdminAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: AWS Cognito JWT token with admin privileges
+
+  schemas:
+    # Request Schemas
+    PresignedUrlRequest:
+      type: object
+      required:
+        - userId
+        - documentType
+        - fileName
+        - contentType
+      properties:
+        userId:
+          type: string
+          description: Unique identifier for the user
+          example: "user-123"
+        documentType:
+          type: string
+          enum: [passport, driver_license, national_id, utility_bill]
+          description: Type of document being uploaded
+          example: "national_id"
+        fileName:
+          type: string
+          pattern: '^[a-zA-Z0-9._-]+\.(jpg|jpeg|png|pdf)$'
+          description: Original filename with extension
+          example: "national_id.jpg"
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, application/pdf]
+          description: MIME type of the file
+          example: "image/jpeg"
+
+    DirectUploadRequest:
+      allOf:
+        - $ref: '#/components/schemas/PresignedUrlRequest'
+        - type: object
+          required:
+            - fileContent
+          properties:
+            fileContent:
+              type: string
+              format: byte
+              description: Base64 encoded file content
+              example: "JVBERi0xLjQKJcOkw7zDtsO..."
+
+    UploadProcessingRequest:
+      type: object
+      required:
+        - documentId
+        - userId
+        - s3Key
+        - fileSize
+      properties:
+        documentId:
+          type: string
+          description: Unique identifier for the document
+          example: "doc-456"
+        userId:
+          type: string
+          description: Unique identifier for the user
+          example: "user-123"
+        s3Key:
+          type: string
+          description: S3 object key where the file is stored
+          example: "kyc-documents/user-123/doc-456/national_id.jpg"
+        fileSize:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+          description: File size in bytes
+          example: 2048576
+
+    AdminReviewRequest:
+      type: object
+      required:
+        - userId
+        - documentId
+      properties:
+        userId:
+          type: string
+          description: Unique identifier for the user
+          example: "user-123"
+        documentId:
+          type: string
+          description: Unique identifier for the document
+          example: "doc-456"
+        comments:
+          type: string
+          maxLength: 1000
+          description: Optional comments for the review (required for rejection)
+          example: "Document verified successfully"
+
+    # Response Schemas
+    UploadResponse:
+      type: object
+      required:
+        - documentId
+        - message
+      properties:
+        documentId:
+          type: string
+          description: Unique identifier for the uploaded document
+          example: "doc-456"
+        uploadUrl:
+          type: string
+          format: uri
+          description: Presigned URL for upload (only present for presigned URL requests)
+          example: "https://s3.amazonaws.com/bucket/key?signature=..."
+        message:
+          type: string
+          description: Success message
+          example: "File uploaded successfully"
+
+    AdminReviewResponse:
+      type: object
+      required:
+        - message
+        - documentId
+        - status
+        - reviewedBy
+        - reviewedAt
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: "Document approved successfully"
+        documentId:
+          type: string
+          description: Unique identifier for the document
+          example: "doc-456"
+        status:
+          type: string
+          enum: [approved, rejected]
+          description: New status of the document
+          example: "approved"
+        reviewedBy:
+          type: string
+          description: Identifier of the admin who reviewed the document
+          example: "admin-123"
+        reviewedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the review was completed
+          example: "2024-01-15T10:30:00Z"
+        comments:
+          type: string
+          description: Review comments (present for rejections)
+          example: "Document is blurry and unreadable"
+
+    GetDocumentsResponse:
+      type: object
+      required:
+        - documents
+        - count
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/KYCDocument'
+          description: Array of KYC documents
+        count:
+          type: integer
+          minimum: 0
+          description: Number of documents returned
+          example: 25
+        lastEvaluatedKey:
+          type: object
+          nullable: true
+          description: Pagination key for next page (null if no more pages)
+          example: null
+
+    KYCDocument:
+      type: object
+      required:
+        - documentId
+        - userId
+        - documentType
+        - originalFileName
+        - fileSize
+        - mimeType
+        - status
+        - uploadedAt
+      properties:
+        documentId:
+          type: string
+          description: Unique identifier for the document
+          example: "doc-456"
+        userId:
+          type: string
+          description: Unique identifier for the user
+          example: "user-123"
+        documentType:
+          type: string
+          enum: [national_id]
+          description: Type of document
+          example: "national_id"
+        originalFileName:
+          type: string
+          description: Original filename
+          example: "national_id.jpg"
+        fileSize:
+          type: integer
+          minimum: 1
+          description: File size in bytes
+          example: 2048576
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, application/pdf]
+          description: MIME type of the file
+          example: "image/jpeg"
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          description: Current status of the document
+          example: "pending"
+        uploadedAt:
+          type: string
+          format: date-time
+          description: Timestamp when document was uploaded
+          example: "2024-01-15T09:00:00Z"
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when document was reviewed
+          example: "2024-01-15T10:30:00Z"
+        reviewedBy:
+          type: string
+          nullable: true
+          description: Identifier of the admin who reviewed the document
+          example: "admin-123"
+        reviewComments:
+          type: string
+          nullable: true
+          description: Comments from the review
+          example: "Document verified successfully"
+
+    # Error Schemas
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Invalid request parameters"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-123"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            field: "documentType"
+            code: "INVALID_VALUE"
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation_error:
+              summary: Validation error
+              value:
+                message: "Invalid document type"
+                requestId: "req-123"
+            missing_field:
+              summary: Missing required field
+              value:
+                message: "Missing required field: userId"
+                requestId: "req-456"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            message: "Invalid or expired authentication token"
+            requestId: "req-789"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            message: "Insufficient permissions for this operation"
+            requestId: "req-101"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            message: "An internal server error occurred"
+            requestId: "req-112"
+
+tags:
+  - name: KYC Upload
+    description: |
+      Endpoints for uploading and processing KYC documents.
+      Supports both direct upload and presigned URL workflows.
+  - name: Admin Review
+    description: |
+      Administrative endpoints for reviewing and managing KYC documents.
+      Requires admin authentication and permissions.
