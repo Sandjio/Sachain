@@ -145,9 +145,11 @@ describe("S3UploadUtility", () => {
       );
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain(
-        expect.stringContaining("exceeds maximum allowed size")
-      );
+      expect(
+        result.errors.some((error) =>
+          error.includes("exceeds maximum allowed size")
+        )
+      ).toBe(true);
     });
 
     it("should reject empty file", () => {
@@ -175,9 +177,11 @@ describe("S3UploadUtility", () => {
       const result = s3Upload.validateFile(buffer, "test.gif", "image/gif");
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain(
-        expect.stringContaining("MIME type image/gif is not allowed")
-      );
+      expect(
+        result.errors.some((error) =>
+          error.includes("MIME type image/gif is not allowed")
+        )
+      ).toBe(true);
     });
 
     it("should reject disallowed file extension", () => {
@@ -192,9 +196,11 @@ describe("S3UploadUtility", () => {
       const result = s3Upload.validateFile(buffer, "test.gif", "image/jpeg");
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain(
-        expect.stringContaining("File extension .gif is not allowed")
-      );
+      expect(
+        result.errors.some((error) =>
+          error.includes("File extension .gif is not allowed")
+        )
+      ).toBe(true);
     });
 
     it("should reject file with invalid JPEG header", () => {
@@ -347,12 +353,18 @@ describe("S3UploadUtility", () => {
     it("should retry on transient S3 errors", async () => {
       const request = createValidUploadRequest();
 
+      const serviceUnavailableError = new Error("Service unavailable");
+      serviceUnavailableError.name = "ServiceUnavailable";
+
+      const slowDownError = new Error("Slow down");
+      slowDownError.name = "SlowDown";
+
       mockS3.upload
         .mockReturnValueOnce({
-          promise: jest.fn().mockRejectedValue(new Error("ServiceUnavailable")),
+          promise: jest.fn().mockRejectedValue(serviceUnavailableError),
         })
         .mockReturnValueOnce({
-          promise: jest.fn().mockRejectedValue(new Error("SlowDown")),
+          promise: jest.fn().mockRejectedValue(slowDownError),
         })
         .mockReturnValueOnce({
           promise: jest.fn().mockResolvedValue({ ETag: '"abc123"' }),
@@ -367,8 +379,11 @@ describe("S3UploadUtility", () => {
     it("should fail after max retries", async () => {
       const request = createValidUploadRequest();
 
+      const serviceUnavailableError = new Error("Service unavailable");
+      serviceUnavailableError.name = "ServiceUnavailable";
+
       mockS3.upload.mockReturnValue({
-        promise: jest.fn().mockRejectedValue(new Error("ServiceUnavailable")),
+        promise: jest.fn().mockRejectedValue(serviceUnavailableError),
       });
 
       const result = await s3Upload.uploadFile(request);
@@ -381,8 +396,11 @@ describe("S3UploadUtility", () => {
     it("should not retry on non-retryable errors", async () => {
       const request = createValidUploadRequest();
 
+      const accessDeniedError = new Error("Access denied");
+      accessDeniedError.name = "AccessDenied";
+
       mockS3.upload.mockReturnValue({
-        promise: jest.fn().mockRejectedValue(new Error("AccessDenied")),
+        promise: jest.fn().mockRejectedValue(accessDeniedError),
       });
 
       const result = await s3Upload.uploadFile(request);
@@ -490,9 +508,12 @@ describe("S3UploadUtility", () => {
     });
 
     it("should retry deletion on transient errors", async () => {
+      const serviceUnavailableError = new Error("Service unavailable");
+      serviceUnavailableError.name = "ServiceUnavailable";
+
       mockS3.deleteObject
         .mockReturnValueOnce({
-          promise: jest.fn().mockRejectedValue(new Error("ServiceUnavailable")),
+          promise: jest.fn().mockRejectedValue(serviceUnavailableError),
         })
         .mockReturnValueOnce({
           promise: jest.fn().mockResolvedValue({}),
@@ -616,7 +637,7 @@ describe("S3UploadUtility", () => {
       const result = await s3Upload.uploadFile(request);
 
       expect(result.s3Key).toMatch(
-        /^kyc-documents\/user123\/national_id\/\d{4}-\d{2}-\d{2}\/[a-z0-9]+-national-id\.jpg$/
+        /^kyc-documents\/user123\/national_id\/\d{4}-\d{2}-\d{2}\/[a-z0-9]+-[a-z0-9]+-national-id\.jpg$/
       );
     });
 
@@ -740,13 +761,20 @@ describe("S3UploadUtility", () => {
         "image/jpeg"
       );
       expect(invalidResult.isValid).toBe(false);
-      expect(invalidResult.errors).toContain(
-        expect.stringContaining("exceeds maximum allowed size")
-      );
+      expect(
+        invalidResult.errors.some((error) =>
+          error.includes("exceeds maximum allowed size")
+        )
+      ).toBe(true);
     });
 
     it("should handle all supported KYC document types", async () => {
-      const documentTypes = ["passport", "driver_license", "national_id", "utility_bill"];
+      const documentTypes = [
+        "passport",
+        "driver_license",
+        "national_id",
+        "utility_bill",
+      ];
       const mimeTypes = ["image/jpeg", "image/png", "application/pdf"];
 
       mockS3.upload.mockReturnValue({
@@ -755,18 +783,40 @@ describe("S3UploadUtility", () => {
 
       for (const docType of documentTypes) {
         for (const mimeType of mimeTypes) {
-          const extension = mimeType === "application/pdf" ? ".pdf" : 
-                           mimeType === "image/png" ? ".png" : ".jpg";
+          const extension =
+            mimeType === "application/pdf"
+              ? ".pdf"
+              : mimeType === "image/png"
+              ? ".png"
+              : ".jpg";
           const fileName = `${docType}${extension}`;
-          
+
           // Create appropriate file header
           let fileBuffer: Buffer;
           if (mimeType === "image/jpeg") {
-            fileBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0, ...Array(100).fill(0)]);
+            fileBuffer = Buffer.from([
+              0xff,
+              0xd8,
+              0xff,
+              0xe0,
+              ...Array(100).fill(0),
+            ]);
           } else if (mimeType === "image/png") {
-            fileBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, ...Array(100).fill(0)]);
+            fileBuffer = Buffer.from([
+              0x89,
+              0x50,
+              0x4e,
+              0x47,
+              ...Array(100).fill(0),
+            ]);
           } else {
-            fileBuffer = Buffer.from([0x25, 0x50, 0x44, 0x46, ...Array(100).fill(0)]);
+            fileBuffer = Buffer.from([
+              0x25,
+              0x50,
+              0x44,
+              0x46,
+              ...Array(100).fill(0),
+            ]);
           }
 
           const request: S3UploadRequest = {
@@ -794,10 +844,12 @@ describe("S3UploadUtility", () => {
       });
 
       // Simulate multiple concurrent uploads
-      const uploadPromises = Array(10).fill(null).map(() => s3Upload.uploadFile(request));
+      const uploadPromises = Array(10)
+        .fill(null)
+        .map(() => s3Upload.uploadFile(request));
       const results = await Promise.all(uploadPromises);
 
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.success).toBe(true);
         uploadIds.add(result.uploadId);
         s3Keys.add(result.s3Key);
