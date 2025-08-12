@@ -8,6 +8,7 @@ import * as events from "aws-cdk-lib/aws-events";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import { Construct } from "constructs";
+import { SecurityConstruct } from "./security";
 
 export interface LambdaConstructProps {
   table: dynamodb.Table;
@@ -15,6 +16,7 @@ export interface LambdaConstructProps {
   notificationTopic?: sns.Topic;
   eventBus?: events.EventBus;
   environment: string;
+  securityConstruct?: SecurityConstruct;
 }
 
 export class LambdaConstruct extends Construct {
@@ -34,6 +36,7 @@ export class LambdaConstruct extends Construct {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
       code: lambda.Code.fromAsset("../backend/src/lambdas/post-auth"),
+      role: props.securityConstruct?.postAuthRole,
       environment: {
         TABLE_NAME: props.table.tableName,
         ENVIRONMENT: props.environment,
@@ -44,6 +47,7 @@ export class LambdaConstruct extends Construct {
         queueName: `sachain-post-auth-dlq-${props.environment}`,
         retentionPeriod: cdk.Duration.days(14),
       }),
+      tracing: lambda.Tracing.ACTIVE,
     });
 
     // KYC Upload Lambda
@@ -52,6 +56,7 @@ export class LambdaConstruct extends Construct {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
       code: lambda.Code.fromAsset("../backend/src/lambdas/kyc-upload"),
+      role: props.securityConstruct?.kycUploadRole,
       environment: {
         TABLE_NAME: props.table.tableName,
         BUCKET_NAME: props.documentBucket?.bucketName || "",
@@ -67,6 +72,7 @@ export class LambdaConstruct extends Construct {
         queueName: `sachain-kyc-upload-dlq-${props.environment}`,
         retentionPeriod: cdk.Duration.days(14),
       }),
+      tracing: lambda.Tracing.ACTIVE,
     });
 
     // Admin Review Lambda
@@ -75,6 +81,7 @@ export class LambdaConstruct extends Construct {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "index.handler",
       code: lambda.Code.fromAsset("../backend/src/lambdas/admin-review"),
+      role: props.securityConstruct?.adminReviewRole,
       environment: {
         TABLE_NAME: props.table.tableName,
         EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
@@ -86,6 +93,7 @@ export class LambdaConstruct extends Construct {
         queueName: `sachain-admin-review-dlq-${props.environment}`,
         retentionPeriod: cdk.Duration.days(14),
       }),
+      tracing: lambda.Tracing.ACTIVE,
     });
 
     // User Notification Lambda
@@ -97,6 +105,7 @@ export class LambdaConstruct extends Construct {
         runtime: lambda.Runtime.NODEJS_20_X,
         handler: "index.handler",
         code: lambda.Code.fromAsset("../backend/src/lambdas/user-notification"),
+        role: props.securityConstruct?.userNotificationRole,
         environment: {
           TABLE_NAME: props.table.tableName,
           ENVIRONMENT: props.environment,
@@ -108,82 +117,13 @@ export class LambdaConstruct extends Construct {
           queueName: `sachain-user-notification-dlq-${props.environment}`,
           retentionPeriod: cdk.Duration.days(14),
         }),
+        tracing: lambda.Tracing.ACTIVE,
       }
     );
 
-    // Grant DynamoDB permissions
-    props.table.grantReadWriteData(this.postAuthLambda);
-    props.table.grantReadWriteData(this.kycUploadLambda);
-    props.table.grantReadWriteData(this.adminReviewLambda);
-    props.table.grantReadData(this.userNotificationLambda);
-
-    // Grant S3 permissions for KYC Upload Lambda
-    if (props.documentBucket) {
-      props.documentBucket.grantReadWrite(this.kycUploadLambda);
-    }
-
-    // Grant SNS permissions for KYC Upload Lambda
-    if (props.notificationTopic) {
-      props.notificationTopic.grantPublish(this.kycUploadLambda);
-    }
-
-    // Grant EventBridge permissions for Admin Review Lambda
-    if (props.eventBus) {
-      props.eventBus.grantPutEventsTo(this.adminReviewLambda);
-    }
-
-    // Grant CloudWatch permissions
-    this.postAuthLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ["cloudwatch:PutMetricData"],
-        resources: ["*"],
-        conditions: {
-          StringEquals: {
-            "cloudwatch:namespace": "Sachain/PostAuth",
-          },
-        },
-      })
-    );
-
-    this.kycUploadLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ["cloudwatch:PutMetricData"],
-        resources: ["*"],
-        conditions: {
-          StringEquals: {
-            "cloudwatch:namespace": "Sachain/KYCUpload",
-          },
-        },
-      })
-    );
-
-    this.adminReviewLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ["cloudwatch:PutMetricData"],
-        resources: ["*"],
-        conditions: {
-          StringEquals: {
-            "cloudwatch:namespace": "Sachain/AdminReview",
-          },
-        },
-      })
-    );
-
-    this.userNotificationLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ["cloudwatch:PutMetricData"],
-        resources: ["*"],
-        conditions: {
-          StringEquals: {
-            "cloudwatch:namespace": "Sachain/UserNotification",
-          },
-        },
-      })
-    );
+    // Note: IAM permissions are now managed by the SecurityConstruct
+    // which provides least-privilege access with proper conditions and restrictions
+    // All Lambda functions use custom IAM roles from the SecurityConstruct
 
     // Create API Gateway for KYC Upload
     this.kycUploadApi = new apigateway.RestApi(this, "KYCUploadApi", {

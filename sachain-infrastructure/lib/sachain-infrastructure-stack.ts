@@ -8,6 +8,7 @@ import {
   EventBridgeConstruct,
   CognitoConstruct,
   MonitoringConstruct,
+  SecurityConstruct,
 } from "./constructs";
 
 export interface SachainInfrastructureStackProps extends cdk.StackProps {
@@ -45,6 +46,16 @@ export class SachainInfrastructureStack extends cdk.Stack {
       environment,
     });
 
+    // Create security construct with least-privilege IAM roles
+    const securityConstruct = new SecurityConstruct(this, "Security", {
+      environment,
+      table: dynamoDBConstruct.table,
+      documentBucket: s3Construct.documentBucket,
+      encryptionKey: s3Construct.encryptionKey,
+      notificationTopic: eventBridgeConstruct.notificationTopic,
+      eventBus: eventBridgeConstruct.eventBus,
+    });
+
     // Create Lambda functions
     const lambdaConstruct = new LambdaConstruct(this, "Lambda", {
       table: dynamoDBConstruct.table,
@@ -52,6 +63,7 @@ export class SachainInfrastructureStack extends cdk.Stack {
       notificationTopic: eventBridgeConstruct.notificationTopic,
       eventBus: eventBridgeConstruct.eventBus,
       environment,
+      securityConstruct,
     });
 
     // Add User Notification Lambda as EventBridge target after creation
@@ -105,6 +117,11 @@ export class SachainInfrastructureStack extends cdk.Stack {
     new cdk.CfnOutput(this, "KYCUploadApiUrl", {
       value: lambdaConstruct.kycUploadApi.url,
       description: "KYC Upload API Gateway URL",
+    });
+
+    new cdk.CfnOutput(this, "SecurityComplianceReport", {
+      value: JSON.stringify(securityConstruct.getSecurityComplianceReport()),
+      description: "Security compliance and IAM roles summary",
     });
   }
 }
