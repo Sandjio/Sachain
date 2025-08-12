@@ -1,6 +1,9 @@
 // Data models for DynamoDB Single Table Design
 // These interfaces define the structure of data stored in DynamoDB
 
+// Export compliance models
+export * from './compliance';
+
 export interface UserProfile {
   PK: string; // USER#${userId}
   SK: string; // PROFILE
