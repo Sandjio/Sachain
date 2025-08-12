@@ -317,20 +317,23 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
       return createErrorResponse(400, validation.error!, requestId);
     }
 
+    // At this point, validation passed, so request is valid
+    const validRequest = request as AdminReviewRequest;
+
     // Log approval attempt
     await auditRepo
       .createAuditLog({
         userId: adminUserId,
         action: "kyc_approve_attempt",
-        resource: `kyc_document:${request.documentId}`,
+        resource: `kyc_document:${validRequest.documentId}`,
         result: "success",
         ipAddress: clientIP,
         userAgent,
         details: {
           requestId,
-          targetUserId: request.userId,
-          documentId: request.documentId,
-          hasComments: !!request.comments,
+          targetUserId: validRequest.userId,
+          documentId: validRequest.documentId,
+          hasComments: !!validRequest.comments,
         },
       })
       .catch((error) => {
@@ -347,10 +350,12 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
 
     // Get the document with retry logic
     try {
-      document = await retry.execute(
-        () => kycRepo.getKYCDocument(request.userId, request.documentId),
-        `DynamoDB-GetDocument-${request.documentId}`
+      const documentResult = await retry.execute(
+        () =>
+          kycRepo.getKYCDocument(validRequest.userId, validRequest.documentId),
+        `DynamoDB-GetDocument-${validRequest.documentId}`
       );
+      document = documentResult.result;
     } catch (error) {
       const errorDetails = ErrorClassifier.classify(error as Error, {
         operation: "GetKYCDocument",
@@ -362,15 +367,15 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         .createAuditLog({
           userId: adminUserId,
           action: "kyc_approve",
-          resource: `kyc_document:${request.documentId}`,
+          resource: `kyc_document:${validRequest.documentId}`,
           result: "failure",
           ipAddress: clientIP,
           userAgent,
           errorMessage: `Failed to retrieve document: ${errorDetails.technicalMessage}`,
           details: {
             requestId,
-            targetUserId: request.userId,
-            documentId: request.documentId,
+            targetUserId: validRequest.userId,
+            documentId: validRequest.documentId,
             errorCategory: errorDetails.category,
           },
         })
@@ -389,15 +394,15 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         .createAuditLog({
           userId: adminUserId,
           action: "kyc_approve",
-          resource: `kyc_document:${request.documentId}`,
+          resource: `kyc_document:${validRequest.documentId}`,
           result: "failure",
           ipAddress: clientIP,
           userAgent,
           errorMessage: "Document not found",
           details: {
             requestId,
-            targetUserId: request.userId,
-            documentId: request.documentId,
+            targetUserId: validRequest.userId,
+            documentId: validRequest.documentId,
           },
         })
         .catch(() => {});
@@ -410,15 +415,15 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         .createAuditLog({
           userId: adminUserId,
           action: "kyc_approve",
-          resource: `kyc_document:${request.documentId}`,
+          resource: `kyc_document:${validRequest.documentId}`,
           result: "failure",
           ipAddress: clientIP,
           userAgent,
           errorMessage: `Document status is ${document.status}, not pending`,
           details: {
             requestId,
-            targetUserId: request.userId,
-            documentId: request.documentId,
+            targetUserId: validRequest.userId,
+            documentId: validRequest.documentId,
             currentStatus: document.status,
           },
         })
@@ -433,15 +438,15 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
 
     // Approve the document with comprehensive error handling
     try {
-      await retry.execute(
+      const approveResult = await retry.execute(
         () =>
           kycRepo.approveDocument(
-            request.userId,
-            request.documentId,
+            validRequest.userId,
+            validRequest.documentId,
             adminUserId,
-            request.comments
+            validRequest.comments
           ),
-        `DynamoDB-ApproveDocument-${request.documentId}`
+        `DynamoDB-ApproveDocument-${validRequest.documentId}`
       );
     } catch (error) {
       const errorDetails = ErrorClassifier.classify(error as Error, {
@@ -454,15 +459,15 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         .createAuditLog({
           userId: adminUserId,
           action: "kyc_approve",
-          resource: `kyc_document:${request.documentId}`,
+          resource: `kyc_document:${validRequest.documentId}`,
           result: "failure",
           ipAddress: clientIP,
           userAgent,
           errorMessage: `Failed to approve document: ${errorDetails.technicalMessage}`,
           details: {
             requestId,
-            targetUserId: request.userId,
-            documentId: request.documentId,
+            targetUserId: validRequest.userId,
+            documentId: validRequest.documentId,
             errorCategory: errorDetails.category,
             step: "approve_document",
           },
@@ -479,13 +484,13 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
 
     // Update user KYC status with error handling
     try {
-      await retry.execute(
+      const updateResult = await retry.execute(
         () =>
           userRepo.updateUserProfile({
-            userId: request.userId,
+            userId: validRequest.userId,
             kycStatus: "approved",
           }),
-        `DynamoDB-UpdateUserKYC-${request.userId}`
+        `DynamoDB-UpdateUserKYC-${validRequest.userId}`
       );
     } catch (error) {
       const errorDetails = ErrorClassifier.classify(error as Error, {
@@ -499,15 +504,15 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         .createAuditLog({
           userId: adminUserId,
           action: "kyc_approve",
-          resource: `kyc_document:${request.documentId}`,
+          resource: `kyc_document:${validRequest.documentId}`,
           result: "failure",
           ipAddress: clientIP,
           userAgent,
           errorMessage: `CRITICAL: Document approved but user status update failed: ${errorDetails.technicalMessage}`,
           details: {
             requestId,
-            targetUserId: request.userId,
-            documentId: request.documentId,
+            targetUserId: validRequest.userId,
+            documentId: validRequest.documentId,
             errorCategory: errorDetails.category,
             step: "update_user_status",
             criticalError: true,

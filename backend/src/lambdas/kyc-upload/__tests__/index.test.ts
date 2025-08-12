@@ -1,10 +1,22 @@
 import { handler } from "../index";
-import { KYCUploadEvent, DirectUploadRequest, UploadProcessingRequest } from "../types";
+import {
+  KYCUploadEvent,
+  DirectUploadRequest,
+  UploadProcessingRequest,
+} from "../types";
 import { mockClient } from "aws-sdk-client-mock";
-import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+  UpdateCommand,
+} from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
-import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
+import {
+  CloudWatchClient,
+  PutMetricDataCommand,
+} from "@aws-sdk/client-cloudwatch";
 import { APIGatewayProxyResult } from "aws-lambda";
 
 // Mock AWS SDK clients
@@ -22,8 +34,6 @@ jest.mock("@aws-sdk/s3-request-presigner", () => ({
 jest.mock("uuid", () => ({
   v4: jest.fn().mockReturnValue("mock-document-id"),
 }));
-
-
 
 // Mock console methods to avoid test output noise
 const originalConsoleLog = console.log;
@@ -45,7 +55,6 @@ describe("KYC Upload Lambda", () => {
     s3Mock.reset();
     snsMock.reset();
     cloudWatchMock.reset();
-
 
     // Set environment variables
     process.env.TABLE_NAME = "test-table";
@@ -95,7 +104,11 @@ describe("KYC Upload Lambda", () => {
         }),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
@@ -135,7 +148,11 @@ describe("KYC Upload Lambda", () => {
         }),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
@@ -166,7 +183,11 @@ describe("KYC Upload Lambda", () => {
         }),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
@@ -194,7 +215,11 @@ describe("KYC Upload Lambda", () => {
         }),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
@@ -206,7 +231,10 @@ describe("KYC Upload Lambda", () => {
     it("should handle direct file upload successfully", async () => {
       // Create valid JPEG content
       const jpegHeader = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
-      const fileContent = Buffer.concat([jpegHeader, Buffer.from("mock file content")]).toString('base64');
+      const fileContent = Buffer.concat([
+        jpegHeader,
+        Buffer.from("mock file content"),
+      ]).toString("base64");
       const request: DirectUploadRequest = {
         documentType: "passport",
         fileName: "passport.jpg",
@@ -230,7 +258,11 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify(request),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
@@ -239,7 +271,7 @@ describe("KYC Upload Lambda", () => {
 
       // Verify CloudWatch metric was sent
       expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(1);
-      
+
       // Verify S3 upload was called (basic verification)
       expect(s3Mock.commandCalls(PutObjectCommand).length).toBeGreaterThan(0);
     });
@@ -268,18 +300,27 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify(request),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
-      expect(body.message).toContain("File does not appear to be a valid JPEG image");
+      expect(body.message).toContain(
+        "File does not appear to be a valid JPEG image"
+      );
     });
 
     it("should validate file size limits in direct upload", async () => {
       // Create a large file content (over 10MB) with valid JPEG header
       const jpegHeader = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
-      const largeContent = Buffer.alloc(11 * 1024 * 1024 - 4, 'a');
-      const largeFileContent = Buffer.concat([jpegHeader, largeContent]).toString('base64');
+      const largeContent = Buffer.alloc(11 * 1024 * 1024 - 4, "a");
+      const largeFileContent = Buffer.concat([
+        jpegHeader,
+        largeContent,
+      ]).toString("base64");
       const request: DirectUploadRequest = {
         documentType: "passport",
         fileName: "passport.jpg",
@@ -303,7 +344,11 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify(request),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
@@ -313,7 +358,10 @@ describe("KYC Upload Lambda", () => {
     it("should validate file format headers", async () => {
       // Create invalid JPEG content (wrong header)
       const invalidHeader = Buffer.from([0x00, 0x00, 0x00, 0x00]);
-      const fileContent = Buffer.concat([invalidHeader, Buffer.from("mock file content")]).toString('base64');
+      const fileContent = Buffer.concat([
+        invalidHeader,
+        Buffer.from("mock file content"),
+      ]).toString("base64");
       const request: DirectUploadRequest = {
         documentType: "passport",
         fileName: "passport.jpg",
@@ -337,11 +385,17 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify(request),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
-      expect(body.message).toBe("File does not appear to be a valid JPEG image");
+      expect(body.message).toBe(
+        "File validation failed: File does not appear to be a valid JPEG image"
+      );
     });
   });
 
@@ -362,7 +416,11 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify({}),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(404);
       const body = JSON.parse(result.body);
@@ -392,17 +450,27 @@ describe("KYC Upload Lambda", () => {
         }),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(500);
       const body = JSON.parse(result.body);
-      expect(body.message).toBe("Internal server error");
-      expect(body.error).toContain("Operation DynamoDB-Put-mock-document-id failed");
+      expect(body.message).toBe(
+        "An unexpected error occurred. Please try again or contact support."
+      );
+      expect(body.error).toContain(
+        "Operation DynamoDB-Put-mock-document-id failed"
+      );
 
       // Verify error metric was sent
       expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(1);
       const metricCall = cloudWatchMock.commandCalls(PutMetricDataCommand)[0];
-      expect(metricCall.args[0].input.MetricData?.[0]?.MetricName).toBe("UploadError");
+      expect(metricCall.args[0].input.MetricData?.[0]?.MetricName).toBe(
+        "UploadError"
+      );
     });
   });
 
@@ -423,7 +491,11 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify({}),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.headers).toHaveProperty("Access-Control-Allow-Origin", "*");
       expect(result.headers).toHaveProperty("Content-Type", "application/json");
@@ -454,7 +526,11 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify(request),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
@@ -470,7 +546,9 @@ describe("KYC Upload Lambda", () => {
       // Verify metrics were sent
       const metricCalls = cloudWatchMock.commandCalls(PutMetricDataCommand);
       expect(metricCalls.length).toBeGreaterThanOrEqual(2);
-      const metricNames = metricCalls.map(call => call.args[0].input.MetricData?.[0]?.MetricName);
+      const metricNames = metricCalls.map(
+        (call) => call.args[0].input.MetricData?.[0]?.MetricName
+      );
       expect(metricNames).toContain("UploadProcessed");
       expect(metricNames).toContain("AdminNotificationSent");
     });
@@ -500,7 +578,11 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify(request),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(404);
       const body = JSON.parse(result.body);
@@ -536,7 +618,11 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify(request),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       // Should still succeed even if notification fails
       expect(result.statusCode).toBe(200);
@@ -545,7 +631,9 @@ describe("KYC Upload Lambda", () => {
 
       // Verify error metric was sent
       const metricCalls = cloudWatchMock.commandCalls(PutMetricDataCommand);
-      const metricNames = metricCalls.map(call => call.args[0].input.MetricData?.[0]?.MetricName);
+      const metricNames = metricCalls.map(
+        (call) => call.args[0].input.MetricData?.[0]?.MetricName
+      );
       expect(metricNames).toContain("AdminNotificationError");
     });
 
@@ -570,7 +658,11 @@ describe("KYC Upload Lambda", () => {
         body: JSON.stringify(request),
       };
 
-      const result = await handler(event, {} as any, {} as any) as APIGatewayProxyResult;
+      const result = (await handler(
+        event,
+        {} as any,
+        {} as any
+      )) as APIGatewayProxyResult;
 
       expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
@@ -607,7 +699,9 @@ describe("KYC Upload Lambda", () => {
       const metricCall = cloudWatchMock.commandCalls(PutMetricDataCommand)[0];
       const metricData = metricCall.args[0].input;
       expect(metricData.Namespace).toBe("Sachain/KYCUpload");
-      expect(metricData.MetricData?.[0]?.MetricName).toBe("PresignedUrlGenerated");
+      expect(metricData.MetricData?.[0]?.MetricName).toBe(
+        "PresignedUrlGenerated"
+      );
       // Environment dimension verification is optional for this test
       if (metricData.MetricData?.[0]?.Dimensions?.[0]) {
         expect(metricData.MetricData[0].Dimensions[0].Name).toBe("Environment");
