@@ -21,6 +21,7 @@ export class LambdaConstruct extends Construct {
   public readonly postAuthLambda: lambda.Function;
   public readonly kycUploadLambda: lambda.Function;
   public readonly adminReviewLambda: lambda.Function;
+  public readonly userNotificationLambda: lambda.Function;
   public readonly kycUploadApi: apigateway.RestApi;
   public readonly adminReviewApi: apigateway.RestApi;
 
@@ -87,10 +88,34 @@ export class LambdaConstruct extends Construct {
       }),
     });
 
+    // User Notification Lambda
+    this.userNotificationLambda = new lambda.Function(
+      this,
+      "UserNotificationLambda",
+      {
+        functionName: `sachain-user-notification-${props.environment}`,
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset("../backend/src/lambdas/user-notification"),
+        environment: {
+          TABLE_NAME: props.table.tableName,
+          ENVIRONMENT: props.environment,
+          FRONTEND_URL: `https://app.sachain-${props.environment}.com`,
+        },
+        timeout: cdk.Duration.seconds(30),
+        memorySize: 256,
+        deadLetterQueue: new sqs.Queue(this, "UserNotificationDLQ", {
+          queueName: `sachain-user-notification-dlq-${props.environment}`,
+          retentionPeriod: cdk.Duration.days(14),
+        }),
+      }
+    );
+
     // Grant DynamoDB permissions
     props.table.grantReadWriteData(this.postAuthLambda);
     props.table.grantReadWriteData(this.kycUploadLambda);
     props.table.grantReadWriteData(this.adminReviewLambda);
+    props.table.grantReadData(this.userNotificationLambda);
 
     // Grant S3 permissions for KYC Upload Lambda
     if (props.documentBucket) {
@@ -147,6 +172,19 @@ export class LambdaConstruct extends Construct {
       })
     );
 
+    this.userNotificationLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["cloudwatch:PutMetricData"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: {
+            "cloudwatch:namespace": "Sachain/UserNotification",
+          },
+        },
+      })
+    );
+
     // Create API Gateway for KYC Upload
     this.kycUploadApi = new apigateway.RestApi(this, "KYCUploadApi", {
       restApiName: `sachain-kyc-upload-api-${props.environment}`,
@@ -178,11 +216,13 @@ export class LambdaConstruct extends Construct {
     uploadResource.addMethod("POST", kycUploadIntegration);
 
     // Add presigned URL endpoint
-    const presignedResource = this.kycUploadApi.root.addResource("presigned-url");
+    const presignedResource =
+      this.kycUploadApi.root.addResource("presigned-url");
     presignedResource.addMethod("POST", kycUploadIntegration);
 
     // Add upload processing endpoint
-    const processResource = this.kycUploadApi.root.addResource("process-upload");
+    const processResource =
+      this.kycUploadApi.root.addResource("process-upload");
     processResource.addMethod("POST", kycUploadIntegration);
 
     // Create API Gateway for Admin Review

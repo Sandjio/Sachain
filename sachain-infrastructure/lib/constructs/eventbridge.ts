@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 import * as logs from "aws-cdk-lib/aws-logs";
@@ -9,6 +10,7 @@ import { Construct } from "constructs";
 export interface EventBridgeConstructProps {
   environment: string;
   adminEmails?: string[];
+  userNotificationLambda?: lambda.Function;
 }
 
 export class EventBridgeConstruct extends Construct {
@@ -91,10 +93,17 @@ export class EventBridgeConstruct extends Construct {
       })
     );
 
+    // Add User Notification Lambda target for direct event processing
+    if (props.userNotificationLambda) {
+      this.kycStatusChangeRule.addTarget(
+        new targets.LambdaFunction(props.userNotificationLambda)
+      );
+    }
+
     // Add CloudWatch Logs target for debugging
     this.kycStatusChangeRule.addTarget(
       new targets.CloudWatchLogGroup(eventLogGroup, {
-        logEvent: targets.LogGroupTargetInput.fromObject({
+        logEvent: targets.LogGroupTargetInput.fromObjectV2({
           timestamp: events.EventField.fromPath("$.time"),
           source: events.EventField.fromPath("$.source"),
           detailType: events.EventField.fromPath("$.detail-type"),
@@ -165,7 +174,7 @@ export class EventBridgeConstruct extends Construct {
     // Add CloudWatch Logs target for audit trail
     this.kycReviewCompletedRule.addTarget(
       new targets.CloudWatchLogGroup(eventLogGroup, {
-        logEvent: targets.LogGroupTargetInput.fromObject({
+        logEvent: targets.LogGroupTargetInput.fromObjectV2({
           timestamp: events.EventField.fromPath("$.time"),
           auditEvent: "KYC_REVIEW_COMPLETED",
           userId: events.EventField.fromPath("$.detail.userId"),

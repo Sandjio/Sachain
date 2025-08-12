@@ -1,4 +1,5 @@
 import * as cdk from "aws-cdk-lib";
+import * as targets from "aws-cdk-lib/aws-events-targets";
 import { Construct } from "constructs";
 import {
   DynamoDBConstruct,
@@ -53,6 +54,11 @@ export class SachainInfrastructureStack extends cdk.Stack {
       environment,
     });
 
+    // Add User Notification Lambda as EventBridge target after creation
+    eventBridgeConstruct.kycStatusChangeRule.addTarget(
+      new targets.LambdaFunction(lambdaConstruct.userNotificationLambda)
+    );
+
     // Create Cognito User Pool
     const cognitoConstruct = new CognitoConstruct(this, "Cognito", {
       postAuthLambda: lambdaConstruct.postAuthLambda,
@@ -65,6 +71,7 @@ export class SachainInfrastructureStack extends cdk.Stack {
         lambdaConstruct.postAuthLambda,
         lambdaConstruct.kycUploadLambda,
         lambdaConstruct.adminReviewLambda,
+        lambdaConstruct.userNotificationLambda,
       ],
       environment,
     });
