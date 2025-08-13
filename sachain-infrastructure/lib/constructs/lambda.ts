@@ -47,7 +47,11 @@ export class LambdaConstruct extends Construct {
         minify: true,
         sourceMap: true,
         target: "node20",
-        externalModules: ["aws-sdk"],
+        externalModules: [
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/lib-dynamodb",
+          "@aws-sdk/client-cloudwatch",
+        ],
       },
       projectRoot: path.join(__dirname, "../../.."),
       environment: {
@@ -78,7 +82,15 @@ export class LambdaConstruct extends Construct {
         minify: true,
         sourceMap: true,
         target: "node20",
-        externalModules: ["aws-sdk"],
+        externalModules: [
+          "aws-lambda",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/client-s3",
+          "@aws-sdk/s3-request-presigner",
+          "@aws-sdk/client-sns",
+          "@aws-sdk/client-cloudwatch",
+          "@aws-sdk/lib-dynamodb",
+        ],
       },
       projectRoot: path.join(__dirname, "../../.."),
       environment: {
@@ -114,7 +126,12 @@ export class LambdaConstruct extends Construct {
         minify: true,
         sourceMap: true,
         target: "node20",
-        externalModules: ["aws-sdk"],
+        externalModules: [
+          "aws-lambda",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/client-cloudwatch",
+          "@aws-sdk/lib-dynamodb",
+        ],
       },
       projectRoot: path.join(__dirname, "../../.."),
       environment: {
@@ -149,7 +166,12 @@ export class LambdaConstruct extends Construct {
           minify: true,
           sourceMap: true,
           target: "node20",
-          externalModules: ["aws-sdk"],
+          externalModules: [
+            "aws-lambda",
+            "@aws-sdk/client-sns",
+            "@aws-sdk/client-dynamodb",
+            "@aws-sdk/lib-dynamodb",
+          ],
         },
         projectRoot: path.join(__dirname, "../../.."),
         environment: {
@@ -193,23 +215,58 @@ export class LambdaConstruct extends Construct {
     const kycUploadIntegration = new apigateway.LambdaIntegration(
       this.kycUploadLambda,
       {
-        requestTemplates: { "application/json": '{"statusCode": "200"}' },
+        proxy: true,
+        integrationResponses: [
+          {
+            statusCode: "200",
+            responseParameters: {
+              "method.response.header.Access-Control-Allow-Origin": "'*'",
+            },
+          },
+        ],
       }
     );
 
     // Add upload endpoint
     const uploadResource = this.kycUploadApi.root.addResource("upload");
-    uploadResource.addMethod("POST", kycUploadIntegration);
+    uploadResource.addMethod("POST", kycUploadIntegration, {
+      methodResponses: [
+        {
+          statusCode: "200",
+          responseParameters: {
+            "method.response.header.Access-Control-Allow-Origin": true,
+          },
+        },
+      ],
+    });
 
     // Add presigned URL endpoint
     const presignedResource =
       this.kycUploadApi.root.addResource("presigned-url");
-    presignedResource.addMethod("POST", kycUploadIntegration);
+    presignedResource.addMethod("POST", kycUploadIntegration, {
+      methodResponses: [
+        {
+          statusCode: "200",
+          responseParameters: {
+            "method.response.header.Access-Control-Allow-Origin": true,
+          },
+        },
+      ],
+    });
 
     // Add upload processing endpoint
     const processResource =
       this.kycUploadApi.root.addResource("process-upload");
-    processResource.addMethod("POST", kycUploadIntegration);
+    processResource.addMethod("POST", kycUploadIntegration, {
+      methodResponses: [
+        {
+          statusCode: "200",
+          responseParameters: {
+            "method.response.header.Access-Control-Allow-Origin": true,
+          },
+        },
+      ],
+    });
 
     // Create API Gateway for Admin Review
     this.adminReviewApi = new apigateway.RestApi(this, "AdminReviewApi", {
