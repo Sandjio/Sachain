@@ -109,14 +109,6 @@ export class SecurityConstruct extends Construct {
           "dynamodb:GetItem",
         ],
         resources: [this.table.tableArn],
-        conditions: {
-          "ForAllValues:StringLike": {
-            "dynamodb:LeadingKeys": ["USER#*"],
-          },
-          StringEquals: {
-            "dynamodb:Select": ["ALL_ATTRIBUTES"],
-          },
-        },
       })
     );
 
