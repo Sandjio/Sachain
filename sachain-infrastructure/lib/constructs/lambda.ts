@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as sns from "aws-cdk-lib/aws-sns";
@@ -9,6 +10,7 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import { Construct } from "constructs";
 import { SecurityConstruct } from "./security";
+import * as path from "path";
 
 export interface LambdaConstructProps {
   table: dynamodb.Table;
@@ -31,12 +33,23 @@ export class LambdaConstruct extends Construct {
     super(scope, id);
 
     // Post-Authentication Lambda
-    this.postAuthLambda = new lambda.Function(this, "PostAuthLambda", {
+    this.postAuthLambda = new NodejsFunction(this, "PostAuthLambda", {
       functionName: `sachain-post-auth-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "index.handler",
-      code: lambda.Code.fromAsset("../backend/src/lambdas/post-auth"),
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/post-auth/index.ts"
+      ),
       role: props.securityConstruct?.postAuthRole,
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: ["aws-sdk"],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
       environment: {
         TABLE_NAME: props.table.tableName,
         ENVIRONMENT: props.environment,
@@ -51,12 +64,23 @@ export class LambdaConstruct extends Construct {
     });
 
     // KYC Upload Lambda
-    this.kycUploadLambda = new lambda.Function(this, "KYCUploadLambda", {
+    this.kycUploadLambda = new NodejsFunction(this, "KYCUploadLambda", {
       functionName: `sachain-kyc-upload-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "index.handler",
-      code: lambda.Code.fromAsset("../backend/src/lambdas/kyc-upload"),
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/kyc-upload/index.ts"
+      ),
       role: props.securityConstruct?.kycUploadRole,
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: ["aws-sdk"],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
       environment: {
         TABLE_NAME: props.table.tableName,
         BUCKET_NAME: props.documentBucket?.bucketName || "",
@@ -76,12 +100,23 @@ export class LambdaConstruct extends Construct {
     });
 
     // Admin Review Lambda
-    this.adminReviewLambda = new lambda.Function(this, "AdminReviewLambda", {
+    this.adminReviewLambda = new NodejsFunction(this, "AdminReviewLambda", {
       functionName: `sachain-admin-review-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "index.handler",
-      code: lambda.Code.fromAsset("../backend/src/lambdas/admin-review"),
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/admin-review/index-enhanced.ts"
+      ),
       role: props.securityConstruct?.adminReviewRole,
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: ["aws-sdk"],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
       environment: {
         TABLE_NAME: props.table.tableName,
         EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
@@ -97,15 +132,26 @@ export class LambdaConstruct extends Construct {
     });
 
     // User Notification Lambda
-    this.userNotificationLambda = new lambda.Function(
+    this.userNotificationLambda = new NodejsFunction(
       this,
       "UserNotificationLambda",
       {
         functionName: `sachain-user-notification-${props.environment}`,
         runtime: lambda.Runtime.NODEJS_20_X,
-        handler: "index.handler",
-        code: lambda.Code.fromAsset("../backend/src/lambdas/user-notification"),
+        handler: "handler",
+        entry: path.join(
+          __dirname,
+          "../../..",
+          "backend/src/lambdas/user-notification/index.ts"
+        ),
         role: props.securityConstruct?.userNotificationRole,
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          target: "node20",
+          externalModules: ["aws-sdk"],
+        },
+        projectRoot: path.join(__dirname, "../../.."),
         environment: {
           TABLE_NAME: props.table.tableName,
           ENVIRONMENT: props.environment,
