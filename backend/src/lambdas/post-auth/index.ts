@@ -1,9 +1,19 @@
-import { DynamoDB, CloudWatch } from "aws-sdk";
+import {
+  DynamoDBClient,
+  ConditionalCheckFailedException,
+} from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+} from "@aws-sdk/lib-dynamodb";
+import { CloudWatch, StandardUnit } from "@aws-sdk/client-cloudwatch";
 import { PostAuthEvent, PostAuthResponse, UserReference } from "./types";
 import { ExponentialBackoff } from "../../utils/retry";
-import { ErrorClassifier, DynamoDBLogger } from "../../utils/error-handler";
+import { DynamoDBLogger } from "../../utils/error-handler";
 
-const dynamodb = new DynamoDB.DocumentClient();
+const dynamodbClient = new DynamoDBClient({});
+const dynamoDoc = DynamoDBDocumentClient.from(dynamodbClient);
 const cloudwatch = new CloudWatch();
 const retry = new ExponentialBackoff({
   maxRetries: 3,
@@ -41,11 +51,11 @@ const logger = {
 const sendMetric = async (
   metricName: string,
   value: number,
-  unit: string = "Count",
+  unit: StandardUnit = StandardUnit.Count,
   dimensions?: any[]
 ) => {
   try {
-    const params = {
+    await cloudwatch.putMetricData({
       Namespace: "Sachain/PostAuth",
       MetricData: [
         {
@@ -56,9 +66,7 @@ const sendMetric = async (
           ...(dimensions && { Dimensions: dimensions }),
         },
       ],
-    };
-
-    await cloudwatch.putMetricData(params).promise();
+    });
   } catch (error) {
     // Don't let metric failures affect the main function
     logger.error("Failed to send CloudWatch metric", {
@@ -66,6 +74,51 @@ const sendMetric = async (
       error: error instanceof Error ? error.message : "Unknown error",
     });
   }
+};
+
+// Validate required attributes
+const validateUserAttributes = (
+  attrs: Record<string, string>,
+  requestId: string
+) => {
+  const userId = attrs.sub;
+  const email = attrs.email;
+  if (!userId || !email) {
+    logger.error("Missing required attributes", {
+      requestId,
+      userId: !!userId,
+      email: !!email,
+    });
+    return null;
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    logger.error("Invalid email format", { requestId, email });
+    return null;
+  }
+  return { userId, email };
+};
+
+// Check if user profile already exists in DynamoDB
+const getUserProfile = async (userId: string) => {
+  const res = await dynamoDoc.send(
+    new GetCommand({
+      TableName: process.env.TABLE_NAME!,
+      Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    })
+  );
+  return res.Item as UserReference | undefined;
+};
+
+// Create user profile in DynamoDB
+const createUserProfile = async (profile: UserReference) => {
+  await dynamoDoc.send(
+    new PutCommand({
+      TableName: process.env.TABLE_NAME!,
+      Item: profile,
+      ConditionExpression: "attribute_not_exists(PK)",
+    })
+  );
 };
 
 /**
@@ -86,18 +139,36 @@ export const handler = async (
   });
 
   try {
+    const validated = validateUserAttributes(
+      event.request.userAttributes,
+      requestId
+    );
+    if (!validated) return event;
+
     // Extract user attributes from Cognito event
     const userAttributes = event.request.userAttributes;
-    const userId = event.userName;
-    const email = userAttributes.email;
+    const { userId, email } = validated;
+
+    const existingProfile = await getUserProfile(userId);
+    if (existingProfile) {
+      logger.info("User profile already exists, skipping creation", {
+        requestId,
+        userId,
+        email,
+      });
+      return event; // No need to create a new profile
+    }
+
+    const now = new Date().toISOString();
     const emailVerified = userAttributes.email_verified === "true";
     const firstName = userAttributes.given_name;
     const lastName = userAttributes.family_name;
 
     // Determine user type from custom attributes or default to 'entrepreneur'
     const userType =
-      (userAttributes["custom:user_type"] as "entrepreneur" | "investor") ||
-      "entrepreneur";
+      (event.request.userAttributes["custom:user_type"] as
+        | "entrepreneur"
+        | "investor") || "entrepreneur";
 
     // Create user profile record using Single Table Design
     const userProfile: UserReference = {
@@ -105,32 +176,30 @@ export const handler = async (
       SK: "PROFILE",
       userId,
       email,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
       kycStatus: "not_started",
       userType,
       emailVerified,
-      lastLoginAt: new Date().toISOString(),
+      lastLoginAt: now,
       ...(firstName && { firstName }),
       ...(lastName && { lastName }),
     };
 
     // Store user profile in DynamoDB with retry logic
     const result = await retry.execute(async () => {
-      const params: DynamoDB.DocumentClient.PutItemInput = {
-        TableName: process.env.TABLE_NAME!,
-        Item: userProfile,
-        ConditionExpression: "attribute_not_exists(PK)", // Prevent overwriting existing profiles
-      };
-
-      logger.info("Storing user profile in DynamoDB", {
-        requestId,
-        userId,
-        email,
-        userType,
-      });
-
-      return await dynamodb.put(params).promise();
+      try {
+        await createUserProfile(userProfile);
+      } catch (error) {
+        if (error instanceof ConditionalCheckFailedException) {
+          logger.info("Profile already exists (race condition)", {
+            userId,
+            requestId,
+          });
+          return;
+        }
+        throw error;
+      }
     }, "PostAuth-CreateUserProfile");
 
     logger.info("User profile created successfully", {
@@ -148,7 +217,7 @@ export const handler = async (
         { Name: "Environment", Value: process.env.ENVIRONMENT || "unknown" },
       ]),
       sendMetric("ExecutionDuration", executionTime, "Milliseconds"),
-      sendMetric("SuccessfulExecutions", 1, "Count"),
+      sendMetric("SuccessfulExecutions", 1),
     ]);
 
     // Return the original event (required for Cognito triggers)
@@ -158,7 +227,6 @@ export const handler = async (
       requestId,
       userId: event.userName,
       error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
 
     // Handle the error but don't throw - we don't want to block user authentication
@@ -182,7 +250,7 @@ export const handler = async (
         { Name: "Environment", Value: process.env.ENVIRONMENT || "unknown" },
       ]),
       sendMetric("ExecutionDuration", executionTime, "Milliseconds"),
-      sendMetric("FailedExecutions", 1, "Count"),
+      sendMetric("FailedExecutions", 1),
     ]);
 
     // Return the original event to allow authentication to proceed
