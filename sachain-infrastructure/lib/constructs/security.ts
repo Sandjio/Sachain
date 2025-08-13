@@ -458,12 +458,25 @@ export class SecurityConstruct extends Construct {
 
     // Add resource-based policy to S3 bucket (already implemented in S3 construct)
     // Additional bucket policy for cross-account access if needed
+
+    // Policy for read operations (no encryption conditions needed)
     this.documentBucket.addToResourcePolicy(
       new iam.PolicyStatement({
-        sid: "RestrictToLambdaRoles",
+        sid: "AllowLambdaRoleRead",
         effect: iam.Effect.ALLOW,
         principals: [this.kycUploadRole, this.adminReviewRole],
-        actions: ["s3:GetObject", "s3:PutObject", "s3:GetObjectVersion"],
+        actions: ["s3:GetObject", "s3:GetObjectVersion"],
+        resources: [this.documentBucket.arnForObjects("*")],
+      })
+    );
+
+    // Policy for write operations (with encryption conditions)
+    this.documentBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: "AllowLambdaRoleWrite",
+        effect: iam.Effect.ALLOW,
+        principals: [this.kycUploadRole],
+        actions: ["s3:PutObject"],
         resources: [this.documentBucket.arnForObjects("*")],
         conditions: {
           StringEquals: {
