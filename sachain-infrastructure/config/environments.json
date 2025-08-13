@@ -1,0 +1,134 @@
+{
+    "dev": {
+        "account": "123456789012",
+        "region": "us-east-1",
+        "domainName": "dev.sachain.com",
+        "enableXRayTracing": true,
+        "logRetentionDays": 7,
+        "enableDetailedMonitoring": false,
+        "kmsKeyAlias": "alias/sachain-dev-key",
+        "cognitoPasswordPolicy": {
+            "minimumLength": 8,
+            "requireUppercase": true,
+            "requireLowercase": true,
+            "requireNumbers": true,
+            "requireSymbols": false
+        },
+        "lambdaConfig": {
+            "timeout": 30,
+            "memorySize": 256,
+            "reservedConcurrency": 10
+        },
+        "s3Config": {
+            "maxFileSize": 10485760,
+            "allowedFileTypes": [
+                "image/jpeg",
+                "image/png",
+                "application/pdf"
+            ],
+            "lifecycleRules": {
+                "transitionToIA": 30,
+                "transitionToGlacier": 90,
+                "expiration": 2555
+            }
+        },
+        "dynamoDbConfig": {
+            "billingMode": "PAY_PER_REQUEST",
+            "pointInTimeRecovery": true,
+            "encryption": "AWS_MANAGED"
+        },
+        "monitoringConfig": {
+            "errorRateThreshold": 0.05,
+            "latencyThreshold": 5000,
+            "enableDashboard": true
+        }
+    },
+    "staging": {
+        "account": "123456789012",
+        "region": "us-east-1",
+        "domainName": "staging.sachain.com",
+        "enableXRayTracing": true,
+        "logRetentionDays": 30,
+        "enableDetailedMonitoring": true,
+        "kmsKeyAlias": "alias/sachain-staging-key",
+        "cognitoPasswordPolicy": {
+            "minimumLength": 10,
+            "requireUppercase": true,
+            "requireLowercase": true,
+            "requireNumbers": true,
+            "requireSymbols": true
+        },
+        "lambdaConfig": {
+            "timeout": 30,
+            "memorySize": 512,
+            "reservedConcurrency": 50
+        },
+        "s3Config": {
+            "maxFileSize": 10485760,
+            "allowedFileTypes": [
+                "image/jpeg",
+                "image/png",
+                "application/pdf"
+            ],
+            "lifecycleRules": {
+                "transitionToIA": 30,
+                "transitionToGlacier": 90,
+                "expiration": 2555
+            }
+        },
+        "dynamoDbConfig": {
+            "billingMode": "PAY_PER_REQUEST",
+            "pointInTimeRecovery": true,
+            "encryption": "CUSTOMER_MANAGED"
+        },
+        "monitoringConfig": {
+            "errorRateThreshold": 0.02,
+            "latencyThreshold": 3000,
+            "enableDashboard": true
+        }
+    },
+    "prod": {
+        "account": "123456789012",
+        "region": "us-east-1",
+        "domainName": "sachain.com",
+        "enableXRayTracing": true,
+        "logRetentionDays": 90,
+        "enableDetailedMonitoring": true,
+        "kmsKeyAlias": "alias/sachain-prod-key",
+        "cognitoPasswordPolicy": {
+            "minimumLength": 12,
+            "requireUppercase": true,
+            "requireLowercase": true,
+            "requireNumbers": true,
+            "requireSymbols": true
+        },
+        "lambdaConfig": {
+            "timeout": 30,
+            "memorySize": 1024,
+            "reservedConcurrency": 100
+        },
+        "s3Config": {
+            "maxFileSize": 10485760,
+            "allowedFileTypes": [
+                "image/jpeg",
+                "image/png",
+                "application/pdf"
+            ],
+            "lifecycleRules": {
+                "transitionToIA": 30,
+                "transitionToGlacier": 90,
+                "expiration": 2555
+            }
+        },
+        "dynamoDbConfig": {
+            "billingMode": "PAY_PER_REQUEST",
+            "pointInTimeRecovery": true,
+            "encryption": "CUSTOMER_MANAGED"
+        },
+        "monitoringConfig": {
+            "errorRateThreshold": 0.01,
+            "latencyThreshold": 2000,
+            "enableDashboard": true
+        }
+    }
+}

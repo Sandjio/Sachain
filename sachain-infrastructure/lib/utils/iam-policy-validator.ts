@@ -46,7 +46,8 @@ export class IAMPolicyValidator {
     const recommendations: string[] = [];
 
     // Validate each statement
-    policyDocument.statements.forEach((statement, index) => {
+    const statements = (policyDocument as any).statements || [];
+    statements.forEach((statement: any, index: number) => {
       violations.push(...this.validateStatement(statement, index));
     });
 
@@ -142,9 +143,9 @@ export class IAMPolicyValidator {
       const conditions = statement.conditions || {};
 
       actions.forEach((action) => {
-        const requiredConditions = this.REQUIRED_CONDITIONS[action];
+        const requiredConditions = (this.REQUIRED_CONDITIONS as any)[action];
         if (requiredConditions) {
-          requiredConditions.forEach((requiredCondition) => {
+          requiredConditions.forEach((requiredCondition: string) => {
             if (!this.hasCondition(conditions, requiredCondition)) {
               violations.push({
                 severity: "HIGH",
@@ -175,8 +176,8 @@ export class IAMPolicyValidator {
 
     if (resources.includes("*") && statement.effect === iam.Effect.ALLOW) {
       const actions = this.getActionsFromStatement(statement);
-      const hasRestrictiveConditions = statement.conditions && 
-        Object.keys(statement.conditions).length > 0;
+      const hasRestrictiveConditions =
+        statement.conditions && Object.keys(statement.conditions).length > 0;
 
       if (!hasRestrictiveConditions) {
         violations.push({
@@ -184,7 +185,8 @@ export class IAMPolicyValidator {
           type: "UNRESTRICTED_RESOURCE_ACCESS",
           description: `Statement ${index} allows access to all resources (*) without conditions`,
           statement,
-          recommendation: "Restrict resources to specific ARNs or add restrictive conditions",
+          recommendation:
+            "Restrict resources to specific ARNs or add restrictive conditions",
         });
       }
     }
@@ -202,14 +204,15 @@ export class IAMPolicyValidator {
     const violations: PolicyViolation[] = [];
 
     const actions = this.getActionsFromStatement(statement);
-    const hasDestructiveActions = actions.some((action) =>
-      action.includes("Delete") || action.includes("Terminate")
+    const hasDestructiveActions = actions.some(
+      (action) => action.includes("Delete") || action.includes("Terminate")
     );
 
     if (hasDestructiveActions && statement.effect === iam.Effect.ALLOW) {
-      const hasTimeRestriction = statement.conditions &&
-        (statement.conditions["DateGreaterThan"] || 
-         statement.conditions["DateLessThan"]);
+      const hasTimeRestriction =
+        statement.conditions &&
+        (statement.conditions["DateGreaterThan"] ||
+          statement.conditions["DateLessThan"]);
 
       if (!hasTimeRestriction) {
         violations.push({
@@ -217,7 +220,8 @@ export class IAMPolicyValidator {
           type: "MISSING_TIME_RESTRICTION",
           description: `Statement ${index} allows destructive actions without time restrictions`,
           statement,
-          recommendation: "Consider adding time-based conditions for destructive operations",
+          recommendation:
+            "Consider adding time-based conditions for destructive operations",
         });
       }
     }
@@ -234,8 +238,9 @@ export class IAMPolicyValidator {
     const violations: PolicyViolation[] = [];
 
     // Check for privilege escalation prevention
-    const hasPrivilegeEscalationPrevention = policyDocument.statements.some(
-      (statement) =>
+    const statements = (policyDocument as any).statements || [];
+    const hasPrivilegeEscalationPrevention = statements.some(
+      (statement: any) =>
         statement.effect === iam.Effect.DENY &&
         this.getActionsFromStatement(statement).some((action) =>
           action.startsWith("iam:")
@@ -247,13 +252,14 @@ export class IAMPolicyValidator {
         severity: "HIGH",
         type: "MISSING_PRIVILEGE_ESCALATION_PREVENTION",
         description: "Policy lacks privilege escalation prevention",
-        recommendation: "Add explicit DENY statements for IAM privilege escalation",
+        recommendation:
+          "Add explicit DENY statements for IAM privilege escalation",
       });
     }
 
     // Check for secure transport enforcement
-    const hasSecureTransportEnforcement = policyDocument.statements.some(
-      (statement) =>
+    const hasSecureTransportEnforcement = statements.some(
+      (statement: any) =>
         statement.effect === iam.Effect.DENY &&
         statement.conditions &&
         statement.conditions["Bool"] &&
@@ -280,8 +286,12 @@ export class IAMPolicyValidator {
   ): string[] {
     const recommendations: string[] = [];
 
-    const highSeverityCount = violations.filter((v) => v.severity === "HIGH").length;
-    const mediumSeverityCount = violations.filter((v) => v.severity === "MEDIUM").length;
+    const highSeverityCount = violations.filter(
+      (v) => v.severity === "HIGH"
+    ).length;
+    const mediumSeverityCount = violations.filter(
+      (v) => v.severity === "MEDIUM"
+    ).length;
 
     if (highSeverityCount > 0) {
       recommendations.push(
@@ -299,8 +309,12 @@ export class IAMPolicyValidator {
     recommendations.push("Implement least-privilege access principles");
     recommendations.push("Use resource-specific ARNs instead of wildcards");
     recommendations.push("Add condition blocks to restrict access");
-    recommendations.push("Implement time-based restrictions for sensitive operations");
-    recommendations.push("Add explicit DENY statements for privilege escalation");
+    recommendations.push(
+      "Implement time-based restrictions for sensitive operations"
+    );
+    recommendations.push(
+      "Add explicit DENY statements for privilege escalation"
+    );
 
     return [...new Set(recommendations)]; // Remove duplicates
   }
@@ -308,7 +322,9 @@ export class IAMPolicyValidator {
   /**
    * Calculate compliance score (0-100)
    */
-  private static calculateComplianceScore(violations: PolicyViolation[]): number {
+  private static calculateComplianceScore(
+    violations: PolicyViolation[]
+  ): number {
     const highWeight = 20;
     const mediumWeight = 10;
     const lowWeight = 5;
@@ -324,7 +340,9 @@ export class IAMPolicyValidator {
   /**
    * Helper method to extract actions from a statement
    */
-  private static getActionsFromStatement(statement: iam.PolicyStatement): string[] {
+  private static getActionsFromStatement(
+    statement: iam.PolicyStatement
+  ): string[] {
     // This is a simplified implementation
     // In a real scenario, you'd need to access the internal structure
     return [];
@@ -333,7 +351,9 @@ export class IAMPolicyValidator {
   /**
    * Helper method to extract resources from a statement
    */
-  private static getResourcesFromStatement(statement: iam.PolicyStatement): string[] {
+  private static getResourcesFromStatement(
+    statement: iam.PolicyStatement
+  ): string[] {
     // This is a simplified implementation
     // In a real scenario, you'd need to access the internal structure
     return [];
@@ -344,12 +364,13 @@ export class IAMPolicyValidator {
    */
   private static hasCondition(conditions: any, conditionKey: string): boolean {
     if (!conditions) return false;
-    
+
     // Check in various condition operators
     const operators = ["StringEquals", "StringLike", "Bool", "IpAddress"];
-    return operators.some(op => 
-      conditions[op] && 
-      Object.keys(conditions[op]).some(key => key.includes(conditionKey))
+    return operators.some(
+      (op) =>
+        conditions[op] &&
+        Object.keys(conditions[op]).some((key) => key.includes(conditionKey))
     );
   }
 
@@ -374,16 +395,23 @@ export class IAMPolicyValidator {
     }));
 
     const allViolations = results.flatMap((r) => r.result.violations);
-    const overallScore = results.reduce((sum, r) => sum + r.result.complianceScore, 0) / results.length;
+    const overallScore =
+      results.reduce((sum, r) => sum + r.result.complianceScore, 0) /
+      results.length;
 
     return {
       overallScore,
       results,
       summary: {
         totalViolations: allViolations.length,
-        highSeverityViolations: allViolations.filter((v) => v.severity === "HIGH").length,
-        mediumSeverityViolations: allViolations.filter((v) => v.severity === "MEDIUM").length,
-        lowSeverityViolations: allViolations.filter((v) => v.severity === "LOW").length,
+        highSeverityViolations: allViolations.filter(
+          (v) => v.severity === "HIGH"
+        ).length,
+        mediumSeverityViolations: allViolations.filter(
+          (v) => v.severity === "MEDIUM"
+        ).length,
+        lowSeverityViolations: allViolations.filter((v) => v.severity === "LOW")
+          .length,
       },
     };
   }

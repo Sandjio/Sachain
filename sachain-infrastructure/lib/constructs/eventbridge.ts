@@ -58,9 +58,11 @@ export class EventBridgeConstruct extends Construct {
 
     // Create CloudWatch Log Group for event debugging
     const eventLogGroup = new logs.LogGroup(this, "KYCEventLogGroup", {
-      logGroupName: `/aws/events/sachain-kyc-${props.environment}`,
       retention: logs.RetentionDays.ONE_MONTH,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy:
+        props.environment === "dev"
+          ? cdk.RemovalPolicy.DESTROY
+          : cdk.RemovalPolicy.RETAIN,
     });
 
     // Event Rule: KYC Status Change Events
@@ -105,16 +107,18 @@ export class EventBridgeConstruct extends Construct {
       new targets.CloudWatchLogGroup(eventLogGroup, {
         logEvent: targets.LogGroupTargetInput.fromObjectV2({
           timestamp: events.EventField.fromPath("$.time"),
-          source: events.EventField.fromPath("$.source"),
-          detailType: events.EventField.fromPath("$.detail-type"),
-          eventType: events.EventField.fromPath("$.detail.eventType"),
-          userId: events.EventField.fromPath("$.detail.userId"),
-          documentId: events.EventField.fromPath("$.detail.documentId"),
-          statusChange: {
-            from: events.EventField.fromPath("$.detail.previousStatus"),
-            to: events.EventField.fromPath("$.detail.newStatus"),
-          },
-          reviewedBy: events.EventField.fromPath("$.detail.reviewedBy"),
+          message: events.RuleTargetInput.fromObject({
+            source: events.EventField.fromPath("$.source"),
+            detailType: events.EventField.fromPath("$.detail-type"),
+            eventType: events.EventField.fromPath("$.detail.eventType"),
+            userId: events.EventField.fromPath("$.detail.userId"),
+            documentId: events.EventField.fromPath("$.detail.documentId"),
+            statusChange: {
+              from: events.EventField.fromPath("$.detail.previousStatus"),
+              to: events.EventField.fromPath("$.detail.newStatus"),
+            },
+            reviewedBy: events.EventField.fromPath("$.detail.reviewedBy"),
+          }),
         }),
       })
     );
@@ -176,15 +180,19 @@ export class EventBridgeConstruct extends Construct {
       new targets.CloudWatchLogGroup(eventLogGroup, {
         logEvent: targets.LogGroupTargetInput.fromObjectV2({
           timestamp: events.EventField.fromPath("$.time"),
-          auditEvent: "KYC_REVIEW_COMPLETED",
-          userId: events.EventField.fromPath("$.detail.userId"),
-          documentId: events.EventField.fromPath("$.detail.documentId"),
-          reviewedBy: events.EventField.fromPath("$.detail.reviewedBy"),
-          reviewResult: events.EventField.fromPath("$.detail.reviewResult"),
-          processingTimeMs: events.EventField.fromPath(
-            "$.detail.processingTimeMs"
-          ),
-          reviewComments: events.EventField.fromPath("$.detail.reviewComments"),
+          message: events.RuleTargetInput.fromObject({
+            auditEvent: "KYC_REVIEW_COMPLETED",
+            userId: events.EventField.fromPath("$.detail.userId"),
+            documentId: events.EventField.fromPath("$.detail.documentId"),
+            reviewedBy: events.EventField.fromPath("$.detail.reviewedBy"),
+            reviewResult: events.EventField.fromPath("$.detail.reviewResult"),
+            processingTimeMs: events.EventField.fromPath(
+              "$.detail.processingTimeMs"
+            ),
+            reviewComments: events.EventField.fromPath(
+              "$.detail.reviewComments"
+            ),
+          }),
         }),
       })
     );

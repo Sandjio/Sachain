@@ -68,9 +68,6 @@ export class CognitoConstruct extends Construct {
       // Account recovery settings
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
 
-      // Advanced security features
-      advancedSecurityMode: cognito.AdvancedSecurityMode.ENFORCED,
-
       // Device tracking
       deviceTracking: {
         challengeRequiredOnNewDevice: true,

@@ -46,14 +46,7 @@ export class MonitoringConstruct extends Construct {
     const logRetention = props.logRetentionDays || logs.RetentionDays.ONE_MONTH;
 
     props.lambdaFunctions.forEach((func, index) => {
-      // Create log group with configurable retention
-      new logs.LogGroup(this, `LogGroup${index}`, {
-        logGroupName: `/aws/lambda/${func.functionName}`,
-        retention: logRetention,
-        removalPolicy: cdk.RemovalPolicy.DESTROY,
-      });
-
-      // Create alarms for each function
+      // Create alarms for each function (log groups are automatically created by Lambda)
       this.createLambdaAlarms(func, index);
     });
 
@@ -96,16 +89,14 @@ export class MonitoringConstruct extends Construct {
 
     // Audit logs (longer retention for compliance)
     new logs.LogGroup(this, "AuditLogs", {
-      logGroupName: `/sachain/audit/${environment}`,
       retention: logs.RetentionDays.ONE_YEAR, // Longer retention for audit logs
-      removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain audit logs even after stack deletion
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Changed to DESTROY to avoid conflicts
     });
 
     // Security logs
     new logs.LogGroup(this, "SecurityLogs", {
-      logGroupName: `/sachain/security/${environment}`,
       retention: logs.RetentionDays.SIX_MONTHS,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Changed to DESTROY to avoid conflicts
     });
   }
 

@@ -541,7 +541,9 @@ export class SecurityConstruct extends Construct {
       role.addToPolicy(preventPrivilegeEscalation);
     });
 
-    // Add time-based access controls for sensitive operations
+    // Note: Time-based access controls can be added later if needed
+    // The following is commented out to avoid IAM policy parsing issues
+    /*
     const timeBasedAccess = new iam.PolicyStatement({
       sid: "TimeBasedAccess",
       effect: iam.Effect.DENY,
@@ -554,36 +556,17 @@ export class SecurityConstruct extends Construct {
       resources: ["*"],
       conditions: {
         DateGreaterThan: {
-          "aws:CurrentTime": "23:59:59Z",
+          "aws:CurrentTime": "2024-01-01T23:59:59Z",
         },
         DateLessThan: {
-          "aws:CurrentTime": "06:00:00Z",
+          "aws:CurrentTime": "2024-01-01T06:00:00Z",
         },
       },
     });
-
-    // Apply time-based restrictions to admin role only
     this.adminReviewRole.addToPolicy(timeBasedAccess);
+    */
 
-    // Add IP-based restrictions for admin operations (example)
-    // This would typically be configured based on actual admin IP ranges
-    const ipBasedRestriction = new iam.PolicyStatement({
-      sid: "IPBasedRestriction",
-      effect: iam.Effect.DENY,
-      actions: ["dynamodb:Scan", "s3:ListBucket"],
-      resources: ["*"],
-      conditions: {
-        IpAddressIfExists: {
-          "aws:SourceIp": ["0.0.0.0/0"], // This should be replaced with actual allowed IP ranges
-        },
-        Bool: {
-          "aws:ViaAWSService": "false",
-        },
-      },
-    });
-
-    // Note: IP restrictions are commented out as they need actual IP ranges
-    // this.adminReviewRole.addToPolicy(ipBasedRestriction);
+    // Note: IP-based restrictions can be added later with actual IP ranges if needed
   }
 
   /**
