@@ -18,6 +18,8 @@ export class CognitoConstruct extends Construct {
     // Task 3.1: Configure User Pool with password policies and security settings
     this.userPool = new cognito.UserPool(this, "UserPool", {
       userPoolName: `sachain-user-pool-${props.environment}`,
+      selfSignUpEnabled: true,
+      signInCaseSensitive: false,
 
       // Email verification configuration
       signInAliases: {
@@ -103,6 +105,12 @@ export class CognitoConstruct extends Construct {
           ? cdk.RemovalPolicy.RETAIN
           : cdk.RemovalPolicy.DESTROY,
     });
+    // Managed UI domain for Cognito User Pool
+    this.userPool.addDomain("CognitoDomain", {
+      cognitoDomain: {
+        domainPrefix: `sachain-${props.environment}`,
+      },
+    });
 
     // Task 3.2: Create User Pool Client and configure authentication flow
     this.userPoolClient = new cognito.UserPoolClient(this, "UserPoolClient", {
@@ -112,7 +120,7 @@ export class CognitoConstruct extends Construct {
       // Authentication flows
       authFlows: {
         userSrp: true,
-        userPassword: false,
+        userPassword: true,
         adminUserPassword: true,
         custom: false,
       },
@@ -152,6 +160,7 @@ export class CognitoConstruct extends Construct {
       readAttributes: new cognito.ClientAttributes()
         .withStandardAttributes({
           email: true,
+          emailVerified: true,
           givenName: true,
           familyName: true,
         })
@@ -166,7 +175,7 @@ export class CognitoConstruct extends Construct {
         .withCustomAttributes("userType", "kycStatus"),
 
       // Generate secret for server-side applications
-      generateSecret: true,
+      generateSecret: false,
     });
   }
 }
