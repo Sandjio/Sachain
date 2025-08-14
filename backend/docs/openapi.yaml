@@ -3,7 +3,7 @@ info:
   title: Sachain API
   description: |
     Sachain is an innovative fundraising platform that empowers entrepreneurs to raise capital by tokenizing shares of their projects on the Hedera Token Service (HTS).
-    
+
     This API provides endpoints for:
     - User authentication and KYC verification
     - Document upload and management
@@ -12,7 +12,7 @@ info:
   version: 1.0.0
   contact:
     name: Sachain Development Team
-    email: dev@sachain.com
+    email: emmasandjio@gmail.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -44,7 +44,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PresignedUrlRequest'
+              $ref: "#/components/schemas/PresignedUrlRequest"
             examples:
               national_id:
                 summary: National ID upload
@@ -54,12 +54,12 @@ paths:
                   fileName: "national_id.jpg"
                   contentType: "image/jpeg"
       responses:
-        '200':
+        "200":
           description: Presigned URL generated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UploadResponse'
+                $ref: "#/components/schemas/UploadResponse"
               examples:
                 success:
                   summary: Successful response
@@ -67,12 +67,12 @@ paths:
                     documentId: "doc-456"
                     uploadUrl: "https://s3.amazonaws.com/bucket/key?signature=..."
                     message: "Presigned URL generated successfully"
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /kyc/upload:
     post:
@@ -88,7 +88,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DirectUploadRequest'
+              $ref: "#/components/schemas/DirectUploadRequest"
             examples:
               passport:
                 summary: Passport upload
@@ -99,33 +99,33 @@ paths:
                   contentType: "application/pdf"
                   fileContent: "JVBERi0xLjQKJcOkw7zDtsO..."
       responses:
-        '200':
+        "200":
           description: Document uploaded successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UploadResponse'
+                $ref: "#/components/schemas/UploadResponse"
               examples:
                 success:
                   summary: Successful upload
                   value:
                     documentId: "doc-789"
                     message: "File uploaded successfully"
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '413':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
           description: File too large
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 message: "File size exceeds 10MB limit"
                 requestId: "req-123"
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /kyc/process-upload:
     post:
@@ -141,9 +141,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UploadProcessingRequest'
+              $ref: "#/components/schemas/UploadProcessingRequest"
       responses:
-        '200':
+        "200":
           description: Upload processed successfully
           content:
             application/json:
@@ -159,16 +159,16 @@ paths:
                   status:
                     type: string
                     example: "pending_review"
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
           description: Document not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   # Admin Review Endpoints
   /admin/approve:
@@ -190,7 +190,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdminReviewRequest'
+              $ref: "#/components/schemas/AdminReviewRequest"
             examples:
               with_comments:
                 summary: Approval with comments
@@ -204,12 +204,12 @@ paths:
                   userId: "user-123"
                   documentId: "doc-456"
       responses:
-        '200':
+        "200":
           description: Document approved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AdminReviewResponse'
+                $ref: "#/components/schemas/AdminReviewResponse"
               examples:
                 success:
                   summary: Successful approval
@@ -219,20 +219,20 @@ paths:
                     status: "approved"
                     reviewedBy: "admin-123"
                     reviewedAt: "2024-01-15T10:30:00Z"
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
           description: Document not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /admin/reject:
     post:
@@ -255,7 +255,7 @@ paths:
           application/json:
             schema:
               allOf:
-                - $ref: '#/components/schemas/AdminReviewRequest'
+                - $ref: "#/components/schemas/AdminReviewRequest"
                 - type: object
                   required:
                     - comments
@@ -270,12 +270,12 @@ paths:
                   documentId: "doc-456"
                   comments: "Document is blurry and unreadable. Please upload a clearer image."
       responses:
-        '200':
+        "200":
           description: Document rejected successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AdminReviewResponse'
+                $ref: "#/components/schemas/AdminReviewResponse"
               examples:
                 success:
                   summary: Successful rejection
@@ -286,20 +286,20 @@ paths:
                     reviewedBy: "admin-123"
                     reviewedAt: "2024-01-15T10:30:00Z"
                     comments: "Document is blurry and unreadable. Please upload a clearer image."
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
           description: Document not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /admin/documents:
     get:
@@ -345,12 +345,12 @@ paths:
               summary: Small batch
               value: 10
       responses:
-        '200':
+        "200":
           description: Documents retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetDocumentsResponse'
+                $ref: "#/components/schemas/GetDocumentsResponse"
               examples:
                 pending_documents:
                   summary: Pending documents response
@@ -365,14 +365,14 @@ paths:
                         uploadedAt: "2024-01-15T09:00:00Z"
                     count: 1
                     lastEvaluatedKey: null
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
 components:
   securitySchemes:
@@ -419,7 +419,7 @@ components:
 
     DirectUploadRequest:
       allOf:
-        - $ref: '#/components/schemas/PresignedUrlRequest'
+        - $ref: "#/components/schemas/PresignedUrlRequest"
         - type: object
           required:
             - fileContent
@@ -543,7 +543,7 @@ components:
         documents:
           type: array
           items:
-            $ref: '#/components/schemas/KYCDocument'
+            $ref: "#/components/schemas/KYCDocument"
           description: Array of KYC documents
         count:
           type: integer
@@ -649,7 +649,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
           examples:
             validation_error:
               summary: Validation error
@@ -667,7 +667,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
           example:
             message: "Invalid or expired authentication token"
             requestId: "req-789"
@@ -677,7 +677,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
           example:
             message: "Insufficient permissions for this operation"
             requestId: "req-101"
@@ -687,7 +687,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
           example:
             message: "An internal server error occurred"
             requestId: "req-112"
