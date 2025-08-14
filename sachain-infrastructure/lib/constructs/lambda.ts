@@ -98,8 +98,7 @@ export class LambdaConstruct extends Construct {
         BUCKET_NAME: props.documentBucket?.bucketName || "",
         SNS_TOPIC_ARN: props.notificationTopic?.topicArn || "",
         ENVIRONMENT: props.environment,
-        MAX_FILE_SIZE: "10485760", // 10MB
-        ALLOWED_FILE_TYPES: "image/jpeg,image/png,application/pdf",
+
         ADMIN_PORTAL_URL: `https://admin.sachain-${props.environment}.com`,
       },
       timeout: cdk.Duration.minutes(5),

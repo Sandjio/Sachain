@@ -3,14 +3,24 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { SNSClient } from "@aws-sdk/client-sns";
-import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
+import {
+  CloudWatchClient,
+  PutMetricDataCommand,
+} from "@aws-sdk/client-cloudwatch";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 import { KYCDocumentRepository } from "../../repositories/kyc-document-repository";
 import { ExponentialBackoff } from "../../utils/retry";
 import { NotificationService } from "../../utils/notification-service";
-import { StructuredLogger, createKYCLogger } from "../../utils/structured-logger";
-import { ErrorClassifier, AWSServiceError, ErrorCategory } from "../../utils/error-handler";
+import {
+  StructuredLogger,
+  createKYCLogger,
+} from "../../utils/structured-logger";
+import {
+  ErrorClassifier,
+  AWSServiceError,
+  ErrorCategory,
+} from "../../utils/error-handler";
 import { S3UploadUtility, createKYCUploadUtility } from "../../utils/s3-upload";
 import {
   UploadRequest,
@@ -34,7 +44,7 @@ const TABLE_NAME = process.env.TABLE_NAME!;
 const BUCKET_NAME = process.env.BUCKET_NAME!;
 const SNS_TOPIC_ARN = process.env.SNS_TOPIC_ARN!;
 const ENVIRONMENT = process.env.ENVIRONMENT!;
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+const AWS_REGION = process.env.AWS_REGION || "us-east-1";
 const KMS_KEY_ID = process.env.KMS_KEY_ID;
 
 // Initialize services
@@ -44,7 +54,11 @@ const notificationService = new NotificationService({
   topicArn: SNS_TOPIC_ARN,
   adminPortalUrl: process.env.ADMIN_PORTAL_URL,
 });
-const s3UploadUtility = createKYCUploadUtility(BUCKET_NAME, AWS_REGION, KMS_KEY_ID);
+const s3UploadUtility = createKYCUploadUtility(
+  BUCKET_NAME,
+  AWS_REGION,
+  KMS_KEY_ID
+);
 const retry = new ExponentialBackoff({
   maxRetries: 3,
   baseDelay: 200,
@@ -55,7 +69,7 @@ const retry = new ExponentialBackoff({
 export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
-  
+
   logger.info("KYC Upload Lambda triggered", {
     operation: "LambdaInvocation",
     requestId,
@@ -67,12 +81,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const path = event.path;
     let result;
-    
+
     if (path.includes("/presigned-url") && event.httpMethod === "POST") {
       result = await handlePresignedUrl(event);
     } else if (path.includes("/upload") && event.httpMethod === "POST") {
       result = await handleDirectUpload(event);
-    } else if (path.includes("/process-upload") && event.httpMethod === "POST") {
+    } else if (
+      path.includes("/process-upload") &&
+      event.httpMethod === "POST"
+    ) {
       result = await handleUploadProcessing(event);
     } else {
       logger.warn("Endpoint not found", {
@@ -81,7 +98,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         path: event.path,
         method: event.httpMethod,
       });
-      
+
       return {
         statusCode: 404,
         headers: {
@@ -109,23 +126,29 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       duration,
     });
 
-    logger.error("KYC Upload Lambda failed", {
-      operation: "LambdaInvocation",
-      requestId,
-      duration,
+    logger.error(
+      "KYC Upload Lambda failed",
+      {
+        operation: "LambdaInvocation",
+        requestId,
+        duration,
+        errorCategory: errorDetails.category,
+        errorCode: errorDetails.errorCode,
+      },
+      error as Error
+    );
+
+    await putMetricSafe("UploadError", 1, {
       errorCategory: errorDetails.category,
-      errorCode: errorDetails.errorCode,
-    }, error as Error);
-    
-    await putMetricSafe("UploadError", 1, { errorCategory: errorDetails.category });
-    
+    });
+
     return {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         message: errorDetails.userMessage,
         requestId,
       }),
@@ -134,8 +157,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 };
 
 async function handlePresignedUrl(event: APIGatewayProxyEvent): Promise<any> {
-  const request: PresignedUrlRequest = JSON.parse(event.body || '{}');
-  
+  const request: PresignedUrlRequest = JSON.parse(event.body || "{}");
+
   // Validate request
   const validation = validateUploadRequest(request);
   if (!validation.isValid) {
@@ -197,12 +220,13 @@ async function handlePresignedUrl(event: APIGatewayProxyEvent): Promise<any> {
   };
 
   await retry.execute(
-    () => docClient.send(
-      new PutCommand({
-        TableName: TABLE_NAME,
-        Item: document,
-      })
-    ),
+    () =>
+      docClient.send(
+        new PutCommand({
+          TableName: TABLE_NAME,
+          Item: document,
+        })
+      ),
     `DynamoDB-Put-${documentId}`
   );
 
@@ -227,15 +251,15 @@ async function handlePresignedUrl(event: APIGatewayProxyEvent): Promise<any> {
 async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
-  
+
   logger.info("Direct upload started", {
     operation: "DirectUpload",
     requestId,
   });
 
   try {
-    const request: DirectUploadRequest = JSON.parse(event.body || '{}');
-    
+    const request: DirectUploadRequest = JSON.parse(event.body || "{}");
+
     // Validate request
     const validation = validateDirectUploadRequest(request);
     if (!validation.isValid) {
@@ -245,7 +269,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         userId: request.userId,
         error: validation.error,
       });
-      
+
       return {
         statusCode: 400,
         headers: {
@@ -257,8 +281,8 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     }
 
     const documentId = uuidv4();
-    const fileBuffer = Buffer.from(request.fileContent, 'base64');
-    
+    const fileBuffer = Buffer.from(request.fileContent, "base64");
+
     logger.info("Processing direct upload", {
       operation: "DirectUpload",
       requestId,
@@ -290,9 +314,9 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         documentId,
         error: uploadResult.error,
       });
-      
+
       await putMetricSafe("DirectUploadError", 1, { errorType: "S3Upload" });
-      
+
       return {
         statusCode: 400,
         headers: {
@@ -310,15 +334,16 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     });
 
     const kycDocument = await retry.execute(
-      () => kycRepo.createKYCDocument({
-        userId: request.userId,
-        documentType: 'national_id',
-        s3Bucket: BUCKET_NAME,
-        s3Key: uploadResult.s3Key,
-        originalFileName: request.fileName,
-        fileSize: uploadResult.fileSize,
-        mimeType: request.contentType,
-      }),
+      () =>
+        kycRepo.createKYCDocument({
+          userId: request.userId,
+          documentType: "national_id",
+          s3Bucket: BUCKET_NAME,
+          s3Key: uploadResult.s3Key,
+          originalFileName: request.fileName,
+          fileSize: uploadResult.fileSize,
+          mimeType: request.contentType,
+        }),
       `DynamoDB-CreateDocument-${documentId}`
     );
 
@@ -332,7 +357,9 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       duration,
     });
 
-    await putMetricSafe("DirectUploadSuccess", 1, { documentType: request.documentType });
+    await putMetricSafe("DirectUploadSuccess", 1, {
+      documentType: request.documentType,
+    });
 
     const response: UploadResponse = {
       documentId,
@@ -355,22 +382,28 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       duration,
     });
 
-    logger.error("Direct upload failed", {
-      operation: "DirectUpload",
-      requestId,
-      duration,
+    logger.error(
+      "Direct upload failed",
+      {
+        operation: "DirectUpload",
+        requestId,
+        duration,
+        errorCategory: errorDetails.category,
+      },
+      error as Error
+    );
+
+    await putMetricSafe("DirectUploadError", 1, {
       errorCategory: errorDetails.category,
-    }, error as Error);
-    
-    await putMetricSafe("DirectUploadError", 1, { errorCategory: errorDetails.category });
-    
+    });
+
     return {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         message: errorDetails.userMessage,
         requestId,
       }),
@@ -378,7 +411,10 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
   }
 }
 
-function validateUploadRequest(request: any): { isValid: boolean; error?: string } {
+function validateUploadRequest(request: any): {
+  isValid: boolean;
+  error?: string;
+} {
   if (!request.documentType || !DOCUMENT_TYPES.includes(request.documentType)) {
     return { isValid: false, error: "Invalid document type" };
   }
@@ -387,7 +423,10 @@ function validateUploadRequest(request: any): { isValid: boolean; error?: string
     return { isValid: false, error: "Invalid file name" };
   }
 
-  if (!request.contentType || !ALLOWED_FILE_TYPES.includes(request.contentType as any)) {
+  if (
+    !request.contentType ||
+    !ALLOWED_FILE_TYPES.includes(request.contentType as any)
+  ) {
     return { isValid: false, error: "Invalid file type" };
   }
 
@@ -404,7 +443,10 @@ function validateUploadRequest(request: any): { isValid: boolean; error?: string
   return { isValid: true };
 }
 
-function validateDirectUploadRequest(request: any): { isValid: boolean; error?: string } {
+function validateDirectUploadRequest(request: any): {
+  isValid: boolean;
+  error?: string;
+} {
   // First validate common fields
   const baseValidation = validateUploadRequest(request);
   if (!baseValidation.isValid) {
@@ -418,7 +460,7 @@ function validateDirectUploadRequest(request: any): { isValid: boolean; error?: 
 
   // Validate base64 format
   try {
-    const buffer = Buffer.from(request.fileContent, 'base64');
+    const buffer = Buffer.from(request.fileContent, "base64");
     if (buffer.length === 0) {
       return { isValid: false, error: "Empty file content" };
     }
@@ -429,7 +471,11 @@ function validateDirectUploadRequest(request: any): { isValid: boolean; error?: 
   return { isValid: true };
 }
 
-function validateFileContent(fileBuffer: Buffer, fileName: string, contentType: string): { isValid: boolean; error?: string } {
+function validateFileContent(
+  fileBuffer: Buffer,
+  fileName: string,
+  contentType: string
+): { isValid: boolean; error?: string } {
   // Check file header for basic format verification
   if (fileBuffer.length < 4) {
     return { isValid: false, error: "File is too small to validate format" };
@@ -440,19 +486,38 @@ function validateFileContent(fileBuffer: Buffer, fileName: string, contentType: 
   switch (contentType) {
     case "image/jpeg":
       if (header[0] !== 0xff || header[1] !== 0xd8) {
-        return { isValid: false, error: "File does not appear to be a valid JPEG image" };
+        return {
+          isValid: false,
+          error: "File does not appear to be a valid JPEG image",
+        };
       }
       break;
 
     case "image/png":
-      if (header[0] !== 0x89 || header[1] !== 0x50 || header[2] !== 0x4e || header[3] !== 0x47) {
-        return { isValid: false, error: "File does not appear to be a valid PNG image" };
+      if (
+        header[0] !== 0x89 ||
+        header[1] !== 0x50 ||
+        header[2] !== 0x4e ||
+        header[3] !== 0x47
+      ) {
+        return {
+          isValid: false,
+          error: "File does not appear to be a valid PNG image",
+        };
       }
       break;
 
     case "application/pdf":
-      if (header[0] !== 0x25 || header[1] !== 0x50 || header[2] !== 0x44 || header[3] !== 0x46) {
-        return { isValid: false, error: "File does not appear to be a valid PDF document" };
+      if (
+        header[0] !== 0x25 ||
+        header[1] !== 0x50 ||
+        header[2] !== 0x44 ||
+        header[3] !== 0x46
+      ) {
+        return {
+          isValid: false,
+          error: "File does not appear to be a valid PDF document",
+        };
       }
       break;
   }
@@ -460,7 +525,12 @@ function validateFileContent(fileBuffer: Buffer, fileName: string, contentType: 
   return { isValid: true };
 }
 
-function generateS3Key(userId: string, documentType: string, fileName: string, documentId: string): string {
+function generateS3Key(
+  userId: string,
+  documentType: string,
+  fileName: string,
+  documentId: string
+): string {
   const timestamp = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
   const extension = getFileExtension(fileName);
   const sanitizedFileName = sanitizeFileName(fileName);
@@ -476,7 +546,8 @@ function getFileExtension(fileName: string): string {
 
 function sanitizeFileName(fileName: string): string {
   // Remove extension and sanitize
-  const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf(".")) || fileName;
+  const nameWithoutExt =
+    fileName.substring(0, fileName.lastIndexOf(".")) || fileName;
   return nameWithoutExt
     .replace(/[^a-zA-Z0-9-_]/g, "-")
     .replace(/-+/g, "-")
@@ -490,9 +561,11 @@ function generateUploadId(): string {
   return `${timestamp}-${random}`;
 }
 
-async function handleUploadProcessing(event: APIGatewayProxyEvent): Promise<any> {
-  const request: UploadProcessingRequest = JSON.parse(event.body || '{}');
-  
+async function handleUploadProcessing(
+  event: APIGatewayProxyEvent
+): Promise<any> {
+  const request: UploadProcessingRequest = JSON.parse(event.body || "{}");
+
   // Validate request
   if (!request.documentId || !request.userId || !request.s3Key) {
     return {
@@ -509,11 +582,14 @@ async function handleUploadProcessing(event: APIGatewayProxyEvent): Promise<any>
     // Initialize KYC document repository
     const kycRepo = new KYCDocumentRepository({
       tableName: TABLE_NAME,
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: process.env.AWS_REGION || "us-east-1",
     });
 
     // Update document with actual file size and change status to pending review
-    const document = await kycRepo.getKYCDocument(request.userId, request.documentId);
+    const document = await kycRepo.getKYCDocument(
+      request.userId,
+      request.documentId
+    );
     if (!document) {
       return {
         statusCode: 404,
@@ -549,25 +625,25 @@ async function handleUploadProcessing(event: APIGatewayProxyEvent): Promise<any>
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         message: "Upload processed successfully",
         documentId: request.documentId,
-        status: "pending_review"
+        status: "pending_review",
       }),
     };
   } catch (error) {
     console.error("Error processing upload:", error);
     await putMetric("UploadProcessingError", 1);
-    
+
     return {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         message: "Internal server error during processing",
-        error: error instanceof Error ? error.message : "Unknown error"
+        error: error instanceof Error ? error.message : "Unknown error",
       }),
     };
   }
@@ -582,12 +658,12 @@ async function sendAdminNotification(data: {
 }): Promise<void> {
   try {
     await notificationService.sendKYCReviewNotification(data);
-    
+
     console.log("Admin notification sent successfully", {
       documentId: data.documentId,
       userId: data.userId,
     });
-    
+
     await putMetric("AdminNotificationSent", 1);
   } catch (error) {
     console.error("Failed to send admin notification:", error);
@@ -597,34 +673,38 @@ async function sendAdminNotification(data: {
 }
 
 async function putMetricSafe(
-  metricName: string, 
-  value: number, 
+  metricName: string,
+  value: number,
   dimensions: Record<string, string> = {}
 ): Promise<void> {
   try {
     const metricDimensions = [
       { Name: "Environment", Value: ENVIRONMENT },
-      ...Object.entries(dimensions).map(([name, value]) => ({ Name: name, Value: value }))
+      ...Object.entries(dimensions).map(([name, value]) => ({
+        Name: name,
+        Value: value,
+      })),
     ];
 
     await retry.execute(
-      () => cloudWatchClient.send(
-        new PutMetricDataCommand({
-          Namespace: "Sachain/KYCUpload",
-          MetricData: [
-            {
-              MetricName: metricName,
-              Value: value,
-              Unit: "Count",
-              Dimensions: metricDimensions,
-              Timestamp: new Date(),
-            },
-          ],
-        })
-      ),
+      () =>
+        cloudWatchClient.send(
+          new PutMetricDataCommand({
+            Namespace: "Sachain/KYCUpload",
+            MetricData: [
+              {
+                MetricName: metricName,
+                Value: value,
+                Unit: "Count",
+                Dimensions: metricDimensions,
+                Timestamp: new Date(),
+              },
+            ],
+          })
+        ),
       `CloudWatch-${metricName}`
     );
-    
+
     logger.logMetricPublication(metricName, value, true);
   } catch (error) {
     logger.logMetricPublication(metricName, value, false, error as Error);
