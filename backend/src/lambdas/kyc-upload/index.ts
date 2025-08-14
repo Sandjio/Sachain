@@ -1,8 +1,6 @@
 import { APIGatewayProxyHandler, APIGatewayProxyEvent } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { SNSClient } from "@aws-sdk/client-sns";
+
 import {
   CloudWatchClient,
   PutMetricDataCommand,
@@ -11,54 +9,40 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 import { KYCDocumentRepository } from "../../repositories/kyc-document-repository";
 import { ExponentialBackoff } from "../../utils/retry";
-import { NotificationService } from "../../utils/notification-service";
-import {
-  StructuredLogger,
-  createKYCLogger,
-} from "../../utils/structured-logger";
-import {
-  ErrorClassifier,
-  AWSServiceError,
-  ErrorCategory,
-} from "../../utils/error-handler";
-import { S3UploadUtility, createKYCUploadUtility } from "../../utils/s3-upload";
-import {
-  UploadRequest,
-  PresignedUrlRequest,
-  UploadResponse,
-  KYCDocument,
-  ALLOWED_FILE_TYPES,
-  MAX_FILE_SIZE,
-  DOCUMENT_TYPES,
-  DirectUploadRequest,
-  UploadProcessingRequest,
-} from "./types";
+
+import { createKYCLogger } from "../../utils/structured-logger";
+import { ErrorClassifier } from "../../utils/error-handler";
+import { EventPublisher } from "../kyc-processing/event-publisher";
+import { KYCUploadDetail } from "../kyc-processing/types";
+import { createKYCFileValidator } from "../../utils/file-validation";
+import { createKYCDirectUploadUtility } from "../../utils/s3-direct-upload";
+import { UploadResponse, KYCDocument, DirectUploadRequest } from "./types";
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const s3Client = new S3Client({});
-const snsClient = new SNSClient({});
 const cloudWatchClient = new CloudWatchClient({});
 
 const TABLE_NAME = process.env.TABLE_NAME!;
 const BUCKET_NAME = process.env.BUCKET_NAME!;
-const SNS_TOPIC_ARN = process.env.SNS_TOPIC_ARN!;
+const EVENT_BUS_NAME = process.env.EVENT_BUS_NAME || "default";
+
 const ENVIRONMENT = process.env.ENVIRONMENT!;
 const AWS_REGION = process.env.AWS_REGION || "us-east-1";
 const KMS_KEY_ID = process.env.KMS_KEY_ID;
 
 // Initialize services
 const logger = createKYCLogger();
-const notificationService = new NotificationService({
-  snsClient,
-  topicArn: SNS_TOPIC_ARN,
-  adminPortalUrl: process.env.ADMIN_PORTAL_URL,
+const eventPublisher = new EventPublisher({
+  eventBusName: EVENT_BUS_NAME,
+  region: AWS_REGION,
 });
-const s3UploadUtility = createKYCUploadUtility(
+const fileValidator = createKYCFileValidator();
+const s3UploadUtility = createKYCDirectUploadUtility(
   BUCKET_NAME,
   AWS_REGION,
   KMS_KEY_ID
 );
+
 const retry = new ExponentialBackoff({
   maxRetries: 3,
   baseDelay: 200,
@@ -82,15 +66,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const path = event.path;
     let result;
 
-    if (path.includes("/presigned-url") && event.httpMethod === "POST") {
-      result = await handlePresignedUrl(event);
-    } else if (path.includes("/upload") && event.httpMethod === "POST") {
+    if (path.includes("/upload") && event.httpMethod === "POST") {
       result = await handleDirectUpload(event);
-    } else if (
-      path.includes("/process-upload") &&
-      event.httpMethod === "POST"
-    ) {
-      result = await handleUploadProcessing(event);
     } else {
       logger.warn("Endpoint not found", {
         operation: "RouteNotFound",
@@ -156,91 +133,6 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   }
 };
 
-async function handlePresignedUrl(event: APIGatewayProxyEvent): Promise<any> {
-  const request: PresignedUrlRequest = JSON.parse(event.body || "{}");
-
-  // Validate request
-  const validation = validateUploadRequest(request);
-  if (!validation.isValid) {
-    return {
-      statusCode: 400,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({ message: validation.error }),
-    };
-  }
-
-  const documentId = uuidv4();
-  const timestamp = new Date().toISOString();
-  const s3Key = `kyc-documents/${request.userId}/${documentId}/${request.fileName}`;
-
-  // Generate presigned URL
-  const putObjectCommand = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: s3Key,
-    ContentType: request.contentType,
-    ServerSideEncryption: "aws:kms",
-    Metadata: {
-      documentType: request.documentType,
-      userId: request.userId,
-      documentId: documentId,
-    },
-  });
-
-  const uploadUrl = await getSignedUrl(s3Client, putObjectCommand, {
-    expiresIn: 3600, // 1 hour
-  });
-
-  // Create document record in DynamoDB with retry logic
-  const document: KYCDocument = {
-    PK: `USER#${request.userId}`,
-    SK: `DOCUMENT#${documentId}`,
-    GSI1PK: "KYC#uploaded",
-    GSI1SK: timestamp,
-    GSI2PK: `DOCUMENT#${request.documentType}`,
-    GSI2SK: timestamp,
-    documentId,
-    userId: request.userId,
-    documentType: request.documentType,
-    fileName: request.fileName,
-    fileSize: 0, // Will be updated after upload
-    contentType: request.contentType,
-    s3Key,
-    status: "uploaded",
-    uploadedAt: timestamp,
-  };
-
-  await retry.execute(
-    () =>
-      docClient.send(
-        new PutCommand({
-          TableName: TABLE_NAME,
-          Item: document,
-        })
-      ),
-    `DynamoDB-Put-${documentId}`
-  );
-
-  await putMetric("PresignedUrlGenerated", 1);
-
-  const response: UploadResponse = {
-    documentId,
-    uploadUrl,
-    message: "Presigned URL generated successfully",
-  };
-
-  return {
-    statusCode: 200,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-    },
-    body: JSON.stringify(response),
-  };
-}
-
 async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
@@ -268,14 +160,14 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       : request.userId;
     request.userId = cleanUserId;
 
-    // Validate request using the working validation function
-    const validation = validateDirectUploadRequest(request);
+    // Validate request using the new simplified validation function
+    const validation = fileValidator.validateDirectUploadRequest(request);
     if (!validation.isValid) {
       logger.warn("Direct upload validation failed", {
         operation: "DirectUpload",
         requestId,
         userId: request.userId,
-        error: validation.error,
+        errors: validation.errors,
       });
 
       return {
@@ -284,27 +176,15 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
         },
-        body: JSON.stringify({ message: validation.error }),
+        body: JSON.stringify({
+          message: validation.errors.join("; "),
+          errors: validation.errors,
+        }),
       };
     }
 
     const documentId = uuidv4();
     const fileBuffer = Buffer.from(request.fileContent, "base64");
-
-    if (fileBuffer.length > MAX_FILE_SIZE) {
-      return {
-        statusCode: 413,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({
-          message: `File exceeds max size of ${
-            MAX_FILE_SIZE / 1024 / 1024
-          } MB.`,
-        }),
-      };
-    }
 
     logger.info("Processing direct upload", {
       operation: "DirectUpload",
@@ -316,24 +196,44 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       fileSize: fileBuffer.length,
     });
 
-    const s3Key = `kyc-documents/${request.userId}/${documentId}/${request.fileName}`;
     const timestamp = new Date().toISOString();
 
-    // Upload to S3
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: s3Key,
-        Body: fileBuffer,
-        ContentType: request.contentType,
-        ServerSideEncryption: "aws:kms",
-        Metadata: {
-          documentType: request.documentType,
-          userId: request.userId,
-          documentId: documentId,
+    // Upload to S3 using the new simplified upload utility
+    const uploadResult = await s3UploadUtility.uploadFile({
+      fileBuffer,
+      fileName: request.fileName,
+      contentType: request.contentType,
+      userId: request.userId,
+      documentType: request.documentType,
+      documentId,
+      metadata: {
+        uploadTimestamp: timestamp,
+      },
+    });
+
+    if (!uploadResult.success) {
+      logger.error("S3 upload failed", {
+        operation: "DirectUpload",
+        requestId,
+        userId: request.userId,
+        documentId,
+        error: uploadResult.error,
+      });
+
+      return {
+        statusCode: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
         },
-      })
-    );
+        body: JSON.stringify({
+          message: uploadResult.error || "File upload failed",
+          requestId,
+        }),
+      };
+    }
+
+    const s3Key = uploadResult.s3Key;
 
     const document: KYCDocument = {
       PK: `USER#${request.userId}`,
@@ -360,6 +260,51 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       })
     );
 
+    // Publish EventBridge event for downstream processing
+    try {
+      const eventDetail: KYCUploadDetail = {
+        documentId,
+        userId: request.userId,
+        documentType: request.documentType as any,
+        fileName: request.fileName,
+        fileSize: fileBuffer.length,
+        contentType: request.contentType as any,
+        s3Key,
+        s3Bucket: BUCKET_NAME,
+        uploadedAt: timestamp,
+      };
+
+      await eventPublisher.publishKYCUploadEvent(eventDetail);
+
+      logger.info("EventBridge event published successfully", {
+        operation: "DirectUpload",
+        requestId,
+        userId: request.userId,
+        documentId,
+        eventDetail,
+      });
+
+      await putMetricSafe("EventPublishSuccess", 1, {
+        documentType: request.documentType,
+      });
+    } catch (eventError) {
+      // Log the error but don't fail the upload operation
+      logger.error(
+        "Failed to publish EventBridge event",
+        {
+          operation: "DirectUpload",
+          requestId,
+          userId: request.userId,
+          documentId,
+        },
+        eventError as Error
+      );
+
+      await putMetricSafe("EventPublishError", 1, {
+        documentType: request.documentType,
+      });
+    }
+
     const duration = Date.now() - startTime;
     logger.info("Direct upload completed successfully", {
       operation: "DirectUpload",
@@ -378,22 +323,6 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       documentId,
       message: "File uploaded successfully",
     };
-
-    // Send SNS notification for admin review
-    await notificationService.sendKYCReviewNotification({
-      documentId,
-      userId: request.userId,
-      documentType: request.documentType,
-      fileName: request.fileName,
-      uploadedAt: timestamp,
-    });
-
-    logger.info("Admin notification sent for direct upload", {
-      operation: "DirectUpload",
-      requestId,
-      userId: request.userId,
-      documentId,
-    });
 
     return {
       statusCode: 200,
@@ -437,283 +366,6 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         requestId,
       }),
     };
-  }
-}
-
-function validateUploadRequest(request: any): {
-  isValid: boolean;
-  error?: string;
-} {
-  if (!request.documentType || !DOCUMENT_TYPES.includes(request.documentType)) {
-    return { isValid: false, error: "Invalid document type" };
-  }
-
-  if (!request.fileName || typeof request.fileName !== "string") {
-    return { isValid: false, error: "Invalid file name" };
-  }
-
-  if (
-    !request.contentType ||
-    !ALLOWED_FILE_TYPES.includes(request.contentType as any)
-  ) {
-    return { isValid: false, error: "Invalid file type" };
-  }
-
-  if (!request.userId || typeof request.userId !== "string") {
-    return { isValid: false, error: "Invalid user ID" };
-  }
-
-  // Validate file name format
-  const fileNameRegex = /^[a-zA-Z0-9._-]+\.(jpg|jpeg|png|pdf)$/i;
-  if (!fileNameRegex.test(request.fileName)) {
-    return { isValid: false, error: "Invalid file name format" };
-  }
-
-  return { isValid: true };
-}
-
-function validateDirectUploadRequest(request: any): {
-  isValid: boolean;
-  error?: string;
-} {
-  if (!request.documentType || !DOCUMENT_TYPES.includes(request.documentType)) {
-    return { isValid: false, error: "Invalid document type" };
-  }
-
-  if (!request.fileName || typeof request.fileName !== "string") {
-    return { isValid: false, error: "Invalid file name" };
-  }
-
-  if (
-    !request.contentType ||
-    !ALLOWED_FILE_TYPES.includes(request.contentType as any)
-  ) {
-    return { isValid: false, error: "Invalid file type" };
-  }
-
-  if (!request.userId || typeof request.userId !== "string") {
-    return { isValid: false, error: "Invalid user ID" };
-  }
-
-  if (!request.fileContent || typeof request.fileContent !== "string") {
-    return { isValid: false, error: "Missing or invalid file content" };
-  }
-
-  const fileNameRegex = /^[a-zA-Z0-9._-]+\.(jpg|jpeg|png|pdf)$/i;
-  if (!fileNameRegex.test(request.fileName)) {
-    return { isValid: false, error: "Invalid file name format" };
-  }
-
-  try {
-    const buffer = Buffer.from(request.fileContent, "base64");
-    if (buffer.length === 0) {
-      return { isValid: false, error: "Empty file content" };
-    }
-  } catch (error) {
-    return { isValid: false, error: "Invalid base64 file content" };
-  }
-
-  return { isValid: true };
-}
-
-function validateFileContent(
-  fileBuffer: Buffer,
-  fileName: string,
-  contentType: string
-): { isValid: boolean; error?: string } {
-  // Check file header for basic format verification
-  if (fileBuffer.length < 4) {
-    return { isValid: false, error: "File is too small to validate format" };
-  }
-
-  const header = fileBuffer.subarray(0, 8);
-
-  switch (contentType) {
-    case "image/jpeg":
-      if (header[0] !== 0xff || header[1] !== 0xd8) {
-        return {
-          isValid: false,
-          error: "File does not appear to be a valid JPEG image",
-        };
-      }
-      break;
-
-    case "image/png":
-      if (
-        header[0] !== 0x89 ||
-        header[1] !== 0x50 ||
-        header[2] !== 0x4e ||
-        header[3] !== 0x47
-      ) {
-        return {
-          isValid: false,
-          error: "File does not appear to be a valid PNG image",
-        };
-      }
-      break;
-
-    case "application/pdf":
-      if (
-        header[0] !== 0x25 ||
-        header[1] !== 0x50 ||
-        header[2] !== 0x44 ||
-        header[3] !== 0x46
-      ) {
-        return {
-          isValid: false,
-          error: "File does not appear to be a valid PDF document",
-        };
-      }
-      break;
-  }
-
-  return { isValid: true };
-}
-
-function generateS3Key(
-  userId: string,
-  documentType: string,
-  fileName: string,
-  documentId: string
-): string {
-  const timestamp = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-  const extension = getFileExtension(fileName);
-  const sanitizedFileName = sanitizeFileName(fileName);
-  const uploadId = generateUploadId();
-
-  return `kyc-documents/${userId}/${documentType}/${timestamp}/${uploadId}-${sanitizedFileName}${extension}`;
-}
-
-function getFileExtension(fileName: string): string {
-  const lastDot = fileName.lastIndexOf(".");
-  return lastDot !== -1 ? fileName.substring(lastDot) : "";
-}
-
-function sanitizeFileName(fileName: string): string {
-  // Remove extension and sanitize
-  const nameWithoutExt =
-    fileName.substring(0, fileName.lastIndexOf(".")) || fileName;
-  return nameWithoutExt
-    .replace(/[^a-zA-Z0-9-_]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-}
-
-function generateUploadId(): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
-  return `${timestamp}-${random}`;
-}
-
-async function handleUploadProcessing(
-  event: APIGatewayProxyEvent
-): Promise<any> {
-  const request: UploadProcessingRequest = JSON.parse(event.body || "{}");
-
-  // Validate request
-  if (!request.documentId || !request.userId || !request.s3Key) {
-    return {
-      statusCode: 400,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({ message: "Missing required fields" }),
-    };
-  }
-
-  try {
-    // Initialize KYC document repository
-    const kycRepo = new KYCDocumentRepository({
-      tableName: TABLE_NAME,
-      region: process.env.AWS_REGION || "us-east-1",
-    });
-
-    // Update document with actual file size and change status to pending review
-    const document = await kycRepo.getKYCDocument(
-      request.userId,
-      request.documentId
-    );
-    if (!document) {
-      return {
-        statusCode: 404,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ message: "Document not found" }),
-      };
-    }
-
-    // Update document status to pending review
-    await kycRepo.updateKYCDocument({
-      userId: request.userId,
-      documentId: request.documentId,
-      status: "pending",
-    });
-
-    // Send SNS notification for admin review
-    await sendAdminNotification({
-      documentId: request.documentId,
-      userId: request.userId,
-      documentType: document.documentType,
-      fileName: document.originalFileName,
-      uploadedAt: document.uploadedAt,
-    });
-
-    await putMetric("UploadProcessed", 1);
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        message: "Upload processed successfully",
-        documentId: request.documentId,
-        status: "pending_review",
-      }),
-    };
-  } catch (error) {
-    console.error("Error processing upload:", error);
-    await putMetric("UploadProcessingError", 1);
-
-    return {
-      statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        message: "Internal server error during processing",
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-    };
-  }
-}
-
-async function sendAdminNotification(data: {
-  documentId: string;
-  userId: string;
-  documentType: string;
-  fileName: string;
-  uploadedAt: string;
-}): Promise<void> {
-  try {
-    await notificationService.sendKYCReviewNotification(data);
-
-    console.log("Admin notification sent successfully", {
-      documentId: data.documentId,
-      userId: data.userId,
-    });
-
-    await putMetric("AdminNotificationSent", 1);
-  } catch (error) {
-    console.error("Failed to send admin notification:", error);
-    await putMetric("AdminNotificationError", 1);
-    // Don't throw error as this is not critical for the upload process
   }
 }
 

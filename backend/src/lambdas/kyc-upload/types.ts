@@ -4,14 +4,6 @@ export interface KYCUploadEvent extends APIGatewayProxyEvent {
   body: string;
 }
 
-export interface UploadRequest {
-  documentType: "passport" | "driver_license" | "national_id" | "utility_bill";
-  fileName: string;
-  fileSize: number;
-  contentType: string;
-  userId: string;
-}
-
 export interface DirectUploadRequest {
   documentType: "passport" | "driver_license" | "national_id" | "utility_bill";
   fileName: string;
@@ -20,23 +12,8 @@ export interface DirectUploadRequest {
   fileContent: string; // base64 encoded file content
 }
 
-export interface UploadProcessingRequest {
-  documentId: string;
-  userId: string;
-  s3Key: string;
-  fileSize: number;
-}
-
-export interface PresignedUrlRequest {
-  documentType: "passport" | "driver_license" | "national_id" | "utility_bill";
-  fileName: string;
-  contentType: string;
-  userId: string;
-}
-
 export interface UploadResponse {
   documentId: string;
-  uploadUrl?: string;
   message: string;
 }
 
@@ -62,27 +39,5 @@ export interface KYCDocument {
   metadata?: Record<string, any>;
 }
 
-export const ALLOWED_FILE_TYPES = [
-  "image/jpeg",
-  "image/png", 
-  "application/pdf"
-] as const;
-
-export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-export interface FileValidationResult {
-  isValid: boolean;
-  errors: string[];
-  fileInfo?: {
-    size: number;
-    mimeType: string;
-    extension: string;
-  };
-}
-
-export const DOCUMENT_TYPES = [
-  "passport",
-  "driver_license", 
-  "national_id",
-  "utility_bill"
-] as const;
+// Legacy constants - moved to file-validation.ts
+// Kept for backward compatibility if needed elsewhere
