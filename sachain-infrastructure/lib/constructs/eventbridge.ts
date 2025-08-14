@@ -95,12 +95,7 @@ export class EventBridgeConstruct extends Construct {
       })
     );
 
-    // Add User Notification Lambda target for direct event processing
-    if (props.userNotificationLambda) {
-      this.kycStatusChangeRule.addTarget(
-        new targets.LambdaFunction(props.userNotificationLambda)
-      );
-    }
+    // User Notification Lambda target will be added later in the stack
 
     // Add CloudWatch Logs target for debugging
     this.kycStatusChangeRule.addTarget(

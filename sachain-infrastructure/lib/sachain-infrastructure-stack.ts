@@ -41,9 +41,10 @@ export class SachainInfrastructureStack extends cdk.Stack {
       environment,
     });
 
-    // Create EventBridge and SNS for event-driven architecture
+    // Create EventBridge and SNS first (needed for security roles)
     const eventBridgeConstruct = new EventBridgeConstruct(this, "EventBridge", {
       environment,
+      adminEmails: ["emmasandjio@gmail.com"],
     });
 
     // Create security construct with least-privilege IAM roles
@@ -60,13 +61,21 @@ export class SachainInfrastructureStack extends cdk.Stack {
     const lambdaConstruct = new LambdaConstruct(this, "Lambda", {
       table: dynamoDBConstruct.table,
       documentBucket: s3Construct.documentBucket,
-      notificationTopic: eventBridgeConstruct.notificationTopic,
-      eventBus: eventBridgeConstruct.eventBus,
       environment,
       securityConstruct,
     });
 
-    // Add User Notification Lambda as EventBridge target after creation
+    // Update Lambda environment variables with EventBridge resources
+    lambdaConstruct.kycUploadLambda.addEnvironment(
+      "SNS_TOPIC_ARN",
+      eventBridgeConstruct.notificationTopic.topicArn
+    );
+    lambdaConstruct.adminReviewLambda.addEnvironment(
+      "EVENT_BUS_NAME",
+      eventBridgeConstruct.eventBus.eventBusName
+    );
+
+    // Update EventBridge with User Notification Lambda target
     eventBridgeConstruct.kycStatusChangeRule.addTarget(
       new targets.LambdaFunction(lambdaConstruct.userNotificationLambda)
     );

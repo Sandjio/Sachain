@@ -13,33 +13,35 @@ export interface NotificationServiceConfig {
   snsClient: SNSClient;
   topicArn: string;
   adminPortalUrl?: string;
+  emailFormat?: 'html' | 'text';
 }
 
 export class NotificationService {
   private snsClient: SNSClient;
   private topicArn: string;
   private adminPortalUrl: string;
+  private emailFormat: 'html' | 'text';
 
   constructor(config: NotificationServiceConfig) {
     this.snsClient = config.snsClient;
     this.topicArn = config.topicArn;
     this.adminPortalUrl = config.adminPortalUrl || process.env.ADMIN_PORTAL_URL || "";
+    this.emailFormat = config.emailFormat || 'text';
   }
 
   async sendKYCReviewNotification(data: KYCNotificationData): Promise<void> {
     const reviewUrl = this.generateSecureReviewUrl(data.documentId, data.userId);
     const emailContent = this.formatEmailContent(data, reviewUrl);
 
-    const message = {
-      default: emailContent.plainText,
-      email: emailContent.html,
-    };
-
+    const message = this.emailFormat === 'html' 
+      ? JSON.stringify({ default: emailContent.plainText, email: emailContent.html })
+      : emailContent.plainText;
+    
     await this.snsClient.send(
       new PublishCommand({
         TopicArn: this.topicArn,
-        Message: JSON.stringify(message),
-        MessageStructure: "json",
+        Message: message,
+        MessageStructure: this.emailFormat === 'html' ? 'json' : undefined,
         Subject: `KYC Document Review Required - ${data.documentType}`,
         MessageAttributes: {
           documentType: {

@@ -379,6 +379,22 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       message: "File uploaded successfully",
     };
 
+    // Send SNS notification for admin review
+    await notificationService.sendKYCReviewNotification({
+      documentId,
+      userId: request.userId,
+      documentType: request.documentType,
+      fileName: request.fileName,
+      uploadedAt: timestamp,
+    });
+
+    logger.info("Admin notification sent for direct upload", {
+      operation: "DirectUpload",
+      requestId,
+      userId: request.userId,
+      documentId,
+    });
+
     return {
       statusCode: 200,
       headers: {
