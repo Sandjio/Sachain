@@ -7,7 +7,10 @@ import * as AWS from "aws-sdk";
 import { StructuredLogger } from "./structured-logger";
 
 const cloudwatch = new AWS.CloudWatch();
-const logger = StructuredLogger.getInstance("CloudWatchMetrics");
+const logger = StructuredLogger.getInstance(
+  "CloudWatchMetrics",
+  process.env.ENVIRONMENT || "development"
+);
 
 export interface MetricDimension {
   Name: string;
