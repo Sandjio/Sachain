@@ -194,13 +194,6 @@ async function handlePresignedUrl(event: APIGatewayProxyEvent): Promise<any> {
   });
 
   // Create document record in DynamoDB with retry logic
-  const retry = new ExponentialBackoff({
-    maxRetries: 3,
-    baseDelay: 200,
-    maxDelay: 5000,
-    jitterType: "full",
-  });
-
   const document: KYCDocument = {
     PK: `USER#${request.userId}`,
     SK: `DOCUMENT#${documentId}`,
@@ -258,9 +251,24 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
   });
 
   try {
-    const request: DirectUploadRequest = JSON.parse(event.body || "{}");
+    let bodyString = event.body || "{}";
 
-    // Validate request
+    // Check if body is base64 encoded
+    if (event.isBase64Encoded) {
+      bodyString = Buffer.from(bodyString, "base64").toString("utf-8");
+    }
+
+    // Clean up line breaks in the JSON that break parsing
+    bodyString = bodyString.replace(/\n/g, "").replace(/\r/g, "");
+
+    const request: DirectUploadRequest = JSON.parse(bodyString);
+
+    const cleanUserId = request.userId.startsWith("USER#")
+      ? request.userId.substring(5)
+      : request.userId;
+    request.userId = cleanUserId;
+
+    // Validate request using the working validation function
     const validation = validateDirectUploadRequest(request);
     if (!validation.isValid) {
       logger.warn("Direct upload validation failed", {
@@ -283,6 +291,21 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     const documentId = uuidv4();
     const fileBuffer = Buffer.from(request.fileContent, "base64");
 
+    if (fileBuffer.length > MAX_FILE_SIZE) {
+      return {
+        statusCode: 413,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({
+          message: `File exceeds max size of ${
+            MAX_FILE_SIZE / 1024 / 1024
+          } MB.`,
+        }),
+      };
+    }
+
     logger.info("Processing direct upload", {
       operation: "DirectUpload",
       requestId,
@@ -293,58 +316,48 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       fileSize: fileBuffer.length,
     });
 
-    // Use S3 upload utility with comprehensive error handling
-    const uploadResult = await s3UploadUtility.uploadFile({
-      fileBuffer,
-      fileName: request.fileName,
-      mimeType: request.contentType,
+    const s3Key = `kyc-documents/${request.userId}/${documentId}/${request.fileName}`;
+    const timestamp = new Date().toISOString();
+
+    // Upload to S3
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+        Body: fileBuffer,
+        ContentType: request.contentType,
+        ServerSideEncryption: "aws:kms",
+        Metadata: {
+          documentType: request.documentType,
+          userId: request.userId,
+          documentId: documentId,
+        },
+      })
+    );
+
+    const document: KYCDocument = {
+      PK: `USER#${request.userId}`,
+      SK: `DOCUMENT#${documentId}`,
+      GSI1PK: "KYC#uploaded",
+      GSI1SK: timestamp,
+      GSI2PK: `DOCUMENT#${request.documentType}`,
+      GSI2SK: timestamp,
+      documentId,
       userId: request.userId,
       documentType: request.documentType,
-      metadata: {
-        "document-id": documentId,
-        "request-id": requestId,
-      },
-    });
+      fileName: request.fileName,
+      fileSize: fileBuffer.length,
+      contentType: request.contentType,
+      s3Key,
+      status: "uploaded",
+      uploadedAt: timestamp,
+    };
 
-    if (!uploadResult.success) {
-      logger.error("S3 upload failed", {
-        operation: "DirectUpload",
-        requestId,
-        userId: request.userId,
-        documentId,
-        error: uploadResult.error,
-      });
-
-      await putMetricSafe("DirectUploadError", 1, { errorType: "S3Upload" });
-
-      return {
-        statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ message: uploadResult.error }),
-      };
-    }
-
-    // Create KYC document record in DynamoDB with retry
-    const kycRepo = new KYCDocumentRepository({
-      tableName: TABLE_NAME,
-      region: AWS_REGION,
-    });
-
-    const kycDocument = await retry.execute(
-      () =>
-        kycRepo.createKYCDocument({
-          userId: request.userId,
-          documentType: "national_id",
-          s3Bucket: BUCKET_NAME,
-          s3Key: uploadResult.s3Key,
-          originalFileName: request.fileName,
-          fileSize: uploadResult.fileSize,
-          mimeType: request.contentType,
-        }),
-      `DynamoDB-CreateDocument-${documentId}`
+    await docClient.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: document,
+      })
     );
 
     const duration = Date.now() - startTime;
@@ -353,7 +366,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       requestId,
       userId: request.userId,
       documentId,
-      s3Key: uploadResult.s3Key,
+      s3Key: s3Key,
       duration,
     });
 
@@ -447,18 +460,34 @@ function validateDirectUploadRequest(request: any): {
   isValid: boolean;
   error?: string;
 } {
-  // First validate common fields
-  const baseValidation = validateUploadRequest(request);
-  if (!baseValidation.isValid) {
-    return baseValidation;
+  if (!request.documentType || !DOCUMENT_TYPES.includes(request.documentType)) {
+    return { isValid: false, error: "Invalid document type" };
   }
 
-  // Validate file content
+  if (!request.fileName || typeof request.fileName !== "string") {
+    return { isValid: false, error: "Invalid file name" };
+  }
+
+  if (
+    !request.contentType ||
+    !ALLOWED_FILE_TYPES.includes(request.contentType as any)
+  ) {
+    return { isValid: false, error: "Invalid file type" };
+  }
+
+  if (!request.userId || typeof request.userId !== "string") {
+    return { isValid: false, error: "Invalid user ID" };
+  }
+
   if (!request.fileContent || typeof request.fileContent !== "string") {
     return { isValid: false, error: "Missing or invalid file content" };
   }
 
-  // Validate base64 format
+  const fileNameRegex = /^[a-zA-Z0-9._-]+\.(jpg|jpeg|png|pdf)$/i;
+  if (!fileNameRegex.test(request.fileName)) {
+    return { isValid: false, error: "Invalid file name format" };
+  }
+
   try {
     const buffer = Buffer.from(request.fileContent, "base64");
     if (buffer.length === 0) {
