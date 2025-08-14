@@ -1,12 +1,16 @@
 /**
  * CloudWatch Custom Metrics Utility
- * Provides standardized metric publishing for business KPIs and operational metrics
+ * Refactored to AWS SDK v3
  */
 
-import * as AWS from "aws-sdk";
+import {
+  CloudWatchClient,
+  PutMetricDataCommand,
+  StandardUnit,
+} from "@aws-sdk/client-cloudwatch";
 import { StructuredLogger } from "./structured-logger";
 
-const cloudwatch = new AWS.CloudWatch();
+const cloudwatch = new CloudWatchClient({});
 const logger = StructuredLogger.getInstance(
   "CloudWatchMetrics",
   process.env.ENVIRONMENT || "development"
@@ -20,37 +24,28 @@ export interface MetricDimension {
 export interface CustomMetricData {
   MetricName: string;
   Value: number;
-  Unit: AWS.CloudWatch.StandardUnit;
+  Unit: StandardUnit;
   Dimensions?: MetricDimension[];
   Timestamp?: Date;
 }
 
 export interface BusinessMetrics {
-  // User registration metrics
   userRegistrationSuccess: number;
   userRegistrationFailure: number;
   emailVerificationSuccess: number;
   emailVerificationFailure: number;
-
-  // Authentication metrics
   authenticationSuccess: number;
   authenticationFailure: number;
   authenticationLatency: number;
-
-  // KYC Upload metrics
   kycUploadAttempts: number;
   kycUploadSuccess: number;
   kycUploadFailure: number;
   kycUploadLatency: number;
   kycDocumentSize: number;
-
-  // Admin Review metrics
   kycApprovalSuccess: number;
   kycRejectionSuccess: number;
   adminReviewLatency: number;
   pendingKycDocuments: number;
-
-  // System performance metrics
   databaseLatency: number;
   s3UploadLatency: number;
   eventBridgeLatency: number;
@@ -103,7 +98,7 @@ export class CloudWatchMetrics {
         ],
       };
 
-      await cloudwatch.putMetricData(params).promise();
+      await cloudwatch.send(new PutMetricDataCommand(params));
 
       logger.logMetricPublication(
         metricData.MetricName,
@@ -142,7 +137,7 @@ export class CloudWatchMetrics {
         MetricData: metricData,
       };
 
-      await cloudwatch.putMetricData(params).promise();
+      await cloudwatch.send(new PutMetricDataCommand(params));
 
       logger.info("Multiple metrics published successfully", {
         operation: "PublishMetrics",
@@ -177,7 +172,7 @@ export class CloudWatchMetrics {
         ? "UserRegistrationSuccess"
         : "UserRegistrationFailure",
       Value: 1,
-      Unit: "Count",
+      Unit: StandardUnit.Count,
       Dimensions: dimensions,
     });
   }
@@ -188,7 +183,7 @@ export class CloudWatchMetrics {
         ? "EmailVerificationSuccess"
         : "EmailVerificationFailure",
       Value: 1,
-      Unit: "Count",
+      Unit: StandardUnit.Count,
     });
   }
 
@@ -201,7 +196,7 @@ export class CloudWatchMetrics {
       {
         MetricName: success ? "AuthenticationSuccess" : "AuthenticationFailure",
         Value: 1,
-        Unit: "Count",
+        Unit: StandardUnit.Count,
       },
     ];
 
@@ -209,7 +204,7 @@ export class CloudWatchMetrics {
       metrics.push({
         MetricName: "AuthenticationLatency",
         Value: latency,
-        Unit: "Milliseconds",
+        Unit: StandardUnit.Milliseconds,
       });
     }
 
@@ -229,7 +224,7 @@ export class CloudWatchMetrics {
     metrics.push({
       MetricName: "KYCUploadAttempts",
       Value: 1,
-      Unit: "Count",
+      Unit: StandardUnit.Count,
     });
 
     // Success/failure with error category
@@ -241,7 +236,7 @@ export class CloudWatchMetrics {
     metrics.push({
       MetricName: success ? "KYCUploadSuccess" : "KYCUploadFailure",
       Value: 1,
-      Unit: "Count",
+      Unit: StandardUnit.Count,
       Dimensions: dimensions,
     });
 
@@ -250,7 +245,7 @@ export class CloudWatchMetrics {
       metrics.push({
         MetricName: "KYCUploadLatency",
         Value: latency,
-        Unit: "Milliseconds",
+        Unit: StandardUnit.Milliseconds,
       });
     }
 
@@ -258,7 +253,7 @@ export class CloudWatchMetrics {
       metrics.push({
         MetricName: "KYCDocumentSize",
         Value: fileSize,
-        Unit: "Bytes",
+        Unit: StandardUnit.Bytes,
       });
     }
 
@@ -279,7 +274,7 @@ export class CloudWatchMetrics {
         MetricName:
           action === "approve" ? "KYCApprovalSuccess" : "KYCRejectionSuccess",
         Value: 1,
-        Unit: "Count",
+        Unit: StandardUnit.Count,
       });
     } else {
       const dimensions: MetricDimension[] = [];
@@ -290,7 +285,7 @@ export class CloudWatchMetrics {
       metrics.push({
         MetricName: "AdminReviewError",
         Value: 1,
-        Unit: "Count",
+        Unit: StandardUnit.Count,
         Dimensions: dimensions,
       });
     }
@@ -299,7 +294,7 @@ export class CloudWatchMetrics {
       metrics.push({
         MetricName: "AdminReviewLatency",
         Value: latency,
-        Unit: "Milliseconds",
+        Unit: StandardUnit.Milliseconds,
       });
     }
 
@@ -314,7 +309,7 @@ export class CloudWatchMetrics {
     await this.publishMetric({
       MetricName: "DatabaseLatency",
       Value: latency,
-      Unit: "Milliseconds",
+      Unit: StandardUnit.Milliseconds,
       Dimensions: [{ Name: "Operation", Value: operation }],
     });
   }
@@ -327,7 +322,7 @@ export class CloudWatchMetrics {
       {
         MetricName: "S3UploadLatency",
         Value: latency,
-        Unit: "Milliseconds",
+        Unit: StandardUnit.Milliseconds,
       },
     ];
 
@@ -335,7 +330,7 @@ export class CloudWatchMetrics {
       metrics.push({
         MetricName: "S3UploadThroughput",
         Value: fileSize / (latency / 1000), // bytes per second
-        Unit: "Bytes/Second",
+        Unit: StandardUnit.Bytes_Second,
       });
     }
 
@@ -349,9 +344,166 @@ export class CloudWatchMetrics {
     await this.publishMetric({
       MetricName: "EventBridgeLatency",
       Value: latency,
-      Unit: "Milliseconds",
+      Unit: StandardUnit.Milliseconds,
       Dimensions: [{ Name: "EventType", Value: eventType }],
     });
+  }
+
+  // Enhanced EventBridge Metrics for Upload Lambda
+  async recordEventBridgePublishing(
+    eventType: string,
+    success: boolean,
+    latency?: number,
+    errorCategory?: string
+  ): Promise<void> {
+    const metrics: CustomMetricData[] = [];
+
+    // Publishing attempt
+    metrics.push({
+      MetricName: "EventBridgePublishAttempts",
+      Value: 1,
+      Unit: StandardUnit.Count,
+      Dimensions: [{ Name: "EventType", Value: eventType }],
+    });
+
+    // Success/failure with error category
+    const dimensions: MetricDimension[] = [
+      { Name: "EventType", Value: eventType },
+    ];
+    if (!success && errorCategory) {
+      dimensions.push({ Name: "ErrorCategory", Value: errorCategory });
+    }
+
+    metrics.push({
+      MetricName: success
+        ? "EventBridgePublishSuccess"
+        : "EventBridgePublishFailure",
+      Value: 1,
+      Unit: StandardUnit.Count,
+      Dimensions: dimensions,
+    });
+
+    // Publishing latency
+    if (latency !== undefined) {
+      metrics.push({
+        MetricName: "EventBridgePublishLatency",
+        Value: latency,
+        Unit: StandardUnit.Milliseconds,
+        Dimensions: [{ Name: "EventType", Value: eventType }],
+      });
+    }
+
+    await this.publishMetrics(metrics);
+  }
+
+  // File Size Distribution Metrics
+  async recordFileSizeDistribution(
+    fileSize: number,
+    documentType: string
+  ): Promise<void> {
+    const sizeCategory = this.categorizeFileSize(fileSize);
+
+    await this.publishMetrics([
+      {
+        MetricName: "FileSizeDistribution",
+        Value: 1,
+        Unit: StandardUnit.Count,
+        Dimensions: [
+          { Name: "SizeCategory", Value: sizeCategory },
+          { Name: "DocumentType", Value: documentType },
+        ],
+      },
+      {
+        MetricName: "FileSize",
+        Value: fileSize,
+        Unit: StandardUnit.Bytes,
+        Dimensions: [{ Name: "DocumentType", Value: documentType }],
+      },
+    ]);
+  }
+
+  // Upload Duration Metrics with percentiles
+  async recordUploadDuration(
+    duration: number,
+    documentType: string,
+    fileSize?: number
+  ): Promise<void> {
+    const metrics: CustomMetricData[] = [
+      {
+        MetricName: "UploadDuration",
+        Value: duration,
+        Unit: StandardUnit.Milliseconds,
+        Dimensions: [{ Name: "DocumentType", Value: documentType }],
+      },
+    ];
+
+    // Add throughput metric if file size is available
+    if (fileSize !== undefined && duration > 0) {
+      const throughput = fileSize / (duration / 1000); // bytes per second
+      metrics.push({
+        MetricName: "UploadThroughput",
+        Value: throughput,
+        Unit: StandardUnit.Bytes_Second,
+        Dimensions: [{ Name: "DocumentType", Value: documentType }],
+      });
+    }
+
+    await this.publishMetrics(metrics);
+  }
+
+  // Upload Success Rate Metrics
+  async recordUploadSuccessRate(
+    success: boolean,
+    documentType: string,
+    errorCategory?: string,
+    duration?: number,
+    fileSize?: number
+  ): Promise<void> {
+    const metrics: CustomMetricData[] = [];
+
+    // Basic success/failure count
+    const dimensions: MetricDimension[] = [
+      { Name: "DocumentType", Value: documentType },
+    ];
+    if (!success && errorCategory) {
+      dimensions.push({ Name: "ErrorCategory", Value: errorCategory });
+    }
+
+    metrics.push({
+      MetricName: success ? "UploadSuccess" : "UploadFailure",
+      Value: 1,
+      Unit: StandardUnit.Count,
+      Dimensions: dimensions,
+    });
+
+    // Duration metrics
+    if (duration !== undefined) {
+      metrics.push({
+        MetricName: "UploadDuration",
+        Value: duration,
+        Unit: StandardUnit.Milliseconds,
+        Dimensions: [{ Name: "DocumentType", Value: documentType }],
+      });
+    }
+
+    // File size metrics
+    if (fileSize !== undefined) {
+      metrics.push({
+        MetricName: "UploadedFileSize",
+        Value: fileSize,
+        Unit: StandardUnit.Bytes,
+        Dimensions: [{ Name: "DocumentType", Value: documentType }],
+      });
+    }
+
+    await this.publishMetrics(metrics);
+  }
+
+  private categorizeFileSize(fileSize: number): string {
+    if (fileSize < 100 * 1024) return "Small"; // < 100KB
+    if (fileSize < 1024 * 1024) return "Medium"; // < 1MB
+    if (fileSize < 5 * 1024 * 1024) return "Large"; // < 5MB
+    return "XLarge"; // >= 5MB
   }
 
   // Business KPI Metrics
@@ -359,7 +511,7 @@ export class CloudWatchMetrics {
     await this.publishMetric({
       MetricName: "PendingKYCDocuments",
       Value: count,
-      Unit: "Count",
+      Unit: StandardUnit.Count,
     });
   }
 
@@ -367,7 +519,7 @@ export class CloudWatchMetrics {
     await this.publishMetric({
       MetricName: "KYCProcessingTime",
       Value: processingTime,
-      Unit: "Seconds",
+      Unit: StandardUnit.Seconds,
     });
   }
 
@@ -382,17 +534,17 @@ export class CloudWatchMetrics {
       {
         MetricName: "TotalRegisteredUsers",
         Value: totalUsers,
-        Unit: "Count",
+        Unit: StandardUnit.Count,
       },
       {
         MetricName: "VerifiedUsers",
         Value: verifiedUsers,
-        Unit: "Count",
+        Unit: StandardUnit.Count,
       },
       {
         MetricName: "UserConversionRate",
         Value: conversionRate,
-        Unit: "Percent",
+        Unit: StandardUnit.Percent,
       },
     ]);
   }
@@ -407,7 +559,7 @@ export class CloudWatchMetrics {
     await this.publishMetric({
       MetricName: "ApplicationError",
       Value: 1,
-      Unit: "Count",
+      Unit: StandardUnit.Count,
       Dimensions: [
         { Name: "ErrorType", Value: errorType },
         { Name: "ErrorCategory", Value: errorCategory },
@@ -427,7 +579,7 @@ export class CloudWatchMetrics {
       {
         MetricName: "ServiceHealth",
         Value: healthy ? 1 : 0,
-        Unit: "Count",
+        Unit: StandardUnit.Count,
         Dimensions: [{ Name: "Service", Value: service }],
       },
     ];
@@ -436,7 +588,7 @@ export class CloudWatchMetrics {
       metrics.push({
         MetricName: "HealthCheckLatency",
         Value: responseTime,
-        Unit: "Milliseconds",
+        Unit: StandardUnit.Milliseconds,
         Dimensions: [{ Name: "Service", Value: service }],
       });
     }
@@ -445,7 +597,7 @@ export class CloudWatchMetrics {
   }
 }
 
-// Factory functions for different services
+// Factory functions
 export const createKYCMetrics = (): CloudWatchMetrics =>
   CloudWatchMetrics.getInstance("Sachain/KYCUpload");
 

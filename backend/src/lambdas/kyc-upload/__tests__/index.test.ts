@@ -8,17 +8,11 @@ import {
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-
-import {
-  CloudWatchClient,
-  PutMetricDataCommand,
-} from "@aws-sdk/client-cloudwatch";
 import { APIGatewayProxyResult } from "aws-lambda";
 
 // Mock AWS SDK clients
 const dynamoMock = mockClient(DynamoDBDocumentClient);
 const s3Mock = mockClient(S3Client);
-const cloudWatchMock = mockClient(CloudWatchClient);
 
 // Mock EventPublisher
 jest.mock("../../kyc-processing/event-publisher", () => ({
@@ -31,6 +25,15 @@ jest.mock("../../kyc-processing/event-publisher", () => ({
     }),
   })),
 }));
+
+// Mock CloudWatch metrics utility - temporarily disabled to debug
+// const mockMetrics = {
+//   recordKYCUpload: jest.fn().mockResolvedValue(undefined),
+//   recordS3UploadLatency: jest.fn().mockResolvedValue(undefined),
+//   recordDatabaseLatency: jest.fn().mockResolvedValue(undefined),
+//   recordEventBridgeLatency: jest.fn().mockResolvedValue(undefined),
+//   recordError: jest.fn().mockResolvedValue(undefined),
+// };
 
 // Mock uuid
 jest.mock("uuid", () => ({
@@ -55,7 +58,7 @@ describe("KYC Upload Lambda", () => {
     // Reset all mocks
     dynamoMock.reset();
     s3Mock.reset();
-    cloudWatchMock.reset();
+    jest.clearAllMocks();
 
     // Set environment variables
     process.env.TABLE_NAME = "test-table";
@@ -79,8 +82,6 @@ describe("KYC Upload Lambda", () => {
     });
     dynamoMock.on(UpdateCommand).resolves({});
     s3Mock.on(PutObjectCommand).resolves({ ETag: "mock-etag" });
-
-    cloudWatchMock.on(PutMetricDataCommand).resolves({});
   });
 
   describe("Direct Upload", () => {
@@ -125,8 +126,21 @@ describe("KYC Upload Lambda", () => {
       expect(body.documentId).toBe("mock-document-id");
       expect(body.message).toBe("File uploaded successfully");
 
-      // Verify CloudWatch metric was sent
-      expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(1);
+      // Verify metrics were recorded
+      expect(mockMetrics.recordKYCUpload).toHaveBeenCalledWith(
+        true,
+        undefined,
+        expect.any(Number),
+        expect.any(Number)
+      );
+      expect(mockMetrics.recordS3UploadLatency).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number)
+      );
+      expect(mockMetrics.recordDatabaseLatency).toHaveBeenCalledWith(
+        "putItem",
+        expect.any(Number)
+      );
 
       // Verify S3 upload was called (basic verification)
       expect(s3Mock.commandCalls(PutObjectCommand).length).toBeGreaterThan(0);
@@ -322,11 +336,11 @@ describe("KYC Upload Lambda", () => {
         "An unexpected error occurred. Please try again or contact support."
       );
 
-      // Verify error metric was sent
-      expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(1);
-      const metricCall = cloudWatchMock.commandCalls(PutMetricDataCommand)[0];
-      expect(metricCall.args[0].input.MetricData?.[0]?.MetricName).toBe(
-        "UploadError"
+      // Verify error metric was recorded
+      expect(mockMetrics.recordKYCUpload).toHaveBeenCalledWith(
+        false,
+        "system",
+        expect.any(Number)
       );
     });
   });
@@ -391,18 +405,112 @@ describe("KYC Upload Lambda", () => {
 
       await handler(event, {} as any, {} as any);
 
-      // Verify CloudWatch metric was sent with correct namespace and dimensions
-      expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(2); // DirectUploadSuccess and EventPublishSuccess
-      const metricCalls = cloudWatchMock.commandCalls(PutMetricDataCommand);
-      const metricData = metricCalls[0].args[0].input;
-      expect(metricData.Namespace).toBe("Sachain/KYCUpload");
-      expect(metricData.MetricData?.[0]?.MetricName).toBe(
-        "DirectUploadSuccess"
+      // Verify comprehensive metrics were recorded
+      expect(mockMetrics.recordKYCUpload).toHaveBeenCalledWith(
+        true,
+        undefined,
+        expect.any(Number),
+        expect.any(Number)
       );
-      // Environment dimension verification is optional for this test
-      if (metricData.MetricData?.[0]?.Dimensions?.[0]) {
-        expect(metricData.MetricData[0].Dimensions[0].Name).toBe("Environment");
-      }
+      expect(mockMetrics.recordS3UploadLatency).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number)
+      );
+      expect(mockMetrics.recordDatabaseLatency).toHaveBeenCalledWith(
+        "putItem",
+        expect.any(Number)
+      );
+      expect(mockMetrics.recordEventBridgeLatency).toHaveBeenCalledWith(
+        "kyc_document_uploaded",
+        expect.any(Number)
+      );
+    });
+
+    it("should record file size distribution metrics", async () => {
+      // Create valid JPEG content with specific size
+      const jpegHeader = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+      const fileContent = Buffer.concat([
+        jpegHeader,
+        Buffer.alloc(1024 * 1024, "a"), // 1MB file
+      ]).toString("base64");
+
+      const event: KYCUploadEvent = {
+        path: "/upload",
+        httpMethod: "POST",
+        headers: {},
+        multiValueHeaders: {},
+        queryStringParameters: null,
+        multiValueQueryStringParameters: null,
+        pathParameters: null,
+        stageVariables: null,
+        requestContext: {} as any,
+        resource: "",
+        isBase64Encoded: false,
+        body: JSON.stringify({
+          documentType: "national_id",
+          fileName: "id.jpg",
+          contentType: "image/jpeg",
+          userId: "user123",
+          fileContent,
+        }),
+      };
+
+      await handler(event, {} as any, {} as any);
+
+      // Verify file size was recorded in metrics
+      expect(mockMetrics.recordKYCUpload).toHaveBeenCalledWith(
+        true,
+        undefined,
+        expect.any(Number),
+        expect.any(Number) // File size should be recorded
+      );
+    });
+
+    it("should record EventBridge publishing failure metrics", async () => {
+      // Mock EventBridge publishing to fail
+      const mockEventPublisher = require("../../kyc-processing/event-publisher");
+      mockEventPublisher.EventPublisher.mockImplementation(() => ({
+        publishKYCUploadEvent: jest
+          .fn()
+          .mockRejectedValue(new Error("EventBridge error")),
+      }));
+
+      const jpegHeader = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+      const fileContent = Buffer.concat([
+        jpegHeader,
+        Buffer.from("mock file content"),
+      ]).toString("base64");
+
+      const event: KYCUploadEvent = {
+        path: "/upload",
+        httpMethod: "POST",
+        headers: {},
+        multiValueHeaders: {},
+        queryStringParameters: null,
+        multiValueQueryStringParameters: null,
+        pathParameters: null,
+        stageVariables: null,
+        requestContext: {} as any,
+        resource: "",
+        isBase64Encoded: false,
+        body: JSON.stringify({
+          documentType: "passport",
+          fileName: "passport.jpg",
+          contentType: "image/jpeg",
+          userId: "user123",
+          fileContent,
+        }),
+      };
+
+      await handler(event, {} as any, {} as any);
+
+      // Verify error metric was recorded for EventBridge failure
+      expect(mockMetrics.recordError).toHaveBeenCalledWith(
+        "EventPublishError",
+        "system",
+        "KYCUpload",
+        "publishEvent"
+      );
     });
   });
 });

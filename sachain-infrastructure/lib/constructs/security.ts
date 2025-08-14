@@ -55,6 +55,7 @@ export class SecurityConstruct extends Construct {
   public readonly kycUploadRole: iam.Role;
   public readonly adminReviewRole: iam.Role;
   public readonly userNotificationRole: iam.Role;
+  public readonly kycProcessingRole: iam.Role;
 
   private readonly table: dynamodb.Table;
   private readonly documentBucket: s3.Bucket;
@@ -78,6 +79,7 @@ export class SecurityConstruct extends Construct {
     this.kycUploadRole = this.createKycUploadRole();
     this.adminReviewRole = this.createAdminReviewRole();
     this.userNotificationRole = this.createUserNotificationRole();
+    this.kycProcessingRole = this.createKycProcessingRole();
 
     // Add resource-based policies
     this.addResourceBasedPolicies();
@@ -230,7 +232,70 @@ export class SecurityConstruct extends Construct {
       })
     );
 
-    // SNS permissions for admin notifications
+    // CloudWatch metrics permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "CloudWatchMetrics",
+        effect: iam.Effect.ALLOW,
+        actions: ["cloudwatch:PutMetricData"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: {
+            "cloudwatch:namespace": "Sachain/KYCUpload",
+          },
+        },
+      })
+    );
+
+    // X-Ray tracing permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "XRayTracing",
+        effect: iam.Effect.ALLOW,
+        actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+        resources: ["*"],
+      })
+    );
+
+    return role;
+  }
+
+  private createKycProcessingRole(): iam.Role {
+    const role = new iam.Role(this, "KycProcessingLambdaRole", {
+      roleName: `sachain-kyc-processing-lambda-role-${this.environment}`,
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      description: "Least-privilege role for KYC Processing Lambda",
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSLambdaBasicExecutionRole"
+        ),
+      ],
+    });
+
+    // Permissions for processing KYC documents
+    // This role can be used for more complex processing tasks that require additional permissions
+
+    // DynamoDB permissions - read/write KYC documents
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "DynamoDBKycProcessing",
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+        ],
+        resources: [this.table.tableArn, `${this.table.tableArn}/index/*`],
+        conditions: {
+          "ForAllValues:StringLike": {
+            "dynamodb:LeadingKeys": ["USER#*"],
+          },
+        },
+      })
+    );
+
+    // SNS permissions for notifications
     if (this.notificationTopic) {
       role.addToPolicy(
         new iam.PolicyStatement({
@@ -251,7 +316,7 @@ export class SecurityConstruct extends Construct {
         resources: ["*"],
         conditions: {
           StringEquals: {
-            "cloudwatch:namespace": "Sachain/KYCUpload",
+            "cloudwatch:namespace": "Sachain/KYCProcessing",
           },
         },
       })

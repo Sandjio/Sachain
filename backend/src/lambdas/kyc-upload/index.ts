@@ -1,13 +1,7 @@
 import { APIGatewayProxyHandler, APIGatewayProxyEvent } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-
-import {
-  CloudWatchClient,
-  PutMetricDataCommand,
-} from "@aws-sdk/client-cloudwatch";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
-import { KYCDocumentRepository } from "../../repositories/kyc-document-repository";
 import { ExponentialBackoff } from "../../utils/retry";
 
 import { createKYCLogger } from "../../utils/structured-logger";
@@ -16,11 +10,11 @@ import { EventPublisher } from "../kyc-processing/event-publisher";
 import { KYCUploadDetail } from "../kyc-processing/types";
 import { createKYCFileValidator } from "../../utils/file-validation";
 import { createKYCDirectUploadUtility } from "../../utils/s3-direct-upload";
+import { createKYCMetrics } from "../../utils/cloudwatch-metrics";
 import { UploadResponse, KYCDocument, DirectUploadRequest } from "./types";
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const cloudWatchClient = new CloudWatchClient({});
 
 const TABLE_NAME = process.env.TABLE_NAME!;
 const BUCKET_NAME = process.env.BUCKET_NAME!;
@@ -32,6 +26,7 @@ const KMS_KEY_ID = process.env.KMS_KEY_ID;
 
 // Initialize services
 const logger = createKYCLogger();
+const metrics = createKYCMetrics();
 const eventPublisher = new EventPublisher({
   eventBusName: EVENT_BUS_NAME,
   region: AWS_REGION,
@@ -115,9 +110,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       error as Error
     );
 
-    await putMetricSafe("UploadError", 1, {
-      errorCategory: errorDetails.category,
-    });
+    // Record comprehensive upload error metrics
+    await Promise.all([
+      // Enhanced upload failure metrics
+      metrics.recordUploadSuccessRate(
+        false,
+        "unknown", // We don't have document type in this context
+        errorDetails.category,
+        duration
+      ),
+      // Legacy metrics for backward compatibility
+      metrics.recordKYCUpload(false, errorDetails.category, duration),
+    ]);
 
     return {
       statusCode: errorDetails.httpStatusCode || 500,
@@ -163,12 +167,26 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     // Validate request using the new simplified validation function
     const validation = fileValidator.validateDirectUploadRequest(request);
     if (!validation.isValid) {
+      const duration = Date.now() - startTime;
+
       logger.warn("Direct upload validation failed", {
         operation: "DirectUpload",
         requestId,
         userId: request.userId,
         errors: validation.errors,
+        duration,
       });
+
+      // Record validation failure metrics
+      await Promise.all([
+        metrics.recordUploadSuccessRate(
+          false,
+          request.documentType || "unknown",
+          "validation",
+          duration
+        ),
+        metrics.recordKYCUpload(false, "validation", duration),
+      ]);
 
       return {
         statusCode: 400,
@@ -261,6 +279,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     );
 
     // Publish EventBridge event for downstream processing
+    const eventPublishStartTime = Date.now();
     try {
       const eventDetail: KYCUploadDetail = {
         documentId,
@@ -276,18 +295,27 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
 
       await eventPublisher.publishKYCUploadEvent(eventDetail);
 
+      const eventPublishDuration = Date.now() - eventPublishStartTime;
+
       logger.info("EventBridge event published successfully", {
         operation: "DirectUpload",
         requestId,
         userId: request.userId,
         documentId,
         eventDetail,
+        eventPublishDuration,
       });
 
-      await putMetricSafe("EventPublishSuccess", 1, {
-        documentType: request.documentType,
-      });
+      // Record EventBridge publishing success with enhanced metrics
+      await metrics.recordEventBridgePublishing(
+        "kyc_document_uploaded",
+        true,
+        eventPublishDuration
+      );
     } catch (eventError) {
+      const eventPublishDuration = Date.now() - eventPublishStartTime;
+      const errorDetails = ErrorClassifier.classify(eventError as Error);
+
       // Log the error but don't fail the upload operation
       logger.error(
         "Failed to publish EventBridge event",
@@ -296,13 +324,19 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
           requestId,
           userId: request.userId,
           documentId,
+          eventPublishDuration,
+          errorCategory: errorDetails.category,
         },
         eventError as Error
       );
 
-      await putMetricSafe("EventPublishError", 1, {
-        documentType: request.documentType,
-      });
+      // Record EventBridge publishing error with enhanced metrics
+      await metrics.recordEventBridgePublishing(
+        "kyc_document_uploaded",
+        false,
+        eventPublishDuration,
+        errorDetails.category
+      );
     }
 
     const duration = Date.now() - startTime;
@@ -315,9 +349,32 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       duration,
     });
 
-    await putMetricSafe("DirectUploadSuccess", 1, {
-      documentType: request.documentType,
-    });
+    // Record comprehensive upload success metrics
+    await Promise.all([
+      // Enhanced upload success rate metrics
+      metrics.recordUploadSuccessRate(
+        true,
+        request.documentType,
+        undefined,
+        duration,
+        fileBuffer.length
+      ),
+      // File size distribution metrics
+      metrics.recordFileSizeDistribution(
+        fileBuffer.length,
+        request.documentType
+      ),
+      // Upload duration metrics with throughput
+      metrics.recordUploadDuration(
+        duration,
+        request.documentType,
+        fileBuffer.length
+      ),
+      // Legacy metrics for backward compatibility
+      metrics.recordKYCUpload(true, undefined, duration, fileBuffer.length),
+      metrics.recordS3UploadLatency(duration, fileBuffer.length),
+      metrics.recordDatabaseLatency("putItem", duration),
+    ]);
 
     const response: UploadResponse = {
       documentId,
@@ -351,9 +408,18 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       error as Error
     );
 
-    await putMetricSafe("DirectUploadError", 1, {
-      errorCategory: errorDetails.category,
-    });
+    // Record comprehensive upload error metrics
+    await Promise.all([
+      // Enhanced upload failure metrics (try to get document type from request if available)
+      metrics.recordUploadSuccessRate(
+        false,
+        "unknown", // We may not have document type in error context
+        errorDetails.category,
+        duration
+      ),
+      // Legacy metrics for backward compatibility
+      metrics.recordKYCUpload(false, errorDetails.category, duration),
+    ]);
 
     return {
       statusCode: errorDetails.httpStatusCode || 500,
@@ -367,48 +433,4 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       }),
     };
   }
-}
-
-async function putMetricSafe(
-  metricName: string,
-  value: number,
-  dimensions: Record<string, string> = {}
-): Promise<void> {
-  try {
-    const metricDimensions = [
-      { Name: "Environment", Value: ENVIRONMENT },
-      ...Object.entries(dimensions).map(([name, value]) => ({
-        Name: name,
-        Value: value,
-      })),
-    ];
-
-    await retry.execute(
-      () =>
-        cloudWatchClient.send(
-          new PutMetricDataCommand({
-            Namespace: "Sachain/KYCUpload",
-            MetricData: [
-              {
-                MetricName: metricName,
-                Value: value,
-                Unit: "Count",
-                Dimensions: metricDimensions,
-                Timestamp: new Date(),
-              },
-            ],
-          })
-        ),
-      `CloudWatch-${metricName}`
-    );
-
-    logger.logMetricPublication(metricName, value, true);
-  } catch (error) {
-    logger.logMetricPublication(metricName, value, false, error as Error);
-  }
-}
-
-// Legacy function for backward compatibility
-async function putMetric(metricName: string, value: number): Promise<void> {
-  await putMetricSafe(metricName, value);
 }

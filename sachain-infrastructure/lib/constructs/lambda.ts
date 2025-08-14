@@ -28,6 +28,7 @@ export class LambdaConstruct extends Construct {
   public readonly userNotificationLambda: lambda.Function;
   public readonly kycUploadApi: apigateway.RestApi;
   public readonly adminReviewApi: apigateway.RestApi;
+  public readonly kycProcessingLambda: lambda.Function;
 
   constructor(scope: Construct, id: string, props: LambdaConstructProps) {
     super(scope, id);
@@ -105,6 +106,43 @@ export class LambdaConstruct extends Construct {
       memorySize: 512,
       deadLetterQueue: new sqs.Queue(this, "KYCUploadDLQ", {
         queueName: `sachain-kyc-upload-dlq-${props.environment}`,
+        retentionPeriod: cdk.Duration.days(14),
+      }),
+      tracing: lambda.Tracing.ACTIVE,
+    });
+
+    // KYC Processing Lambda
+    this.kycProcessingLambda = new NodejsFunction(this, "KYCProcessingLambda", {
+      functionName: `sachain-kyc-processing-${props.environment}`,
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/kyc-processing/index.ts"
+      ),
+      role: props.securityConstruct?.kycProcessingRole,
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: [
+          "aws-lambda",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/client-sns",
+          "@aws-sdk/lib-dynamodb",
+        ],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
+      environment: {
+        TABLE_NAME: props.table.tableName,
+        EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
+        ENVIRONMENT: props.environment,
+      },
+      timeout: cdk.Duration.minutes(2),
+      memorySize: 512,
+      deadLetterQueue: new sqs.Queue(this, "KYCProcessingDLQ", {
+        queueName: `sachain-kyc-processing-dlq-${props.environment}`,
         retentionPeriod: cdk.Duration.days(14),
       }),
       tracing: lambda.Tracing.ACTIVE,
