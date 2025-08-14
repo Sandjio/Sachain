@@ -20,7 +20,7 @@ const metrics = CloudWatchMetrics.getInstance("Sachain/KYCProcessing");
 
 // Initialize KYC Document Repository
 const kycRepository = new KYCDocumentRepository({
-  tableName: process.env.DYNAMODB_TABLE_NAME || "sachain-kyc-table",
+  tableName: process.env.TABLE_NAME || "sachain-kyc-table",
   region: process.env.AWS_REGION || "us-east-1",
 });
 
@@ -31,9 +31,8 @@ const snsClient = new SNSClient({
 
 const notificationService = new NotificationService({
   snsClient,
-  topicArn: process.env.KYC_ADMIN_TOPIC_ARN || "",
+  topicArn: process.env.SNS_TOPIC_ARN || "",
   adminPortalUrl: process.env.ADMIN_PORTAL_URL,
-  emailFormat: "html",
 });
 
 // Initialize retry utility for processing operations

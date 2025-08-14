@@ -136,17 +136,20 @@ export class EventBridgeConstruct extends Construct {
       }
     );
 
-    // Add targets for document uploaded events
+    // Add CloudWatch Logs target for debugging
     this.kycDocumentUploadedRule.addTarget(
-      new targets.SnsTopic(this.notificationTopic, {
-        message: events.RuleTargetInput.fromObject({
-          eventType: events.EventField.fromPath("$.detail.eventType"),
-          userId: events.EventField.fromPath("$.detail.userId"),
-          documentId: events.EventField.fromPath("$.detail.documentId"),
-          documentType: events.EventField.fromPath("$.detail.documentType"),
-          fileSize: events.EventField.fromPath("$.detail.fileSize"),
-          userType: events.EventField.fromPath("$.detail.userType"),
-          timestamp: events.EventField.fromPath("$.detail.timestamp"),
+      new targets.CloudWatchLogGroup(eventLogGroup, {
+        logEvent: targets.LogGroupTargetInput.fromObjectV2({
+          timestamp: events.EventField.fromPath("$.time"),
+          message: events.RuleTargetInput.fromObject({
+            source: events.EventField.fromPath("$.source"),
+            detailType: events.EventField.fromPath("$.detail-type"),
+            eventType: events.EventField.fromPath("$.detail.eventType"),
+            userId: events.EventField.fromPath("$.detail.userId"),
+            documentId: events.EventField.fromPath("$.detail.documentId"),
+            documentType: events.EventField.fromPath("$.detail.documentType"),
+            fileSize: events.EventField.fromPath("$.detail.fileSize"),
+          }),
         }),
       })
     );

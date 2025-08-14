@@ -63,13 +63,21 @@ export class SachainInfrastructureStack extends cdk.Stack {
       documentBucket: s3Construct.documentBucket,
       environment,
       securityConstruct,
+      eventBus: eventBridgeConstruct.eventBus,
+      notificationTopic: eventBridgeConstruct.notificationTopic,
     });
 
-    // Update Lambda environment variables with EventBridge resources
-    lambdaConstruct.kycUploadLambda.addEnvironment(
-      "SNS_TOPIC_ARN",
-      eventBridgeConstruct.notificationTopic.topicArn
+
+
+    // Add KYC Processing Lambda as target for document upload events
+    eventBridgeConstruct.kycDocumentUploadedRule.addTarget(
+      new targets.LambdaFunction(lambdaConstruct.kycProcessingLambda, {
+        retryAttempts: 3,
+        maxEventAge: cdk.Duration.hours(2),
+      })
     );
+
+    // Update Lambda environment variables with EventBridge resources
     lambdaConstruct.adminReviewLambda.addEnvironment(
       "EVENT_BUS_NAME",
       eventBridgeConstruct.eventBus.eventBusName

@@ -111,7 +111,7 @@ export class S3DirectUploadUtility {
           "upload-timestamp": new Date().toISOString(),
           ...request.metadata,
         },
-        Tagging: this.buildObjectTags(request.userId, request.documentType),
+        //Tagging: this.buildObjectTags(request.userId, request.documentType),
       };
 
       // Execute upload with retry logic

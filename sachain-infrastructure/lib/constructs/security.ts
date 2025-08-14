@@ -183,6 +183,7 @@ export class SecurityConstruct extends Construct {
           "s3:GetObject",
           "s3:PutObject",
           "s3:PutObjectAcl",
+          "s3:PutObjectTagging",
           "s3:GetObjectVersion",
         ],
         resources: [this.documentBucket.arnForObjects("kyc-documents/*")],
@@ -231,6 +232,23 @@ export class SecurityConstruct extends Construct {
         },
       })
     );
+
+    // EventBridge permissions for publishing upload events
+    if (this.eventBus) {
+      role.addToPolicy(
+        new iam.PolicyStatement({
+          sid: "EventBridgePutEvents",
+          effect: iam.Effect.ALLOW,
+          actions: ["events:PutEvents"],
+          resources: [this.eventBus.eventBusArn],
+          conditions: {
+            StringEquals: {
+              "events:source": "sachain.kyc",
+            },
+          },
+        })
+      );
+    }
 
     // CloudWatch metrics permissions
     role.addToPolicy(
@@ -287,11 +305,11 @@ export class SecurityConstruct extends Construct {
           "dynamodb:Query",
         ],
         resources: [this.table.tableArn, `${this.table.tableArn}/index/*`],
-        conditions: {
-          "ForAllValues:StringLike": {
-            "dynamodb:LeadingKeys": ["USER#*"],
-          },
-        },
+        // conditions: {
+        //   "ForAllValues:StringLike": {
+        //     "dynamodb:LeadingKeys": ["USER#*", "KYC#*"],
+        //   },
+        // },
       })
     );
 
@@ -571,7 +589,7 @@ export class SecurityConstruct extends Construct {
         new iam.PolicyStatement({
           sid: "AllowLambdaPublish",
           effect: iam.Effect.ALLOW,
-          principals: [this.kycUploadRole, this.userNotificationRole],
+          principals: [this.kycProcessingRole, this.userNotificationRole],
           actions: ["sns:Publish"],
           resources: [this.notificationTopic.topicArn],
         })

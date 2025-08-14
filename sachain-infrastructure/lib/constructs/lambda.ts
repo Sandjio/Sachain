@@ -97,10 +97,8 @@ export class LambdaConstruct extends Construct {
       environment: {
         TABLE_NAME: props.table.tableName,
         BUCKET_NAME: props.documentBucket?.bucketName || "",
-        SNS_TOPIC_ARN: props.notificationTopic?.topicArn || "",
+        EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
         ENVIRONMENT: props.environment,
-
-        ADMIN_PORTAL_URL: `https://admin.sachain-${props.environment}.com`,
       },
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
@@ -136,8 +134,9 @@ export class LambdaConstruct extends Construct {
       projectRoot: path.join(__dirname, "../../.."),
       environment: {
         TABLE_NAME: props.table.tableName,
-        EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
+        SNS_TOPIC_ARN: props.notificationTopic?.topicArn || "",
         ENVIRONMENT: props.environment,
+        ADMIN_PORTAL_URL: `https://admin.sachain-${props.environment}.com`,
       },
       timeout: cdk.Duration.minutes(2),
       memorySize: 512,

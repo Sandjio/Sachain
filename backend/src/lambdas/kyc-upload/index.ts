@@ -281,7 +281,8 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     // Publish EventBridge event for downstream processing
     const eventPublishStartTime = Date.now();
     try {
-      const eventDetail: KYCUploadDetail = {
+      const eventDetail: KYCUploadDetail & { eventType: string } = {
+        eventType: "KYC_DOCUMENT_UPLOADED",
         documentId,
         userId: request.userId,
         documentType: request.documentType as any,
