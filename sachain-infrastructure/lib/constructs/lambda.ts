@@ -239,34 +239,6 @@ export class LambdaConstruct extends Construct {
       ],
     });
 
-    // Add presigned URL endpoint
-    const presignedResource =
-      this.kycUploadApi.root.addResource("presigned-url");
-    presignedResource.addMethod("POST", kycUploadIntegration, {
-      methodResponses: [
-        {
-          statusCode: "200",
-          responseParameters: {
-            "method.response.header.Access-Control-Allow-Origin": true,
-          },
-        },
-      ],
-    });
-
-    // Add upload processing endpoint
-    const processResource =
-      this.kycUploadApi.root.addResource("process-upload");
-    processResource.addMethod("POST", kycUploadIntegration, {
-      methodResponses: [
-        {
-          statusCode: "200",
-          responseParameters: {
-            "method.response.header.Access-Control-Allow-Origin": true,
-          },
-        },
-      ],
-    });
-
     // Create API Gateway for Admin Review
     this.adminReviewApi = new apigateway.RestApi(this, "AdminReviewApi", {
       restApiName: `sachain-admin-review-api-${props.environment}`,
