@@ -285,7 +285,10 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         step: "get_document",
       }
     );
-
+    // Add this debug log after getting the document
+    console.log("Retrieved document:", JSON.stringify(document, null, 2));
+    console.log("Document status:", document?.status);
+    console.log("Document keys:", Object.keys(document || {}));
     if (!document) {
       await createAuditLogSafe({
         userId: adminUserId,
@@ -305,7 +308,8 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
       return createErrorResponse(404, "Document not found", requestId);
     }
 
-    if (document.status !== "pending") {
+    if (!document.status || document.status !== "pending") {
+      const actualStatus = document.status || "undefined";
       await createAuditLogSafe({
         userId: adminUserId,
         action: "kyc_approve",
@@ -313,7 +317,7 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         result: "failure",
         ipAddress: clientIP,
         userAgent,
-        errorMessage: `Document status is ${document.status}, not pending`,
+        errorMessage: `Document status is ${actualStatus}, not pending`,
         details: {
           requestId,
           targetUserId: request.userId,
@@ -384,7 +388,7 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         documentId: request.documentId,
         comments: request.comments,
         documentType: document.documentType,
-        originalFileName: document.originalFileName,
+        originalFileName: document.fileName,
         processingTimeMs: Date.now() - startTime,
       },
     });
@@ -625,6 +629,8 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
         step: "get_document",
       }
     );
+    // Add this debug log
+    console.log("Retrieved document:", JSON.stringify(document, null, 2));
 
     if (!document) {
       await createAuditLogSafe({
@@ -645,7 +651,8 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
       return createErrorResponse(404, "Document not found", requestId);
     }
 
-    if (document.status !== "pending") {
+    if (!document.status || document.status !== "pending") {
+      const actualStatus = document.status || "undefined";
       await createAuditLogSafe({
         userId: adminUserId,
         action: "kyc_reject",
@@ -653,7 +660,7 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
         result: "failure",
         ipAddress: clientIP,
         userAgent,
-        errorMessage: `Document status is ${document.status}, not pending`,
+        errorMessage: `Document status is ${actualStatus}, not pending`,
         details: {
           requestId,
           targetUserId: request.userId,
@@ -724,7 +731,7 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
         documentId: request.documentId,
         comments: request.comments,
         documentType: document.documentType,
-        originalFileName: document.originalFileName,
+        fileName: document.fileName,
         processingTimeMs: Date.now() - startTime,
       },
     });
@@ -1119,7 +1126,7 @@ async function executeWithRetryAndAudit<T>(
 ): Promise<T> {
   try {
     const result = await retry.execute(operation, operationName);
-    return result as any; // Handle the RetryResult wrapper
+    return (result as any).result; // Explicitly cast and extract result
   } catch (error) {
     const errorDetails = ErrorClassifier.classify(error as Error, {
       operation: operationName,

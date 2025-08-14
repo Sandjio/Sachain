@@ -31,7 +31,7 @@ export interface KYCDocument {
   fileSize: number;
   contentType: string;
   s3Key: string;
-  status: "uploaded" | "pending_review" | "approved" | "rejected";
+  status: "uploaded" | "pending" | "approved" | "rejected";
   uploadedAt: string;
   reviewedAt?: string;
   reviewedBy?: string;

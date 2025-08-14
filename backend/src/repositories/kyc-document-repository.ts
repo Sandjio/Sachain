@@ -27,9 +27,9 @@ export class KYCDocumentRepository extends BaseRepository {
       documentType: input.documentType,
       s3Bucket: input.s3Bucket,
       s3Key: input.s3Key,
-      originalFileName: input.originalFileName,
+      fileName: input.fileName,
       fileSize: input.fileSize,
-      mimeType: input.mimeType,
+      contentType: input.contentType,
       status: "pending",
       uploadedAt: timestamp,
 

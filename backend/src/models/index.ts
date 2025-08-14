@@ -2,7 +2,7 @@
 // These interfaces define the structure of data stored in DynamoDB
 
 // Export compliance models
-export * from './compliance';
+export * from "./compliance";
 
 export interface UserProfile {
   PK: string; // USER#${userId}
@@ -31,10 +31,10 @@ export interface KYCDocument {
   documentType: "national_id";
   s3Bucket: string;
   s3Key: string;
-  originalFileName: string;
+  fileName: string;
   fileSize: number;
-  mimeType: string;
-  status: "pending" | "approved" | "rejected";
+  contentType: string;
+  status: "uploaded" | "pending" | "approved" | "rejected";
   uploadedAt: string;
   reviewedAt?: string;
   reviewedBy?: string;
@@ -75,9 +75,9 @@ export interface CreateKYCDocumentInput {
   documentType: "national_id";
   s3Bucket: string;
   s3Key: string;
-  originalFileName: string;
+  fileName: string;
   fileSize: number;
-  mimeType: string;
+  contentType: string;
 }
 
 export interface CreateAuditLogInput {

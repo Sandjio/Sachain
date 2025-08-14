@@ -255,8 +255,8 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
 
     const document: KYCDocument = {
       PK: `USER#${request.userId}`,
-      SK: `DOCUMENT#${documentId}`,
-      GSI1PK: "KYC#uploaded",
+      SK: `KYC#${documentId}`,
+      GSI1PK: "KYC#pending",
       GSI1SK: timestamp,
       GSI2PK: `DOCUMENT#${request.documentType}`,
       GSI2SK: timestamp,

@@ -33,7 +33,15 @@ export abstract class BaseRepository {
       region: config.region || process.env.AWS_REGION || "us-east-1",
     });
 
-    this.client = DynamoDBDocumentClient.from(dynamoClient);
+    this.client = DynamoDBDocumentClient.from(dynamoClient, {
+      marshallOptions: {
+        removeUndefinedValues: true, // Remove undefined values from items
+        convertEmptyValues: false, // Do not convert empty strings to null
+      },
+      unmarshallOptions: {
+        wrapNumbers: false, // Do not wrap numbers in BigInt
+      },
+    });
     this.tableName = config.tableName;
     this.retry = defaultRetry;
   }
@@ -101,6 +109,16 @@ export abstract class BaseRepository {
 
         return await this.client.send(command);
       }, `${this.constructor.name}.${operation}`);
+
+      // const item = result.result.Item as T;
+      // if (item && "status" in item && !item.status) {
+      //   // Handle case where status might be empty string or null
+      //   console.warn(
+      //     "Status field is missing or empty, checking raw item:",
+      //     result.result.Item
+      //   );
+      // }
+      // return item || null;
 
       const duration = Date.now() - startTime;
       DynamoDBLogger.logOperation(operation, this.tableName, key, duration);
