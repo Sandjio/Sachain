@@ -1,17 +1,18 @@
 import { EventBridgeEvent, Context } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
-import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const snsClient = new SNSClient({ region: process.env.AWS_REGION });
+const sesClient = new SESv2Client({ region: process.env.AWS_REGION });
 
 // Environment variables
 const TABLE_NAME = process.env.TABLE_NAME!;
-const ENVIRONMENT = process.env.ENVIRONMENT!;
+// const ENVIRONMENT = process.env.ENVIRONMENT!;
 const FRONTEND_URL = process.env.FRONTEND_URL!;
+const FROM_EMAIL = process.env.FROM_EMAIL!; // Must be verified in SES
 
 // Event interfaces
 interface KYCStatusChangeEvent {
@@ -55,8 +56,7 @@ export const handler = async (
 
   try {
     const { detail } = event;
-    const { userId, newStatus, reviewComments, reviewedBy, documentId } =
-      detail;
+    const { userId, newStatus, reviewComments, documentId } = detail;
 
     // Get user profile from DynamoDB
     const userProfile = await getUserProfile(userId);
@@ -79,7 +79,6 @@ export const handler = async (
       await sendRejectionNotification(userProfile, documentId, reviewComments);
     }
 
-    // Log successful notification
     console.log(
       `Notification sent successfully to user: ${userId}, status: ${newStatus}`
     );
@@ -92,12 +91,11 @@ export const handler = async (
   } catch (error) {
     console.error("Error processing KYC status change event:", error);
 
-    // Put error metric
     await putMetric("NotificationError", 1, {
       ErrorType: error instanceof Error ? error.name : "UnknownError",
     });
 
-    throw error; // Re-throw to trigger DLQ
+    throw error;
   }
 };
 
@@ -155,42 +153,33 @@ async function sendRejectionNotification(
 }
 
 /**
- * Send email notification via SNS
+ * Send email notification via SES
  */
 async function sendEmailNotification(
-  email: string,
+  toEmail: string,
   subject: string,
   message: string
 ): Promise<void> {
-  // For now, we'll use SNS to send a simple notification
-  // In production, you might want to use SES for more sophisticated email templates
-  const snsMessage = {
-    email,
-    subject,
-    message,
-    timestamp: new Date().toISOString(),
-  };
-
   try {
-    await snsClient.send(
-      new PublishCommand({
-        TopicArn: `arn:aws:sns:${process.env.AWS_REGION}:${process.env.AWS_ACCOUNT_ID}:sachain-kyc-user-notifications-${ENVIRONMENT}`,
-        Message: JSON.stringify(snsMessage),
-        Subject: subject,
-        MessageAttributes: {
-          email: {
-            DataType: "String",
-            StringValue: email,
-          },
-          notificationType: {
-            DataType: "String",
-            StringValue: "kyc_status_change",
+    await sesClient.send(
+      new SendEmailCommand({
+        FromEmailAddress: FROM_EMAIL,
+        Destination: {
+          ToAddresses: [toEmail],
+        },
+        Content: {
+          Simple: {
+            Subject: { Data: subject },
+            Body: {
+              Text: { Data: message }, // Plain text body
+              // If you want HTML: Html: { Data: "<p>...</p>" }
+            },
           },
         },
       })
     );
   } catch (error) {
-    console.error("Error sending SNS notification:", error);
+    console.error("Error sending SES email:", error);
     throw error;
   }
 }
