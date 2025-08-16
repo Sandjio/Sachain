@@ -216,8 +216,9 @@ export class LambdaConstruct extends Construct {
         projectRoot: path.join(__dirname, "../../.."),
         environment: {
           TABLE_NAME: props.table.tableName,
-          ENVIRONMENT: props.environment,
+          // ENVIRONMENT: props.environment,
           FRONTEND_URL: `https://app.sachain-${props.environment}.com`,
+          FROM_EMAIL: `no-reply@emmasandjio.com`,
         },
         timeout: cdk.Duration.seconds(30),
         memorySize: 256,
