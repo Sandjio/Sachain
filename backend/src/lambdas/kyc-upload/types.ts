@@ -8,8 +8,8 @@ export interface DirectUploadRequest {
   documentType: "passport" | "driver_license" | "national_id" | "utility_bill";
   fileName: string;
   contentType: string;
-  userId: string;
   fileContent: string; // base64 encoded file content
+  // userId is now extracted from Authorization header instead of request body
 }
 
 export interface UploadResponse {

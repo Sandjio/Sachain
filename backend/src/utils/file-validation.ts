@@ -40,7 +40,7 @@ export class FileValidator {
   }
 
   /**
-   * Validate a direct upload request
+   * Validate a direct upload request (legacy - includes userId validation)
    * Consolidates all validation logic into a single function
    */
   validateDirectUploadRequest(
@@ -126,6 +126,99 @@ export class FileValidator {
   }
 
   /**
+   * Validate upload request without userId (userId extracted from JWT token)
+   * New method for JWT-based authentication
+   */
+  validateUploadRequest(
+    request: {
+      documentType: string;
+      fileName: string;
+      contentType: string;
+      fileContent: string;
+    },
+    userId: string
+  ): FileValidationResult {
+    const errors: string[] = [];
+
+    // Validate required fields (excluding userId since it's passed separately)
+    const requiredFieldErrors =
+      this.validateRequiredFieldsWithoutUserId(request);
+    errors.push(...requiredFieldErrors);
+
+    if (errors.length > 0) {
+      return { isValid: false, errors };
+    }
+
+    // Validate document type
+    if (!this.config.allowedDocumentTypes.includes(request.documentType)) {
+      errors.push(
+        `Invalid document type. Allowed types: ${this.config.allowedDocumentTypes.join(
+          ", "
+        )}`
+      );
+    }
+
+    // Validate file name format
+    const fileNameErrors = this.validateFileName(request.fileName);
+    errors.push(...fileNameErrors);
+
+    // Validate content type
+    if (!this.config.allowedMimeTypes.includes(request.contentType)) {
+      errors.push(
+        `Invalid file type. Allowed types: ${this.config.allowedMimeTypes.join(
+          ", "
+        )}`
+      );
+    }
+
+    // Validate user ID format (passed separately)
+    const userIdErrors = this.validateUserId(userId);
+    errors.push(...userIdErrors);
+
+    // Validate and decode file content
+    let fileBuffer: Buffer;
+    try {
+      fileBuffer = Buffer.from(request.fileContent, "base64");
+      if (fileBuffer.length === 0) {
+        errors.push("File is empty");
+        return { isValid: false, errors };
+      }
+    } catch (error) {
+      errors.push("Invalid base64 file content");
+      return { isValid: false, errors };
+    }
+
+    // Validate file size
+    const fileSizeErrors = this.validateFileSize(fileBuffer);
+    errors.push(...fileSizeErrors);
+
+    // Only validate file content if we have a valid buffer and no size errors
+    if (fileSizeErrors.length === 0) {
+      const contentErrors = this.validateFileContent(
+        fileBuffer,
+        request.contentType
+      );
+      errors.push(...contentErrors);
+    }
+
+    const extension = this.getFileExtension(request.fileName);
+    const detectedMimeType = this.detectMimeTypeFromHeader(fileBuffer);
+
+    const fileInfo = {
+      size: fileBuffer.length,
+      mimeType: request.contentType,
+      extension,
+      actualMimeType: detectedMimeType || undefined,
+    };
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      fileInfo,
+    };
+  }
+
+  /**
    * Validate required fields are present and have correct types
    */
   private validateRequiredFields(
@@ -147,6 +240,36 @@ export class FileValidator {
 
     if (!request.userId || typeof request.userId !== "string") {
       errors.push("User ID is required and must be a string");
+    }
+
+    if (!request.fileContent || typeof request.fileContent !== "string") {
+      errors.push("File content is required and must be a base64 string");
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validate required fields without userId (for JWT-based authentication)
+   */
+  private validateRequiredFieldsWithoutUserId(request: {
+    documentType: string;
+    fileName: string;
+    contentType: string;
+    fileContent: string;
+  }): string[] {
+    const errors: string[] = [];
+
+    if (!request.documentType || typeof request.documentType !== "string") {
+      errors.push("Document type is required and must be a string");
+    }
+
+    if (!request.fileName || typeof request.fileName !== "string") {
+      errors.push("File name is required and must be a string");
+    }
+
+    if (!request.contentType || typeof request.contentType !== "string") {
+      errors.push("Content type is required and must be a string");
     }
 
     if (!request.fileContent || typeof request.fileContent !== "string") {

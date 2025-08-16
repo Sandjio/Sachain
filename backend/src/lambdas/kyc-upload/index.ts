@@ -11,6 +11,7 @@ import { KYCUploadDetail } from "../kyc-processing/types";
 import { createKYCFileValidator } from "../../utils/file-validation";
 import { createKYCDirectUploadUtility } from "../../utils/s3-direct-upload";
 import { createKYCMetrics } from "../../utils/cloudwatch-metrics";
+import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { UploadResponse, KYCDocument, DirectUploadRequest } from "./types";
 
 const dynamoClient = new DynamoDBClient({});
@@ -147,6 +148,46 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
   });
 
   try {
+    // Extract userId from JWT token in Authorization header
+    const tokenResult = extractUserIdFromToken(event);
+
+    if (!tokenResult.success) {
+      const duration = Date.now() - startTime;
+
+      logger.warn("Authentication failed", {
+        operation: "DirectUpload",
+        requestId,
+        error: tokenResult.error,
+        duration,
+      });
+
+      // Record authentication failure metrics
+      await Promise.all([
+        metrics.recordUploadSuccessRate(
+          false,
+          "unknown",
+          "authentication",
+          duration
+        ),
+        metrics.recordKYCUpload(false, "authentication", duration),
+      ]);
+
+      return {
+        statusCode: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({
+          message: "Authentication failed",
+          error: tokenResult.error,
+          requestId,
+        }),
+      };
+    }
+
+    const userId = tokenResult.userId!;
+
     let bodyString = event.body || "{}";
 
     // Check if body is base64 encoded
@@ -159,20 +200,15 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
 
     const request: DirectUploadRequest = JSON.parse(bodyString);
 
-    const cleanUserId = request.userId.startsWith("USER#")
-      ? request.userId.substring(5)
-      : request.userId;
-    request.userId = cleanUserId;
-
-    // Validate request using the new simplified validation function
-    const validation = fileValidator.validateDirectUploadRequest(request);
+    // Validate request using the new JWT-based validation function
+    const validation = fileValidator.validateUploadRequest(request, userId);
     if (!validation.isValid) {
       const duration = Date.now() - startTime;
 
       logger.warn("Direct upload validation failed", {
         operation: "DirectUpload",
         requestId,
-        userId: request.userId,
+        userId,
         errors: validation.errors,
         duration,
       });
@@ -207,7 +243,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     logger.info("Processing direct upload", {
       operation: "DirectUpload",
       requestId,
-      userId: request.userId,
+      userId,
       documentId,
       documentType: request.documentType,
       fileName: request.fileName,
@@ -221,7 +257,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       fileBuffer,
       fileName: request.fileName,
       contentType: request.contentType,
-      userId: request.userId,
+      userId,
       documentType: request.documentType,
       documentId,
       metadata: {
@@ -233,7 +269,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       logger.error("S3 upload failed", {
         operation: "DirectUpload",
         requestId,
-        userId: request.userId,
+        userId,
         documentId,
         error: uploadResult.error,
       });
@@ -254,14 +290,14 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     const s3Key = uploadResult.s3Key;
 
     const document: KYCDocument = {
-      PK: `USER#${request.userId}`,
+      PK: `USER#${userId}`,
       SK: `KYC#${documentId}`,
       GSI1PK: "KYC#pending",
       GSI1SK: timestamp,
       GSI2PK: `DOCUMENT#${request.documentType}`,
       GSI2SK: timestamp,
       documentId,
-      userId: request.userId,
+      userId,
       documentType: request.documentType,
       fileName: request.fileName,
       fileSize: fileBuffer.length,
@@ -284,7 +320,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       const eventDetail: KYCUploadDetail & { eventType: string } = {
         eventType: "KYC_DOCUMENT_UPLOADED",
         documentId,
-        userId: request.userId,
+        userId,
         documentType: request.documentType as any,
         fileName: request.fileName,
         fileSize: fileBuffer.length,
@@ -301,7 +337,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       logger.info("EventBridge event published successfully", {
         operation: "DirectUpload",
         requestId,
-        userId: request.userId,
+        userId,
         documentId,
         eventDetail,
         eventPublishDuration,
@@ -323,7 +359,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         {
           operation: "DirectUpload",
           requestId,
-          userId: request.userId,
+          userId,
           documentId,
           eventPublishDuration,
           errorCategory: errorDetails.category,
@@ -344,7 +380,7 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
     logger.info("Direct upload completed successfully", {
       operation: "DirectUpload",
       requestId,
-      userId: request.userId,
+      userId,
       documentId,
       s3Key: s3Key,
       duration,
