@@ -8,6 +8,7 @@ import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as events from "aws-cdk-lib/aws-events";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
 import { SecurityConstruct } from "./security";
 import * as path from "path";
@@ -19,6 +20,7 @@ export interface LambdaConstructProps {
   eventBus?: events.EventBus;
   environment: string;
   securityConstruct?: SecurityConstruct;
+  userPool?: cognito.UserPool;
 }
 
 export class LambdaConstruct extends Construct {
@@ -26,9 +28,11 @@ export class LambdaConstruct extends Construct {
   public readonly kycUploadLambda: lambda.Function;
   public readonly adminReviewLambda: lambda.Function;
   public readonly userNotificationLambda: lambda.Function;
-  public readonly kycUploadApi: apigateway.RestApi;
-  public readonly adminReviewApi: apigateway.RestApi;
+  public readonly api: apigateway.RestApi;
   public readonly kycProcessingLambda: lambda.Function;
+  private cognitoAuthorizer?: apigateway.CognitoUserPoolsAuthorizer;
+  private kycResource: apigateway.Resource;
+  private adminResource: apigateway.Resource;
 
   constructor(scope: Construct, id: string, props: LambdaConstructProps) {
     super(scope, id);
@@ -155,7 +159,7 @@ export class LambdaConstruct extends Construct {
       entry: path.join(
         __dirname,
         "../../..",
-        "backend/src/lambdas/admin-review/index-enhanced.ts"
+        "backend/src/lambdas/admin-review/index.ts"
       ),
       role: props.securityConstruct?.adminReviewRole,
       bundling: {
@@ -225,17 +229,16 @@ export class LambdaConstruct extends Construct {
       }
     );
 
-    // Note: IAM permissions are now managed by the SecurityConstruct
-    // which provides least-privilege access with proper conditions and restrictions
-    // All Lambda functions use custom IAM roles from the SecurityConstruct
-
-    // Create API Gateway for KYC Upload
-    this.kycUploadApi = new apigateway.RestApi(this, "KYCUploadApi", {
-      restApiName: `sachain-kyc-upload-api-${props.environment}`,
-      description: "API for KYC document uploads",
+    // Create unified API Gateway
+    this.api = new apigateway.RestApi(this, "SachainApi", {
+      restApiName: `sachain-api-${props.environment}`,
+      description: "Unified API for Sachain platform",
       binaryMediaTypes: ["*/*"],
       defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowOrigins:
+          props.environment === "prod"
+            ? ["https://sachain.emmsandjio.com"]
+            : apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: [
           "Content-Type",
@@ -244,71 +247,83 @@ export class LambdaConstruct extends Construct {
           "X-Api-Key",
           "X-Amz-Security-Token",
         ],
+        allowCredentials: true,
+        maxAge: cdk.Duration.hours(1),
+      },
+      deployOptions: {
+        stageName: props.environment,
+        loggingLevel: apigateway.MethodLoggingLevel.INFO,
+        dataTraceEnabled: true,
+        metricsEnabled: true,
       },
     });
 
-    // Create API Gateway integration
+    // KYC Upload Integration
     const kycUploadIntegration = new apigateway.LambdaIntegration(
       this.kycUploadLambda,
-      {
-        proxy: true,
-        integrationResponses: [
-          {
-            statusCode: "200",
-            responseParameters: {
-              "method.response.header.Access-Control-Allow-Origin": "'*'",
-            },
-          },
-        ],
-      }
+      { proxy: true }
     );
 
-    // Add upload endpoint
-    const uploadResource = this.kycUploadApi.root.addResource("upload");
-    uploadResource.addMethod("POST", kycUploadIntegration, {
-      methodResponses: [
-        {
-          statusCode: "200",
-          responseParameters: {
-            "method.response.header.Access-Control-Allow-Origin": true,
-          },
-        },
-      ],
-    });
-
-    // Create API Gateway for Admin Review
-    this.adminReviewApi = new apigateway.RestApi(this, "AdminReviewApi", {
-      restApiName: `sachain-admin-review-api-${props.environment}`,
-      description: "API for KYC admin review operations",
-      defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: [
-          "Content-Type",
-          "X-Amz-Date",
-          "Authorization",
-          "X-Api-Key",
-          "X-Amz-Security-Token",
-        ],
-      },
-    });
-
-    // Create API Gateway integration for Admin Review
+    // Admin Review Integration
     const adminReviewIntegration = new apigateway.LambdaIntegration(
       this.adminReviewLambda,
+      { proxy: true }
+    );
+
+    // Store resources for later authorization setup
+    this.kycResource = this.api.root.addResource("kyc");
+    this.adminResource = this.api.root.addResource("admin");
+  }
+
+  public addCognitoAuthorization(userPool: cognito.UserPool): void {
+    // Create Cognito User Pool Authorizer
+    this.cognitoAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(
+      this,
+      "CognitoAuthorizer",
       {
-        requestTemplates: { "application/json": '{"statusCode": "200"}' },
+        cognitoUserPools: [userPool],
+        authorizerName: `sachain-authorizer-${
+          this.node.tryGetContext("environment") || "dev"
+        }`,
       }
     );
 
-    // Add admin endpoints
-    const approveResource = this.adminReviewApi.root.addResource("approve");
-    approveResource.addMethod("POST", adminReviewIntegration);
+    // KYC Upload Integration
+    const kycUploadIntegration = new apigateway.LambdaIntegration(
+      this.kycUploadLambda,
+      { proxy: true }
+    );
 
-    const rejectResource = this.adminReviewApi.root.addResource("reject");
-    rejectResource.addMethod("POST", adminReviewIntegration);
+    // Admin Review Integration
+    const adminReviewIntegration = new apigateway.LambdaIntegration(
+      this.adminReviewLambda,
+      { proxy: true }
+    );
 
-    const documentsResource = this.adminReviewApi.root.addResource("documents");
-    documentsResource.addMethod("GET", adminReviewIntegration);
+    // Add KYC endpoints with authorization
+    const uploadResource = this.kycResource.addResource("upload");
+    uploadResource.addMethod("POST", kycUploadIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // Add admin endpoints with authorization
+    const approveResource = this.adminResource.addResource("approve");
+    approveResource.addMethod("POST", adminReviewIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const rejectResource = this.adminResource.addResource("reject");
+    rejectResource.addMethod("POST", adminReviewIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const documentsResource = this.adminResource.addResource("documents");
+    documentsResource.addMethod("GET", adminReviewIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
   }
 }
