@@ -486,17 +486,19 @@ export class SecurityConstruct extends Construct {
       })
     );
 
-    // SNS permissions for user notifications
-    if (this.notificationTopic) {
-      role.addToPolicy(
-        new iam.PolicyStatement({
-          sid: "SNSPublish",
-          effect: iam.Effect.ALLOW,
-          actions: ["sns:Publish"],
-          resources: [this.notificationTopic.topicArn],
-        })
-      );
-    }
+    // SES permissions for user notifications
+
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "SESNotification",
+        effect: iam.Effect.ALLOW,
+        actions: ["ses:SendEmail"],
+        resources: [
+          `arn:aws:ses:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:identity/emmasandjio.com`,
+          `arn:aws:ses:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:configuration-set/my-first-configuration-set`,
+        ],
+      })
+    );
 
     // CloudWatch metrics permissions
     role.addToPolicy(
