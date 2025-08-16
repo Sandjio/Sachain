@@ -44,7 +44,7 @@ export class SachainInfrastructureStack extends cdk.Stack {
     // Create EventBridge and SNS first (needed for security roles)
     const eventBridgeConstruct = new EventBridgeConstruct(this, "EventBridge", {
       environment,
-      adminEmails: ["emmasandjio@gmail.com"],
+      adminEmails: ["sandjioemmanuel@protonmail.com"],
     });
 
     // Create security construct with least-privilege IAM roles
@@ -57,7 +57,7 @@ export class SachainInfrastructureStack extends cdk.Stack {
       eventBus: eventBridgeConstruct.eventBus,
     });
 
-    // Create Lambda functions
+    // Create Lambda functions first
     const lambdaConstruct = new LambdaConstruct(this, "Lambda", {
       table: dynamoDBConstruct.table,
       documentBucket: s3Construct.documentBucket,
@@ -67,7 +67,14 @@ export class SachainInfrastructureStack extends cdk.Stack {
       notificationTopic: eventBridgeConstruct.notificationTopic,
     });
 
+    // Create Cognito User Pool
+    const cognitoConstruct = new CognitoConstruct(this, "Cognito", {
+      postAuthLambda: lambdaConstruct.postAuthLambda,
+      environment,
+    });
 
+    // Add Cognito authorization to API endpoints
+    lambdaConstruct.addCognitoAuthorization(cognitoConstruct.userPool);
 
     // Add KYC Processing Lambda as target for document upload events
     eventBridgeConstruct.kycDocumentUploadedRule.addTarget(
@@ -87,12 +94,6 @@ export class SachainInfrastructureStack extends cdk.Stack {
     eventBridgeConstruct.kycStatusChangeRule.addTarget(
       new targets.LambdaFunction(lambdaConstruct.userNotificationLambda)
     );
-
-    // Create Cognito User Pool
-    const cognitoConstruct = new CognitoConstruct(this, "Cognito", {
-      postAuthLambda: lambdaConstruct.postAuthLambda,
-      environment,
-    });
 
     // Create monitoring and logging
     const monitoringConstruct = new MonitoringConstruct(this, "Monitoring", {
@@ -131,9 +132,9 @@ export class SachainInfrastructureStack extends cdk.Stack {
       description: "EventBridge Bus Name",
     });
 
-    new cdk.CfnOutput(this, "KYCUploadApiUrl", {
-      value: lambdaConstruct.kycUploadApi.url,
-      description: "KYC Upload API Gateway URL",
+    new cdk.CfnOutput(this, "ApiUrl", {
+      value: lambdaConstruct.api.url,
+      description: "Sachain API Gateway URL",
     });
 
     new cdk.CfnOutput(this, "SecurityComplianceReport", {
