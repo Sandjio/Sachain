@@ -1,26 +1,16 @@
 
 import { AppProps } from 'next/app';
 import { IntlProvider } from 'next-intl';
-import { useRouter } from 'next/router';
 import '@/styles/globals.css';
-import en from '../locales/en.json';
-import fr from '../locales/fr.json';
-
- const messagesMap: Record<string, Record<string, string>> = {
-  en,
-  fr,
-};
-
 
 export default function App({ Component, pageProps }: AppProps) {
-  const router = useRouter();
-  const locale = router.locale || 'en';
-  const messages = messagesMap[locale];
+  // pageProps.messages must be provided from getStaticProps or getServerSideProps
+  const { messages, locale = 'en' } = pageProps;
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return (
-    <IntlProvider locale={locale} messages={messages}>
+    <IntlProvider locale={locale} messages={messages} timeZone={timeZone}>
       <Component {...pageProps} />
     </IntlProvider>
   );
 }
-

@@ -8,5 +8,66 @@
   "header": {
     "login": "Connexion",
     "signup": "Inscription"
+  },
+  "howItWorks": {
+    "title": "Comment ça marche",
+    "steps": {
+      "discover": {
+        "title": "Découvrez des projets",
+        "description": "Parcourez des projets vérifiés à travers l’Afrique en quête de financement."
+      },
+      "invest": {
+        "title": "Investissez en toute sécurité",
+        "description": "Utilisez HBAR pour investir de manière transparente et sécurisée."
+      },
+      "grow": {
+        "title": "Grandir ensemble",
+        "description": "Générez des retours et soutenez des initiatives impactantes."
+      }
+    }
+  },
+  "users": {
+    "title": "Pour qui est SACHAIN ?",
+    "startups": {
+      "title": "Pour les startups",
+      "description": "Levez des fonds de manière transparente, gagnez la confiance de la communauté et développez votre vision."
+    },
+    "investors": {
+      "title": "Pour les investisseurs",
+      "description": "Découvrez des projets vérifiés, investissez en toute sécurité avec HBAR et grandissez avec impact."
+    }
+  },
+   "benefits": {
+    "title": "Pourquoi choisir SACHAIN ?",
+    "items": {
+      "lowFees": {
+        "title": "Frais de transaction réduits",
+        "description": "Profitez de frais quasi nuls grâce au réseau efficace de Hedera."
+      },
+      "transparency": {
+        "title": "Transparence totale",
+        "description": "Toutes les activités de projets et de financement sont enregistrées sur la blockchain."
+      },
+      "speed": {
+        "title": "Règlements rapides",
+        "description": "Les transactions sont confirmées en quelques secondes, pas en minutes ou heures."
+      }
+    }
+  },
+   "cta": {
+    "title": "Commencer",
+    "subtitle": "Choisissez votre rôle pour commencer",
+    "roles": {
+      "startup": "Je suis une startup",
+      "investor": "Je suis un investisseur"
+    }
+  },
+   "footer": {
+    "copyright": "© 2025 SACHAIN. Tous droits réservés.",
+    "links": {
+      "privacy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation",
+      "contact": "Contactez-nous"
+    }
   }
 }

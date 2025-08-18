@@ -3,8 +3,19 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import { useTranslate } from "@/hooks/useTranslate";
 
+
+import en from '../locales/en.json';
+import fr from '../locales/fr.json';
+
+export async function getStaticProps({ locale = 'en' }) {
+  const messages = locale === 'fr' ? fr : en;
+  return { props: { messages, locale } };
+}
+
+
+
 export default function Header() {
-  const translate = useTranslate();
+  const translate = useTranslate("header");
 
   return (
     <header className="border-b bg-background">
@@ -20,13 +31,13 @@ export default function Header() {
 
           <Link href="/login">
             <Button variant="outline" className="text-sm">
-              {translate('header.login')}
+              {translate('login')}
             </Button>
           </Link>
 
           <Link href="/signup">
             <Button className="text-sm bg-accent hover:bg-accent/90 text-accent-foreground">
-              {translate('header.signup')}
+              {translate('signup')}
             </Button>
           </Link>
         </nav>
