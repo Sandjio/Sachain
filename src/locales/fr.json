@@ -1,4 +1,12 @@
 {
-  "welcome": "Bienvenue sur SACHain !",
-  "description": "Une plateforme de financement participatif transparente basée sur des parts, reliant les propriétaires de projets et les investisseurs à travers l'Afrique."
+  "hero": {
+    "title": "Investissez dans de vrais projets avec HBAR",
+    "subtitle": "Une plateforme de financement participatif transparente basée sur les parts, connectant les porteurs de projets et les investisseurs à travers l'Afrique.",
+    "getStarted": "Commencer",
+    "learnMore": "En savoir plus"
+  },
+  "header": {
+    "login": "Connexion",
+    "signup": "Inscription"
+  }
 }
