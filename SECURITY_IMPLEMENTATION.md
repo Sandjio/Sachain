@@ -9,6 +9,7 @@ This document outlines the comprehensive security hardening and compliance featu
 ### 1. Least-Privilege IAM Roles
 
 #### Post-Authentication Lambda Role
+
 - **Purpose**: Handle user registration and profile creation
 - **Permissions**:
   - DynamoDB: Read/write access to user profiles only (`USER#*` pattern)
@@ -19,6 +20,7 @@ This document outlines the comprehensive security hardening and compliance featu
   - Prevented from privilege escalation
 
 #### KYC Upload Lambda Role
+
 - **Purpose**: Handle KYC document uploads and processing
 - **Permissions**:
   - DynamoDB: Read/write access to user profiles and KYC documents
@@ -33,6 +35,7 @@ This document outlines the comprehensive security hardening and compliance featu
   - Cannot perform admin review functions
 
 #### Admin Review Lambda Role
+
 - **Purpose**: Handle KYC document review and approval/rejection
 - **Permissions**:
   - DynamoDB: Read/write access to user profiles and audit logs (`USER#*`, `AUDIT#*`)
@@ -47,6 +50,7 @@ This document outlines the comprehensive security hardening and compliance featu
   - EventBridge events restricted to specific source
 
 #### User Notification Lambda Role
+
 - **Purpose**: Handle user notifications for KYC status changes
 - **Permissions**:
   - DynamoDB: Read-only access to user profiles (`USER#*` pattern)
@@ -60,33 +64,39 @@ This document outlines the comprehensive security hardening and compliance featu
 ### 2. Resource-Based Policies
 
 #### S3 Bucket Policies
+
 - **Encryption Enforcement**: All uploads must use KMS encryption
 - **Access Restrictions**: Only specific Lambda roles can access the bucket
 - **Secure Transport**: HTTPS-only access enforced
 - **Key Validation**: Uploads must use the designated KMS key
 
 #### KMS Key Policies
+
 - **Service Restrictions**: Key usage limited to S3 service operations
 - **Role-Based Access**: Only authorized Lambda roles can use the key
 - **Operation Restrictions**: Specific encrypt/decrypt permissions per role
 
 #### SNS Topic Policies
+
 - **Publisher Restrictions**: Only authorized Lambda roles can publish
 - **Topic-Specific Access**: Separate policies for admin and user notifications
 
 ### 3. Cross-Service Access Controls
 
 #### Privilege Escalation Prevention
+
 - **IAM Restrictions**: Explicit DENY for IAM role creation and modification
 - **Policy Management**: Prevents attachment/detachment of policies
 - **Assume Role Protection**: Blocks unauthorized role assumption
 
 #### Time-Based Access Controls
+
 - **Admin Operations**: Destructive operations restricted to business hours
 - **Audit Trail**: All time-restricted operations logged
 - **Emergency Override**: Can be configured for critical situations
 
 #### IP-Based Restrictions (Configurable)
+
 - **Admin Access**: Can be restricted to specific IP ranges
 - **Service Access**: Differentiated from direct user access
 - **VPC Integration**: Ready for VPC-based restrictions
@@ -94,11 +104,13 @@ This document outlines the comprehensive security hardening and compliance featu
 ### 4. Encryption and Data Protection
 
 #### Data at Rest
+
 - **S3 Encryption**: KMS encryption for all stored documents
 - **DynamoDB Encryption**: Server-side encryption enabled
 - **Key Rotation**: Automatic key rotation enabled
 
 #### Data in Transit
+
 - **HTTPS Only**: All API communications encrypted
 - **TLS 1.2+**: Minimum encryption standards enforced
 - **Certificate Validation**: Proper SSL/TLS certificate validation
@@ -106,16 +118,19 @@ This document outlines the comprehensive security hardening and compliance featu
 ### 5. Monitoring and Compliance
 
 #### CloudWatch Integration
+
 - **Namespace Isolation**: Metrics isolated by service
 - **Custom Metrics**: Business-specific KPIs tracked
 - **Alarm Configuration**: Automated alerting for security events
 
 #### X-Ray Tracing
+
 - **Distributed Tracing**: End-to-end request tracking
 - **Performance Monitoring**: Latency and error tracking
 - **Security Auditing**: Request flow analysis
 
 #### Audit Logging
+
 - **Admin Actions**: All administrative actions logged
 - **Data Access**: Document access patterns tracked
 - **Compliance Reports**: Automated compliance reporting
@@ -123,6 +138,7 @@ This document outlines the comprehensive security hardening and compliance featu
 ## 🛠️ Implementation Details
 
 ### File Structure
+
 ```
 sachain-infrastructure/
 ├── lib/
@@ -132,7 +148,7 @@ sachain-infrastructure/
 │   │   └── index.ts                 # Updated exports
 │   ├── utils/
 │   │   └── iam-policy-validator.ts  # Policy validation utility
-│   └── sachain-infrastructure-stack.ts # Updated main stack
+│   └── stacks/                        # Modular stack definitions
 ├── test/
 │   ├── constructs/
 │   │   ├── security-final.test.ts   # Comprehensive security tests
@@ -144,6 +160,7 @@ sachain-infrastructure/
 ### Key Components
 
 #### SecurityConstruct
+
 - **Location**: `lib/constructs/security.ts`
 - **Purpose**: Creates and manages all IAM roles and policies
 - **Features**:
@@ -153,6 +170,7 @@ sachain-infrastructure/
   - Compliance reporting
 
 #### IAMPolicyValidator
+
 - **Location**: `lib/utils/iam-policy-validator.ts`
 - **Purpose**: Validates IAM policies for security best practices
 - **Features**:
@@ -164,6 +182,7 @@ sachain-infrastructure/
 ### Integration Points
 
 #### Main Stack Integration
+
 ```typescript
 // Create security construct
 const securityConstruct = new SecurityConstruct(this, "Security", {
@@ -183,6 +202,7 @@ const lambdaConstruct = new LambdaConstruct(this, "Lambda", {
 ```
 
 #### Lambda Function Configuration
+
 - **Custom Roles**: Each Lambda uses a specific IAM role
 - **X-Ray Tracing**: Enabled for all functions
 - **Environment Variables**: Secure configuration management
@@ -191,12 +211,14 @@ const lambdaConstruct = new LambdaConstruct(this, "Lambda", {
 ## 📊 Compliance and Validation
 
 ### Test Coverage
+
 - **95.19%** statement coverage
 - **73.33%** branch coverage
 - **90.9%** function coverage
 - **12/12** security tests passing
 
 ### Security Validation
+
 - ✅ Least-privilege access controls
 - ✅ Resource-based policies
 - ✅ Cross-service access restrictions
@@ -207,6 +229,7 @@ const lambdaConstruct = new LambdaConstruct(this, "Lambda", {
 - ✅ Audit logging capabilities
 
 ### Compliance Features
+
 - **GDPR Ready**: Data deletion and consent management
 - **SOC 2**: Security controls and monitoring
 - **ISO 27001**: Information security management
@@ -215,6 +238,7 @@ const lambdaConstruct = new LambdaConstruct(this, "Lambda", {
 ## 🚀 Deployment and Usage
 
 ### Environment Configuration
+
 ```bash
 # Development
 cdk deploy --context environment=dev
@@ -227,15 +251,18 @@ cdk deploy --context environment=prod
 ```
 
 ### Security Compliance Report
+
 The system generates a comprehensive security compliance report:
+
 ```typescript
 const complianceReport = securityConstruct.getSecurityComplianceReport();
 console.log(JSON.stringify(complianceReport, null, 2));
 ```
 
 ### Policy Validation
+
 ```typescript
-import { IAMPolicyValidator } from './lib/utils/iam-policy-validator';
+import { IAMPolicyValidator } from "./lib/utils/iam-policy-validator";
 
 const result = IAMPolicyValidator.validatePolicy(policyDocument);
 console.log(`Compliance Score: ${result.complianceScore}/100`);
@@ -244,16 +271,19 @@ console.log(`Compliance Score: ${result.complianceScore}/100`);
 ## 🔍 Monitoring and Alerting
 
 ### CloudWatch Metrics
+
 - **Function Execution**: Duration, errors, throttles
 - **Security Events**: Failed authentications, policy violations
 - **Business Metrics**: KYC approval rates, processing times
 
 ### Alarms and Notifications
+
 - **High Error Rates**: Automated alerting for function failures
 - **Security Violations**: Immediate notification of policy breaches
 - **Performance Degradation**: Latency and throughput monitoring
 
 ### X-Ray Insights
+
 - **Request Tracing**: End-to-end request flow analysis
 - **Performance Bottlenecks**: Identification of slow components
 - **Error Analysis**: Root cause analysis for failures
@@ -261,16 +291,19 @@ console.log(`Compliance Score: ${result.complianceScore}/100`);
 ## 📋 Maintenance and Updates
 
 ### Regular Security Reviews
+
 - **Monthly**: Policy review and updates
 - **Quarterly**: Compliance assessment
 - **Annually**: Full security audit
 
 ### Automated Validation
+
 - **CI/CD Integration**: Security tests in deployment pipeline
 - **Policy Validation**: Automated IAM policy analysis
 - **Compliance Monitoring**: Continuous compliance checking
 
 ### Update Procedures
+
 1. **Security Patches**: Immediate deployment for critical issues
 2. **Policy Updates**: Staged rollout with validation
 3. **Feature Additions**: Security review before implementation
@@ -278,6 +311,7 @@ console.log(`Compliance Score: ${result.complianceScore}/100`);
 ## 🎯 Next Steps
 
 ### Planned Enhancements
+
 - [ ] Advanced threat detection with AWS GuardDuty
 - [ ] Enhanced audit logging with AWS CloudTrail
 - [ ] Automated compliance reporting
@@ -285,6 +319,7 @@ console.log(`Compliance Score: ${result.complianceScore}/100`);
 - [ ] Advanced encryption with AWS CloudHSM
 
 ### Recommendations
+
 1. **Regular Security Training**: Keep team updated on AWS security best practices
 2. **Penetration Testing**: Regular security assessments
 3. **Incident Response Plan**: Documented procedures for security incidents

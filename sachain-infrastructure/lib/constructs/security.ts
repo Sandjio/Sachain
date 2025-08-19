@@ -529,80 +529,15 @@ export class SecurityConstruct extends Construct {
   }
 
   private addResourceBasedPolicies(): void {
-    // Add resource-based policy to DynamoDB table
-    // Note: DynamoDB doesn't support resource-based policies directly,
-    // but we can add conditions to IAM policies for fine-grained access
-
-    // Add resource-based policy to S3 bucket (already implemented in S3 construct)
-    // Additional bucket policy for cross-account access if needed
-
-    // Policy for read operations (no encryption conditions needed)
-    this.documentBucket.addToResourcePolicy(
-      new iam.PolicyStatement({
-        sid: "AllowLambdaRoleRead",
-        effect: iam.Effect.ALLOW,
-        principals: [this.kycUploadRole, this.adminReviewRole],
-        actions: ["s3:GetObject", "s3:GetObjectVersion"],
-        resources: [this.documentBucket.arnForObjects("*")],
-      })
-    );
-
-    // Policy for write operations (with encryption conditions)
-    this.documentBucket.addToResourcePolicy(
-      new iam.PolicyStatement({
-        sid: "AllowLambdaRoleWrite",
-        effect: iam.Effect.ALLOW,
-        principals: [this.kycUploadRole],
-        actions: ["s3:PutObject"],
-        resources: [this.documentBucket.arnForObjects("*")],
-        conditions: {
-          StringEquals: {
-            "s3:x-amz-server-side-encryption": "aws:kms",
-          },
-        },
-      })
-    );
-
-    // Add resource-based policy to KMS key
-    this.encryptionKey.addToResourcePolicy(
-      new iam.PolicyStatement({
-        sid: "AllowLambdaRoleAccess",
-        effect: iam.Effect.ALLOW,
-        principals: [this.kycUploadRole, this.adminReviewRole],
-        actions: [
-          "kms:Encrypt",
-          "kms:Decrypt",
-          "kms:ReEncrypt*",
-          "kms:GenerateDataKey*",
-          "kms:DescribeKey",
-        ],
-        resources: ["*"],
-        conditions: {
-          StringEquals: {
-            "kms:ViaService": `s3.${cdk.Aws.REGION}.amazonaws.com`,
-          },
-        },
-      })
-    );
-
-    // Add resource-based policy to SNS topic
-    if (this.notificationTopic) {
-      this.notificationTopic.addToResourcePolicy(
-        new iam.PolicyStatement({
-          sid: "AllowLambdaPublish",
-          effect: iam.Effect.ALLOW,
-          principals: [this.kycProcessingRole, this.userNotificationRole],
-          actions: ["sns:Publish"],
-          resources: [this.notificationTopic.topicArn],
-        })
-      );
-    }
-
-    // Add resource-based policy to EventBridge
-    if (this.eventBus) {
-      // EventBridge resource policies are managed through the event bus resource policy
-      // This would typically be done at the EventBridge construct level
-    }
+    // Note: Resource-based policies that reference IAM roles from this construct
+    // would create circular dependencies between stacks. Instead, we rely on
+    // identity-based policies (IAM role policies) to grant access to resources.
+    // The S3 bucket, KMS key, SNS topic, and EventBridge bus already have basic
+    // security policies in their respective constructs. Additional resource-based
+    // policies can be added later if needed for cross-account access, but they
+    // should not reference roles from this same construct to avoid circular dependencies.
+    // All access control is handled through the identity-based policies in the
+    // individual role creation methods above.
   }
 
   private addCrossServiceAccessControls(): void {

@@ -62,7 +62,7 @@ sachain-infrastructure/
 │   │   ├── monitoring.ts    # CloudWatch monitoring construct
 │   │   └── index.ts         # Construct exports
 │   ├── config.ts           # Environment configuration
-│   └── sachain-infrastructure-stack.ts  # Main stack
+│   └── stacks/                          # Modular stack definitions
 ├── bin/
 │   └── sachain-infrastructure.ts  # CDK app entry point
 ├── test/

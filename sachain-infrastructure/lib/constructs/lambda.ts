@@ -65,10 +65,8 @@ export class LambdaConstruct extends Construct {
       },
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
-      deadLetterQueue: new sqs.Queue(this, "PostAuthDLQ", {
-        queueName: `sachain-post-auth-dlq-${props.environment}`,
-        retentionPeriod: cdk.Duration.days(14),
-      }),
+      // deadLetterQueue: Temporarily removed to avoid circular dependencies
+      // Can be added back later after stack refactoring is complete
       tracing: lambda.Tracing.ACTIVE,
     });
 
@@ -106,10 +104,8 @@ export class LambdaConstruct extends Construct {
       },
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
-      deadLetterQueue: new sqs.Queue(this, "KYCUploadDLQ", {
-        queueName: `sachain-kyc-upload-dlq-${props.environment}`,
-        retentionPeriod: cdk.Duration.days(14),
-      }),
+      // deadLetterQueue: Temporarily removed to avoid circular dependencies
+      // Can be added back later after stack refactoring is complete
       tracing: lambda.Tracing.ACTIVE,
     });
 
@@ -144,10 +140,8 @@ export class LambdaConstruct extends Construct {
       },
       timeout: cdk.Duration.minutes(2),
       memorySize: 512,
-      deadLetterQueue: new sqs.Queue(this, "KYCProcessingDLQ", {
-        queueName: `sachain-kyc-processing-dlq-${props.environment}`,
-        retentionPeriod: cdk.Duration.days(14),
-      }),
+      // deadLetterQueue: Temporarily removed to avoid circular dependencies
+      // Can be added back later after stack refactoring is complete
       tracing: lambda.Tracing.ACTIVE,
     });
 
@@ -181,10 +175,8 @@ export class LambdaConstruct extends Construct {
       },
       timeout: cdk.Duration.minutes(2),
       memorySize: 512,
-      deadLetterQueue: new sqs.Queue(this, "AdminReviewDLQ", {
-        queueName: `sachain-admin-review-dlq-${props.environment}`,
-        retentionPeriod: cdk.Duration.days(14),
-      }),
+      // deadLetterQueue: Temporarily removed to avoid circular dependencies
+      // Can be added back later after stack refactoring is complete
       tracing: lambda.Tracing.ACTIVE,
     });
 
@@ -222,10 +214,8 @@ export class LambdaConstruct extends Construct {
         },
         timeout: cdk.Duration.seconds(30),
         memorySize: 256,
-        deadLetterQueue: new sqs.Queue(this, "UserNotificationDLQ", {
-          queueName: `sachain-user-notification-dlq-${props.environment}`,
-          retentionPeriod: cdk.Duration.days(14),
-        }),
+        // deadLetterQueue: Temporarily removed to avoid circular dependencies
+        // Can be added back later after stack refactoring is complete
         tracing: lambda.Tracing.ACTIVE,
       }
     );

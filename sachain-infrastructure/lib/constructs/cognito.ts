@@ -4,7 +4,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 
 export interface CognitoConstructProps {
-  postAuthLambda: lambda.Function;
+  postAuthLambda?: lambda.Function;
   environment: string;
 }
 
@@ -94,10 +94,12 @@ export class CognitoConstruct extends Construct {
         emailStyle: cognito.VerificationEmailStyle.CODE,
       },
 
-      // Lambda triggers - will be configured in task 3.2
-      lambdaTriggers: {
-        postAuthentication: props.postAuthLambda,
-      },
+      // Lambda triggers - conditionally configured to avoid circular dependencies
+      ...(props.postAuthLambda && {
+        lambdaTriggers: {
+          postAuthentication: props.postAuthLambda,
+        },
+      }),
 
       // Deletion protection
       removalPolicy:
