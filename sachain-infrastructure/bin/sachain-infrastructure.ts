@@ -11,7 +11,6 @@ import {
   LambdaStack,
   MonitoringStack,
 } from "../lib/stacks";
-import { PostAuthConfiguratorStack } from "../lib/stacks/post-auth-configurator-stack";
 import { getEnvironmentConfig } from "../lib/config";
 import {
   CrossStackValidator,
@@ -52,7 +51,6 @@ const stackNames = [
   `SachainAuthStack-${environment}`,
   `SachainLambdaStack-${environment}`,
   `SachainMonitoringStack-${environment}`,
-  `SachainPostAuthConfiguratorStack-${environment}`,
 ];
 
 stackNames.forEach((stackName) => {
@@ -186,7 +184,6 @@ try {
     ...commonProps,
     environment,
     // postAuthLambda will be configured later to avoid circular dependency
-    postAuthLambda: undefined,
     description: `Sachain Authentication infrastructure (Cognito) for ${environment} environment`,
     tags: {
       ...commonProps.tags,
@@ -206,7 +203,7 @@ try {
   throw error;
 }
 
-// 5. Create LambdaStack (depends on CoreStack, SecurityStack, EventStack, and AuthStack)
+// 6. Create LambdaStack (depends on CoreStack, SecurityStack, EventStack, and AuthStack)
 let lambdaStack: LambdaStack;
 try {
   const lambdaDependencies = {
@@ -255,45 +252,6 @@ try {
     error instanceof Error ? error : new Error(String(error))
   );
   console.error("✗ LambdaStack creation failed:", failureContext.errorMessage);
-  throw error;
-}
-
-// 6. Create PostAuthConfiguratorStack to wire Cognito post-auth trigger
-let postAuthConfiguratorStack: PostAuthConfiguratorStack;
-try {
-  const postAuthConfigDeps = {
-    userPoolId: authStack.userPool.userPoolId,
-    postAuthLambda: lambdaStack.postAuthLambda,
-  };
-
-  postAuthConfiguratorStack = new PostAuthConfiguratorStack(
-    app,
-    `SachainPostAuthConfiguratorStack-${environment}`,
-    {
-      ...commonProps,
-      environment,
-      userPoolId: postAuthConfigDeps.userPoolId,
-      postAuthLambda: postAuthConfigDeps.postAuthLambda,
-      description: `Configure Cognito PostAuth Lambda for ${environment}`,
-      tags: {
-        ...commonProps.tags,
-        Component: "AuthConfigurator",
-      },
-    }
-  );
-
-  CrossStackValidator.markStackDeployed("PostAuthConfiguratorStack");
-  console.log("✓ PostAuthConfiguratorStack created successfully");
-} catch (error) {
-  const failureContext = DeploymentErrorHandler.handleDeploymentFailure(
-    "PostAuthConfiguratorStack",
-    environment,
-    error instanceof Error ? error : new Error(String(error))
-  );
-  console.error(
-    "✗ PostAuthConfiguratorStack creation failed:",
-    failureContext.errorMessage
-  );
   throw error;
 }
 
@@ -352,9 +310,6 @@ lambdaStack.addDependency(coreStack);
 lambdaStack.addDependency(securityStack);
 lambdaStack.addDependency(eventStack);
 lambdaStack.addDependency(authStack);
-// Ensure configurator runs after both Auth and Lambda stacks
-postAuthConfiguratorStack.addDependency(lambdaStack);
-postAuthConfiguratorStack.addDependency(authStack);
 monitoringStack.addDependency(lambdaStack);
 
 // Generate deployment report

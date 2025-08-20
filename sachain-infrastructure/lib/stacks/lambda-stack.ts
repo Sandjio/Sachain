@@ -158,7 +158,6 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     this.lambdaConstruct = new LambdaConstruct(this, "Lambda", {
       table: props.table,
       documentBucket: props.documentBucket,
-      encryptionKey: props.encryptionKey,
       environment: props.environment,
       securityConstruct: mockSecurityConstruct as any, // Type assertion for compatibility
       eventBus: props.eventBus,

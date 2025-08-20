@@ -9,7 +9,6 @@ import * as events from "aws-cdk-lib/aws-events";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
-import * as kms from "aws-cdk-lib/aws-kms";
 import { Construct } from "constructs";
 import { SecurityConstruct } from "./security";
 import * as path from "path";
@@ -17,7 +16,6 @@ import * as path from "path";
 export interface LambdaConstructProps {
   table: dynamodb.Table;
   documentBucket?: s3.Bucket;
-  encryptionKey?: kms.Key;
   notificationTopic?: sns.Topic;
   eventBus?: events.EventBus;
   environment: string;
@@ -102,7 +100,6 @@ export class LambdaConstruct extends Construct {
         TABLE_NAME: props.table.tableName,
         BUCKET_NAME: props.documentBucket?.bucketName || "",
         EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
-        KMS_KEY_ID: props.encryptionKey?.keyArn || "",
         ENVIRONMENT: props.environment,
       },
       timeout: cdk.Duration.minutes(5),

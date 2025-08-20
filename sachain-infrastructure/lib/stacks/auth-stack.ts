@@ -7,7 +7,7 @@ import { ResourceReferenceTracker } from "../utils";
 
 export interface AuthStackProps extends cdk.StackProps {
   environment: string;
-  postAuthLambda?: lambda.IFunction;
+  postAuthLambda?: lambda.Function;
 }
 
 export class AuthStack extends cdk.Stack implements AuthStackOutputs {
