@@ -4,7 +4,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 
 export interface CognitoConstructProps {
-  postAuthLambda?: lambda.Function;
+  postAuthLambda?: lambda.IFunction;
   environment: string;
 }
 
