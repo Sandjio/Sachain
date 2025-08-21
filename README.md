@@ -38,3 +38,75 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+
+```
+sachain-frontend
+├─ components.json
+├─ eslint.config.mjs
+├─ next.config.js
+├─ next.config.ts
+├─ package.json
+├─ pnpm-lock.yaml
+├─ postcss.config.mjs
+├─ public
+│  ├─ favicon.ico
+│  ├─ file.svg
+│  ├─ globe.svg
+│  ├─ next.svg
+│  ├─ onboardimages
+│  ├─ vercel.svg
+│  └─ window.svg
+├─ README.md
+├─ src
+│  ├─ components
+│  │  ├─ CTASection.tsx
+│  │  ├─ Footer.tsx
+│  │  ├─ Header.tsx
+│  │  ├─ HowItWorks.tsx
+│  │  ├─ icons.tsx
+│  │  ├─ LanguageSwitcher.tsx
+│  │  ├─ PlatformBenefits.tsx
+│  │  ├─ ui
+│  │  │  ├─ badge.tsx
+│  │  │  ├─ button.tsx
+│  │  │  ├─ card.tsx
+│  │  │  ├─ carousel.tsx
+│  │  │  ├─ dialog.tsx
+│  │  │  ├─ dropdown-menu.tsx
+│  │  │  ├─ input.tsx
+│  │  │  ├─ switch.tsx
+│  │  │  ├─ tabs.tsx
+│  │  │  └─ tooltip.tsx
+│  │  └─ UserSections.tsx
+│  ├─ features
+│  │  └─ auth
+│  │     ├─ api
+│  │     ├─ components
+│  │     └─ hook
+│  ├─ hooks
+│  │  └─ useTranslate.ts
+│  ├─ layout
+│  │  └─ PublicLayout.tsx
+│  ├─ lib
+│  │  ├─ api
+│  │  ├─ configs
+│  │  ├─ hedera
+│  │  ├─ utils
+│  │  └─ utils.ts
+│  ├─ locales
+│  │  ├─ en.json
+│  │  └─ fr.json
+│  ├─ pages
+│  │  ├─ index.tsx
+│  │  ├─ login.tsx
+│  │  ├─ signup.tsx
+│  │  ├─ _app.tsx
+│  │  └─ _document.tsx
+│  ├─ store
+│  │  ├─ authStore.ts
+│  │  └─ useAppStore.ts
+│  └─ styles
+│     └─ globals.css
+└─ tsconfig.json
+
+```

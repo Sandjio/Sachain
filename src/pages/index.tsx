@@ -19,14 +19,17 @@ export async function getStaticProps({ locale = 'en' }) {
 
 export default function Home() {
   const translate = useTranslate("hero");
-
+ 
   return (
  <PublicLayout>
       {/* Hero Section */}
       <section className="container-max py-10 md:py-20 text-center flex flex-col items-center">
+
         <h1 className="text-5xl md:text-6xl font-bold text-primary mb-4">
           {translate('title')}
         </h1>
+
+         <CTASection />
 
         <p className="text-lg text-secondary mb-8 max-w-2xl">
           {translate(
@@ -35,9 +38,7 @@ export default function Home() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4">
-          <Button variant="default" className="px-6 py-3">
-            {translate('getStarted')}
-          </Button>
+           
           <Button variant="outline" className="px-6 py-3">
             {translate('learnMore')}
           </Button>
@@ -54,6 +55,7 @@ export default function Home() {
 
        <CTASection />
 
+     
         <Footer />
     </PublicLayout>
   );

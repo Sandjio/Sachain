@@ -1,5 +1,5 @@
 {
- "hero": {
+  "hero": {
     "title": "Invest in real projects with HBAR",
     "subtitle": "A transparent, share-based crowdfunding platform connecting project owners and investors across Africa.",
     "getStarted": "Get Started",
@@ -37,7 +37,7 @@
       "description": "Discover vetted projects, invest securely with HBAR, and grow with impact."
     }
   },
-   "benefits": {
+  "benefits": {
     "title": "Why choose SACHAIN?",
     "items": {
       "lowFees": {
@@ -54,9 +54,10 @@
       }
     }
   },
-   "cta": {
+  "cta": {
     "title": "Get Started",
     "subtitle": "Take a chance and begin your journey",
+    "getStarted": "Get Started",
     "roles": {
       "startup": "I’m a Startup",
       "investor": "I’m an Investor"
@@ -68,6 +69,52 @@
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
       "contact": "Contact Us"
+    }
+  },
+  "getStartedModal": {
+    "chooseRole": "Choose your role",
+    "welcomeBack": "Welcome back",
+    "roles": {
+      "startup": "I am a Startup",
+      "investor": "I am an Investor"
+    },
+    "tabs": {
+      "login": "Login",
+      "signup": "Sign Up"
+    },
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "verifyCode": "Please enter the verification code sent to your email"
+    },
+    "actions": {
+      "loginAs": "Login as",
+      "signupAs": "Sign up as",
+      "next": "Next",
+      "back": "Back",
+      "submit": "Submit",
+      "close": "Close",
+      "verify": "Verify"
+    },
+    "upload": {
+      "investorInstruction": "Please upload a valid government-issued ID (image or PDF).",
+      "startupInstruction": "Please upload your business registration certificate or startup ID (image or PDF)."
+    },
+    "success": {
+      "title": "Signup Complete!",
+      "message": "Your account as a {{role}} is now pending verification. We will notify you once approved."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "form": {
+        "email": "Email",
+        "password": "Password"
+      },
+      "submit": "Login"
     }
   }
 }
