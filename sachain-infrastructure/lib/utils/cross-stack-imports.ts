@@ -23,7 +23,7 @@ import { EXPORT_NAMES } from "../interfaces";
  */
 export class CrossStackImporter {
   /**
-   * Import CoreStack resources using CloudFormation exports
+   * Import CoreStack resources using CloudFormation exports (includes auth resources)
    */
   static importCoreStackResources(
     scope: Construct,
@@ -32,6 +32,9 @@ export class CrossStackImporter {
     table: dynamodb.ITable;
     documentBucket: s3.IBucket;
     encryptionKey: kms.IKey;
+    userPool: cognito.IUserPool;
+    userPoolClient: cognito.IUserPoolClient;
+    postAuthLambda: lambda.IFunction;
   } {
     // Import DynamoDB table
     const table = dynamodb.Table.fromTableAttributes(scope, "ImportedTable", {
@@ -56,10 +59,32 @@ export class CrossStackImporter {
       cdk.Fn.importValue(EXPORT_NAMES.kmsKeyArn(environment))
     );
 
+    // Import auth resources (consolidated from AuthStack)
+    const userPool = cognito.UserPool.fromUserPoolId(
+      scope,
+      "ImportedUserPool",
+      cdk.Fn.importValue(EXPORT_NAMES.userPoolId(environment))
+    );
+
+    const userPoolClient = cognito.UserPoolClient.fromUserPoolClientId(
+      scope,
+      "ImportedUserPoolClient",
+      cdk.Fn.importValue(EXPORT_NAMES.userPoolClientId(environment))
+    );
+
+    const postAuthLambda = lambda.Function.fromFunctionArn(
+      scope,
+      "ImportedPostAuthLambda",
+      cdk.Fn.importValue(EXPORT_NAMES.postAuthLambdaArn(environment))
+    );
+
     return {
       table,
       documentBucket,
       encryptionKey,
+      userPool,
+      userPoolClient,
+      postAuthLambda,
     };
   }
 
@@ -70,18 +95,11 @@ export class CrossStackImporter {
     scope: Construct,
     environment: string
   ): {
-    postAuthRole: iam.IRole;
     kycUploadRole: iam.IRole;
     adminReviewRole: iam.IRole;
     userNotificationRole: iam.IRole;
     kycProcessingRole: iam.IRole;
   } {
-    const postAuthRole = iam.Role.fromRoleArn(
-      scope,
-      "ImportedPostAuthRole",
-      cdk.Fn.importValue(EXPORT_NAMES.postAuthRoleArn(environment))
-    );
-
     const kycUploadRole = iam.Role.fromRoleArn(
       scope,
       "ImportedKycUploadRole",
@@ -107,7 +125,6 @@ export class CrossStackImporter {
     );
 
     return {
-      postAuthRole,
       kycUploadRole,
       adminReviewRole,
       userNotificationRole,
@@ -116,9 +133,9 @@ export class CrossStackImporter {
   }
 
   /**
-   * Import EventStack resources using CloudFormation exports
+   * Import LambdaStack event resources (consolidated from EventStack)
    */
-  static importEventStackResources(
+  static importLambdaStackEventResources(
     scope: Construct,
     environment: string
   ): {
@@ -158,14 +175,15 @@ export class CrossStackImporter {
   }
 
   /**
-   * Import AuthStack resources using CloudFormation exports
+   * Import CoreStack auth resources (consolidated from AuthStack)
    */
-  static importAuthStackResources(
+  static importCoreStackAuthResources(
     scope: Construct,
     environment: string
   ): {
     userPool: cognito.IUserPool;
     userPoolClient: cognito.IUserPoolClient;
+    postAuthLambda: lambda.IFunction;
   } {
     const userPool = cognito.UserPool.fromUserPoolId(
       scope,
@@ -179,25 +197,34 @@ export class CrossStackImporter {
       cdk.Fn.importValue(EXPORT_NAMES.userPoolClientId(environment))
     );
 
+    const postAuthLambda = lambda.Function.fromFunctionArn(
+      scope,
+      "ImportedPostAuthLambda",
+      cdk.Fn.importValue(EXPORT_NAMES.postAuthLambdaArn(environment))
+    );
+
     return {
       userPool,
       userPoolClient,
+      postAuthLambda,
     };
   }
 
   /**
-   * Import LambdaStack resources using CloudFormation exports
+   * Import LambdaStack resources using CloudFormation exports (includes event resources, excludes post-auth lambda)
    */
   static importLambdaStackResources(
     scope: Construct,
     environment: string
   ): {
     api: apigateway.IRestApi;
-    postAuthLambda: lambda.IFunction;
     kycUploadLambda: lambda.IFunction;
     adminReviewLambda: lambda.IFunction;
     userNotificationLambda: lambda.IFunction;
     kycProcessingLambda: lambda.IFunction;
+    eventBus: events.IEventBus;
+    notificationTopic: sns.ITopic;
+    userNotificationTopic: sns.ITopic;
   } {
     const api = apigateway.RestApi.fromRestApiAttributes(scope, "ImportedApi", {
       restApiId: cdk.Fn.importValue(EXPORT_NAMES.apiId(environment)),
@@ -206,11 +233,7 @@ export class CrossStackImporter {
       ),
     });
 
-    const postAuthLambda = lambda.Function.fromFunctionArn(
-      scope,
-      "ImportedPostAuthLambda",
-      cdk.Fn.importValue(EXPORT_NAMES.postAuthLambdaArn(environment))
-    );
+    // Note: postAuthLambda is now imported from CoreStack, not LambdaStack
 
     const kycUploadLambda = lambda.Function.fromFunctionArn(
       scope,
@@ -236,13 +259,40 @@ export class CrossStackImporter {
       cdk.Fn.importValue(EXPORT_NAMES.kycProcessingLambdaArn(environment))
     );
 
+    // Import event resources (consolidated from EventStack)
+    const eventBus = events.EventBus.fromEventBusAttributes(
+      scope,
+      "ImportedEventBus",
+      {
+        eventBusName: cdk.Fn.importValue(
+          EXPORT_NAMES.eventBusName(environment)
+        ),
+        eventBusArn: cdk.Fn.importValue(EXPORT_NAMES.eventBusArn(environment)),
+        eventBusPolicy: "", // Empty policy for imported event bus
+      }
+    );
+
+    const notificationTopic = sns.Topic.fromTopicArn(
+      scope,
+      "ImportedNotificationTopic",
+      cdk.Fn.importValue(EXPORT_NAMES.adminNotificationTopicArn(environment))
+    );
+
+    const userNotificationTopic = sns.Topic.fromTopicArn(
+      scope,
+      "ImportedUserNotificationTopic",
+      cdk.Fn.importValue(EXPORT_NAMES.userNotificationTopicArn(environment))
+    );
+
     return {
       api,
-      postAuthLambda,
       kycUploadLambda,
       adminReviewLambda,
       userNotificationLambda,
       kycProcessingLambda,
+      eventBus,
+      notificationTopic,
+      userNotificationTopic,
     };
   }
 

@@ -3,8 +3,6 @@ import { Template } from "aws-cdk-lib/assertions";
 import {
   CoreStack,
   SecurityStack,
-  EventStack,
-  AuthStack,
   LambdaStack,
   MonitoringStack,
 } from "../lib/stacks";
@@ -17,13 +15,9 @@ describe("Deployment Validation Tests", () => {
   });
 
   describe("Stack Architecture Validation", () => {
-    test("should create all required stacks with correct dependencies", () => {
-      // Create stacks in dependency order
+    test("should create all required stacks with correct dependencies (consolidated)", () => {
+      // Create stacks in dependency order (consolidated structure)
       const coreStack = new CoreStack(app, "TestCoreStack", {
-        environment: "test",
-      });
-
-      const eventStack = new EventStack(app, "TestEventStack", {
         environment: "test",
       });
 
@@ -32,12 +26,7 @@ describe("Deployment Validation Tests", () => {
         table: coreStack.table,
         documentBucket: coreStack.documentBucket,
         encryptionKey: coreStack.encryptionKey,
-        notificationTopic: eventStack.notificationTopic,
-        eventBus: eventStack.eventBus,
-      });
-
-      const authStack = new AuthStack(app, "TestAuthStack", {
-        environment: "test",
+        userPool: coreStack.userPool,
       });
 
       const lambdaStack = new LambdaStack(app, "TestLambdaStack", {
@@ -45,40 +34,38 @@ describe("Deployment Validation Tests", () => {
         table: coreStack.table,
         documentBucket: coreStack.documentBucket,
         encryptionKey: coreStack.encryptionKey,
-        postAuthRole: securityStack.postAuthRole,
+        userPool: coreStack.userPool,
+        userPoolClient: coreStack.userPoolClient,
+        postAuthLambda: coreStack.postAuthLambda,
         kycUploadRole: securityStack.kycUploadRole,
         adminReviewRole: securityStack.adminReviewRole,
         userNotificationRole: securityStack.userNotificationRole,
         kycProcessingRole: securityStack.kycProcessingRole,
-        eventBus: eventStack.eventBus,
-        notificationTopic: eventStack.notificationTopic,
-        kycDocumentUploadedRule: eventStack.kycDocumentUploadedRule,
-        kycStatusChangeRule: eventStack.kycStatusChangeRule,
-        userPool: authStack.userPool,
       });
 
       const monitoringStack = new MonitoringStack(app, "TestMonitoringStack", {
         environment: "test",
-        postAuthLambda: lambdaStack.postAuthLambda,
+        postAuthLambda: coreStack.postAuthLambda,
         kycUploadLambda: lambdaStack.kycUploadLambda,
         adminReviewLambda: lambdaStack.adminReviewLambda,
         userNotificationLambda: lambdaStack.userNotificationLambda,
         kycProcessingLambda: lambdaStack.kycProcessingLambda,
       });
 
-      // Verify all stacks are created
+      // Verify all stacks are created (consolidated structure)
       expect(coreStack).toBeDefined();
-      expect(eventStack).toBeDefined();
       expect(securityStack).toBeDefined();
-      expect(authStack).toBeDefined();
       expect(lambdaStack).toBeDefined();
       expect(monitoringStack).toBeDefined();
 
-      // Verify core resources exist
+      // Verify core resources exist (including auth)
       const coreTemplate = Template.fromStack(coreStack);
       coreTemplate.resourceCountIs("AWS::DynamoDB::Table", 1);
       coreTemplate.resourceCountIs("AWS::S3::Bucket", 1);
       coreTemplate.resourceCountIs("AWS::KMS::Key", 1);
+      coreTemplate.resourceCountIs("AWS::Cognito::UserPool", 1);
+      coreTemplate.resourceCountIs("AWS::Cognito::UserPoolClient", 1);
+      coreTemplate.resourceCountIs("AWS::Lambda::Function", 1); // Post-auth lambda
 
       // Verify environment tags
       coreTemplate.hasResourceProperties("AWS::DynamoDB::Table", {
@@ -89,19 +76,29 @@ describe("Deployment Validation Tests", () => {
       });
     });
 
-    test("should have proper stack outputs for cross-stack references", () => {
+    test("should have proper stack outputs for cross-stack references (consolidated)", () => {
       const coreStack = new CoreStack(app, "TestCoreStack", {
         environment: "test",
       });
 
-      const eventStack = new EventStack(app, "TestEventStack", {
+      const lambdaStack = new LambdaStack(app, "TestLambdaStack", {
         environment: "test",
+        table: coreStack.table,
+        documentBucket: coreStack.documentBucket,
+        encryptionKey: coreStack.encryptionKey,
+        userPool: coreStack.userPool,
+        userPoolClient: coreStack.userPoolClient,
+        postAuthLambda: coreStack.postAuthLambda,
+        kycUploadRole: {} as any, // Mock for test
+        adminReviewRole: {} as any,
+        userNotificationRole: {} as any,
+        kycProcessingRole: {} as any,
       });
 
       const coreTemplate = Template.fromStack(coreStack);
-      const eventTemplate = Template.fromStack(eventStack);
+      const lambdaTemplate = Template.fromStack(lambdaStack);
 
-      // Verify core stack outputs
+      // Verify core stack outputs (including auth)
       coreTemplate.hasOutput("TableName", {
         Description: "DynamoDB Table Name",
       });
@@ -114,23 +111,27 @@ describe("Deployment Validation Tests", () => {
         Description: "KMS Encryption Key ARN",
       });
 
-      // Verify event stack outputs
-      eventTemplate.hasOutput("EventBusName", {
+      coreTemplate.hasOutput("UserPoolId", {
+        Description: "Cognito User Pool ID",
+      });
+
+      coreTemplate.hasOutput("PostAuthLambdaArn", {
+        Description: "Post Authentication Lambda ARN",
+      });
+
+      // Verify lambda stack outputs (including events)
+      lambdaTemplate.hasOutput("EventBusName", {
         Description: "EventBridge Bus Name",
       });
 
-      eventTemplate.hasOutput("AdminNotificationTopicArn", {
+      lambdaTemplate.hasOutput("AdminNotificationTopicArn", {
         Description: "Admin Notification SNS Topic ARN",
       });
     });
 
-    test("should validate that existing functionality is preserved", () => {
-      // Create complete stack architecture
+    test("should validate that existing functionality is preserved (consolidated)", () => {
+      // Create complete stack architecture (consolidated)
       const coreStack = new CoreStack(app, "TestCoreStack", {
-        environment: "test",
-      });
-
-      const eventStack = new EventStack(app, "TestEventStack", {
         environment: "test",
       });
 
@@ -139,12 +140,7 @@ describe("Deployment Validation Tests", () => {
         table: coreStack.table,
         documentBucket: coreStack.documentBucket,
         encryptionKey: coreStack.encryptionKey,
-        notificationTopic: eventStack.notificationTopic,
-        eventBus: eventStack.eventBus,
-      });
-
-      const authStack = new AuthStack(app, "TestAuthStack", {
-        environment: "test",
+        userPool: coreStack.userPool,
       });
 
       const lambdaStack = new LambdaStack(app, "TestLambdaStack", {
@@ -152,26 +148,21 @@ describe("Deployment Validation Tests", () => {
         table: coreStack.table,
         documentBucket: coreStack.documentBucket,
         encryptionKey: coreStack.encryptionKey,
-        postAuthRole: securityStack.postAuthRole,
+        userPool: coreStack.userPool,
+        userPoolClient: coreStack.userPoolClient,
+        postAuthLambda: coreStack.postAuthLambda,
         kycUploadRole: securityStack.kycUploadRole,
         adminReviewRole: securityStack.adminReviewRole,
         userNotificationRole: securityStack.userNotificationRole,
         kycProcessingRole: securityStack.kycProcessingRole,
-        eventBus: eventStack.eventBus,
-        notificationTopic: eventStack.notificationTopic,
-        kycDocumentUploadedRule: eventStack.kycDocumentUploadedRule,
-        kycStatusChangeRule: eventStack.kycStatusChangeRule,
-        userPool: authStack.userPool,
       });
 
       // Verify all essential resources exist
       const coreTemplate = Template.fromStack(coreStack);
-      const eventTemplate = Template.fromStack(eventStack);
       const securityTemplate = Template.fromStack(securityStack);
-      const authTemplate = Template.fromStack(authStack);
       const lambdaTemplate = Template.fromStack(lambdaStack);
 
-      // Core resources
+      // Core resources (including auth)
       coreTemplate.hasResourceProperties("AWS::DynamoDB::Table", {
         BillingMode: "PAY_PER_REQUEST",
       });
@@ -188,20 +179,19 @@ describe("Deployment Validation Tests", () => {
         },
       });
 
-      // Event resources
-      eventTemplate.resourceCountIs("AWS::Events::EventBus", 1);
-      eventTemplate.resourceCountIs("AWS::SNS::Topic", 2); // Admin and user notifications
+      // Auth resources (consolidated into CoreStack)
+      coreTemplate.resourceCountIs("AWS::Cognito::UserPool", 1);
+      coreTemplate.resourceCountIs("AWS::Cognito::UserPoolClient", 1);
+      coreTemplate.resourceCountIs("AWS::Lambda::Function", 1); // Post-auth lambda
 
       // Security resources
-      securityTemplate.resourceCountIs("AWS::IAM::Role", 5); // All Lambda roles
+      securityTemplate.resourceCountIs("AWS::IAM::Role", 4); // Lambda roles (excluding post-auth)
 
-      // Auth resources
-      authTemplate.resourceCountIs("AWS::Cognito::UserPool", 1);
-      authTemplate.resourceCountIs("AWS::Cognito::UserPoolClient", 1);
-
-      // Lambda resources
-      lambdaTemplate.resourceCountIs("AWS::Lambda::Function", 5); // All Lambda functions
+      // Lambda resources (including events)
+      lambdaTemplate.resourceCountIs("AWS::Lambda::Function", 4); // Lambda functions (excluding post-auth)
       lambdaTemplate.resourceCountIs("AWS::ApiGateway::RestApi", 1);
+      lambdaTemplate.resourceCountIs("AWS::Events::EventBus", 1); // Event resources consolidated
+      lambdaTemplate.resourceCountIs("AWS::SNS::Topic", 2); // Admin and user notifications
     });
   });
 });

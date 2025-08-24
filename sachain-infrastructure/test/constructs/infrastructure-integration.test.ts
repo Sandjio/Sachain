@@ -3,8 +3,6 @@ import { Template, Match } from "aws-cdk-lib/assertions";
 import {
   CoreStack,
   SecurityStack,
-  EventStack,
-  AuthStack,
   LambdaStack,
   MonitoringStack,
 } from "../../lib/stacks";
@@ -12,21 +10,15 @@ import {
 describe("Infrastructure Integration", () => {
   let app: cdk.App;
   let coreStack: CoreStack;
-  let eventStack: EventStack;
   let securityStack: SecurityStack;
-  let authStack: AuthStack;
   let lambdaStack: LambdaStack;
   let monitoringStack: MonitoringStack;
 
   beforeEach(() => {
     app = new cdk.App();
 
-    // Create stacks in dependency order
+    // Create stacks in consolidated dependency order
     coreStack = new CoreStack(app, "TestCoreStack", {
-      environment: "test",
-    });
-
-    eventStack = new EventStack(app, "TestEventStack", {
       environment: "test",
     });
 
@@ -35,33 +27,26 @@ describe("Infrastructure Integration", () => {
       table: coreStack.table,
       documentBucket: coreStack.documentBucket,
       encryptionKey: coreStack.encryptionKey,
-      notificationTopic: eventStack.notificationTopic,
-      eventBus: eventStack.eventBus,
-    });
-
-    authStack = new AuthStack(app, "TestAuthStack", {
-      environment: "test",
+      userPool: coreStack.userPool,
     });
 
     lambdaStack = new LambdaStack(app, "TestLambdaStack", {
       environment: "test",
       table: coreStack.table,
       documentBucket: coreStack.documentBucket,
-      postAuthRole: securityStack.postAuthRole,
       kycUploadRole: securityStack.kycUploadRole,
       adminReviewRole: securityStack.adminReviewRole,
       userNotificationRole: securityStack.userNotificationRole,
       kycProcessingRole: securityStack.kycProcessingRole,
-      eventBus: eventStack.eventBus,
-      notificationTopic: eventStack.notificationTopic,
-      kycDocumentUploadedRule: eventStack.kycDocumentUploadedRule,
-      kycStatusChangeRule: eventStack.kycStatusChangeRule,
-      userPool: authStack.userPool,
+      encryptionKey: coreStack.encryptionKey,
+      userPool: coreStack.userPool,
+      userPoolClient: coreStack.userPoolClient,
+      postAuthLambda: coreStack.postAuthLambda,
     });
 
     monitoringStack = new MonitoringStack(app, "TestMonitoringStack", {
       environment: "test",
-      postAuthLambda: lambdaStack.postAuthLambda,
+      postAuthLambda: coreStack.postAuthLambda,
       kycUploadLambda: lambdaStack.kycUploadLambda,
       adminReviewLambda: lambdaStack.adminReviewLambda,
       userNotificationLambda: lambdaStack.userNotificationLambda,
@@ -69,16 +54,16 @@ describe("Infrastructure Integration", () => {
     });
   });
 
-  test("creates EventBridge custom bus for KYC events", () => {
-    const eventTemplate = Template.fromStack(eventStack);
-    eventTemplate.hasResourceProperties("AWS::Events::EventBus", {
+  test("creates EventBridge custom bus for KYC events in LambdaStack", () => {
+    const lambdaTemplate = Template.fromStack(lambdaStack);
+    lambdaTemplate.hasResourceProperties("AWS::Events::EventBus", {
       Name: "sachain-kyc-events-test",
     });
   });
 
-  test("creates KYC document uploaded rule", () => {
-    const eventTemplate = Template.fromStack(eventStack);
-    eventTemplate.hasResourceProperties("AWS::Events::Rule", {
+  test("creates KYC document uploaded rule in LambdaStack", () => {
+    const lambdaTemplate = Template.fromStack(lambdaStack);
+    lambdaTemplate.hasResourceProperties("AWS::Events::Rule", {
       Name: "sachain-kyc-document-uploaded-test",
       EventPattern: {
         source: ["sachain.kyc"],
@@ -90,14 +75,28 @@ describe("Infrastructure Integration", () => {
     });
   });
 
-  test("creates SNS topics for notifications", () => {
-    const eventTemplate = Template.fromStack(eventStack);
-    eventTemplate.hasResourceProperties("AWS::SNS::Topic", {
+  test("creates SNS topics for notifications in LambdaStack", () => {
+    const lambdaTemplate = Template.fromStack(lambdaStack);
+    lambdaTemplate.hasResourceProperties("AWS::SNS::Topic", {
       TopicName: "sachain-kyc-admin-notifications-test",
     });
 
-    eventTemplate.hasResourceProperties("AWS::SNS::Topic", {
+    lambdaTemplate.hasResourceProperties("AWS::SNS::Topic", {
       TopicName: "sachain-kyc-user-notifications-test",
+    });
+  });
+
+  test("creates Cognito User Pool in CoreStack", () => {
+    const coreTemplate = Template.fromStack(coreStack);
+    coreTemplate.hasResourceProperties("AWS::Cognito::UserPool", {
+      UserPoolName: "sachain-user-pool-test",
+    });
+  });
+
+  test("creates post-authentication lambda in CoreStack", () => {
+    const coreTemplate = Template.fromStack(coreStack);
+    coreTemplate.hasResourceProperties("AWS::Lambda::Function", {
+      FunctionName: "sachain-post-auth-test",
     });
   });
 
@@ -168,10 +167,10 @@ describe("Infrastructure Integration", () => {
   });
 
   test("outputs important resource information", () => {
-    const eventTemplate = Template.fromStack(eventStack);
+    const lambdaTemplate = Template.fromStack(lambdaStack);
     const coreTemplate = Template.fromStack(coreStack);
 
-    eventTemplate.hasOutput("EventBusName", {
+    lambdaTemplate.hasOutput("EventBusName", {
       Description: "EventBridge Bus Name",
     });
 
@@ -182,6 +181,14 @@ describe("Infrastructure Integration", () => {
     coreTemplate.hasOutput("BucketName", {
       Description: "S3 Document Bucket Name",
     });
+
+    coreTemplate.hasOutput("UserPoolId", {
+      Description: "Cognito User Pool ID",
+    });
+
+    coreTemplate.hasOutput("PostAuthLambdaArn", {
+      Description: "Post-Authentication Lambda Function ARN",
+    });
   });
 
   test("validates cross-stack dependencies", () => {
@@ -190,15 +197,36 @@ describe("Infrastructure Integration", () => {
     expect(coreStack.documentBucket).toBeDefined();
     expect(coreStack.encryptionKey).toBeDefined();
 
-    expect(eventStack.eventBus).toBeDefined();
-    expect(eventStack.notificationTopic).toBeDefined();
+    // Auth resources now in CoreStack
+    expect(coreStack.userPool).toBeDefined();
+    expect(coreStack.userPoolClient).toBeDefined();
+    expect(coreStack.postAuthLambda).toBeDefined();
 
-    expect(securityStack.postAuthRole).toBeDefined();
+    // Event resources now in LambdaStack
+    expect(lambdaStack.eventBus).toBeDefined();
+    expect(lambdaStack.notificationTopic).toBeDefined();
+    expect(lambdaStack.userNotificationTopic).toBeDefined();
+
     expect(securityStack.kycUploadRole).toBeDefined();
+    expect(securityStack.adminReviewRole).toBeDefined();
+    expect(securityStack.userNotificationRole).toBeDefined();
+    expect(securityStack.kycProcessingRole).toBeDefined();
 
-    expect(authStack.userPool).toBeDefined();
-
-    expect(lambdaStack.postAuthLambda).toBeDefined();
     expect(lambdaStack.kycUploadLambda).toBeDefined();
+    expect(lambdaStack.adminReviewLambda).toBeDefined();
+    expect(lambdaStack.userNotificationLambda).toBeDefined();
+    expect(lambdaStack.kycProcessingLambda).toBeDefined();
+  });
+
+  test("validates consolidated stack structure", () => {
+    // Verify CoreStack includes auth functionality
+    expect(coreStack.cognitoConstruct).toBeDefined();
+    expect(coreStack.postAuthLambdaConstruct).toBeDefined();
+
+    // Verify LambdaStack includes event functionality
+    expect(lambdaStack.eventBridgeConstruct).toBeDefined();
+    expect(lambdaStack.kycStatusChangeRule).toBeDefined();
+    expect(lambdaStack.kycDocumentUploadedRule).toBeDefined();
+    expect(lambdaStack.kycReviewCompletedRule).toBeDefined();
   });
 });

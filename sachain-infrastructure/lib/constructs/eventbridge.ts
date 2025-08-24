@@ -223,4 +223,24 @@ export class EventBridgeConstruct extends Construct {
       description: "User Notification SNS Topic ARN",
     });
   }
+
+  public addLambdaTargets(
+    kycProcessingLambda: lambda.Function,
+    userNotificationLambda: lambda.Function
+  ): void {
+    // Add lambda targets to event rules
+    this.kycDocumentUploadedRule.addTarget(
+      new targets.LambdaFunction(kycProcessingLambda, {
+        retryAttempts: 3,
+        maxEventAge: cdk.Duration.hours(2),
+      })
+    );
+
+    this.kycStatusChangeRule.addTarget(
+      new targets.LambdaFunction(userNotificationLambda, {
+        retryAttempts: 2,
+        maxEventAge: cdk.Duration.hours(1),
+      })
+    );
+  }
 }

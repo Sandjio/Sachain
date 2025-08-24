@@ -273,9 +273,20 @@ jobs:
       - name: Generate deployment report
         working-directory: sachain-infrastructure
         run: |
-          aws cloudformation describe-stacks \
-            --stack-name SachainKYCStack-${{ needs.determine-environment.outputs.environment }} \
-            --output json > deployment-report.json
+          # Generate consolidated deployment report for all stacks
+          echo '{"stacks": [' > deployment-report.json
+          STACKS=(
+            "SachainCoreStack-${{ needs.determine-environment.outputs.environment }}"
+            "SachainSecurityStack-${{ needs.determine-environment.outputs.environment }}"
+            "SachainLambdaStack-${{ needs.determine-environment.outputs.environment }}"
+            "SachainMonitoringStack-${{ needs.determine-environment.outputs.environment }}"
+          )
+
+          for i in "${!STACKS[@]}"; do
+            if [ $i -gt 0 ]; then echo ',' >> deployment-report.json; fi
+            aws cloudformation describe-stacks --stack-name "${STACKS[$i]}" --output json | jq '.Stacks[0]' >> deployment-report.json
+          done
+          echo ']}' >> deployment-report.json
 
       - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
@@ -307,10 +318,11 @@ jobs:
 
       - name: Run smoke tests
         run: |
-          # Get stack outputs
-          STACK_NAME="SachainKYCStack-${{ needs.determine-environment.outputs.environment }}"
-          API_URL=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`KYCUploadApiUrl`].OutputValue' --output text)
-          USER_POOL_ID=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' --output text)
+          # Get stack outputs from consolidated stacks
+          CORE_STACK="SachainCoreStack-${{ needs.determine-environment.outputs.environment }}"
+          LAMBDA_STACK="SachainLambdaStack-${{ needs.determine-environment.outputs.environment }}"
+          API_URL=$(aws cloudformation describe-stacks --stack-name $LAMBDA_STACK --query 'Stacks[0].Outputs[?OutputKey==`KYCUploadApiUrl`].OutputValue' --output text)
+          USER_POOL_ID=$(aws cloudformation describe-stacks --stack-name $CORE_STACK --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' --output text)
 
           # Test API Gateway health
           echo "Testing API Gateway health..."
@@ -342,8 +354,17 @@ jobs:
       - name: Rollback deployment
         run: |
           echo "Deployment failed, initiating rollback..."
-          # Get previous stack template
-          aws cloudformation get-template --stack-name SachainKYCStack-prod --template-stage Processed > previous-template.json
+          # Get previous stack templates for consolidated stacks
+          STACKS=(
+            "SachainCoreStack-prod"
+            "SachainSecurityStack-prod"
+            "SachainLambdaStack-prod"
+            "SachainMonitoringStack-prod"
+          )
+
+          for stack in "${STACKS[@]}"; do
+            aws cloudformation get-template --stack-name $stack --template-stage Processed > "previous-template-$stack.json"
+          done
 
           # Note: Actual rollback would require more sophisticated logic
           # This is a placeholder for rollback procedures

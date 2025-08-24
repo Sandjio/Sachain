@@ -181,8 +181,8 @@ deploy_infrastructure() {
     fi
   fi
   
-  # Deploy with appropriate options
-  local deploy_cmd="cdk deploy --context environment=$ENVIRONMENT"
+  # Deploy all consolidated stacks with appropriate options
+  local deploy_cmd="cdk deploy --all --context environment=$ENVIRONMENT"
   
   if [[ "$FORCE_DEPLOY" == "true" ]]; then
     deploy_cmd="$deploy_cmd --require-approval never"
@@ -201,18 +201,20 @@ deploy_infrastructure() {
 post_deployment_validation() {
   log_info "Running post-deployment validation..."
   
-  # Get stack outputs
-  local stack_name="SachainKYCStack-$ENVIRONMENT"
-  local outputs=$(aws cloudformation describe-stacks --stack-name "$stack_name" --query 'Stacks[0].Outputs' --output json 2>/dev/null || echo "[]")
+  # Get stack outputs from consolidated stacks
+  local core_stack_name="SachainCoreStack-$ENVIRONMENT"
+  local lambda_stack_name="SachainLambdaStack-$ENVIRONMENT"
+  local core_outputs=$(aws cloudformation describe-stacks --stack-name "$core_stack_name" --query 'Stacks[0].Outputs' --output json 2>/dev/null || echo "[]")
+  local lambda_outputs=$(aws cloudformation describe-stacks --stack-name "$lambda_stack_name" --query 'Stacks[0].Outputs' --output json 2>/dev/null || echo "[]")
   
-  if [[ "$outputs" == "[]" ]]; then
+  if [[ "$core_outputs" == "[]" && "$lambda_outputs" == "[]" ]]; then
     log_warning "Could not retrieve stack outputs for validation"
     return
   fi
   
-  # Extract key outputs
-  local user_pool_id=$(echo "$outputs" | jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue')
-  local api_url=$(echo "$outputs" | jq -r '.[] | select(.OutputKey=="KYCUploadApiUrl") | .OutputValue')
+  # Extract key outputs from consolidated stacks
+  local user_pool_id=$(echo "$core_outputs" | jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue')
+  local api_url=$(echo "$lambda_outputs" | jq -r '.[] | select(.OutputKey=="KYCUploadApiUrl") | .OutputValue')
   
   # Validate Cognito User Pool
   if [[ "$user_pool_id" != "null" && "$user_pool_id" != "" ]]; then
@@ -240,13 +242,27 @@ generate_report() {
   log_info "Generating deployment report..."
   
   local report_file="deployment-report-$ENVIRONMENT-$(date +%Y%m%d-%H%M%S).json"
-  local stack_name="SachainKYCStack-$ENVIRONMENT"
+  local stack_names=(
+    "SachainCoreStack-$ENVIRONMENT"
+    "SachainSecurityStack-$ENVIRONMENT" 
+    "SachainLambdaStack-$ENVIRONMENT"
+    "SachainMonitoringStack-$ENVIRONMENT"
+  )
   
-  # Get stack information
-  aws cloudformation describe-stacks --stack-name "$stack_name" --output json > "$report_file" 2>/dev/null || {
-    log_warning "Could not generate deployment report"
-    return
-  }
+  # Get consolidated stack information
+  echo "{\"stacks\": [" > "$report_file"
+  local first=true
+  for stack_name in "${stack_names[@]}"; do
+    if [[ "$first" == "false" ]]; then
+      echo "," >> "$report_file"
+    fi
+    aws cloudformation describe-stacks --stack-name "$stack_name" --output json 2>/dev/null | jq '.Stacks[0]' >> "$report_file" || {
+      log_warning "Could not get information for stack: $stack_name"
+      continue
+    }
+    first=false
+  done
+  echo "]}" >> "$report_file"
   
   log_success "Deployment report saved to $report_file"
 }

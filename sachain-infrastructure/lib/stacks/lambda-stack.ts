@@ -9,43 +9,38 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
-import { LambdaConstruct } from "../constructs";
+import { LambdaConstruct, EventBridgeConstruct } from "../constructs";
 import { LambdaStackOutputs, StackDependencies } from "../interfaces";
 import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
 export interface LambdaStackProps extends cdk.StackProps {
   environment: string;
-  // Core resources from CoreStack
+  // Core resources from CoreStack (now includes auth)
   table: dynamodb.Table;
   documentBucket: s3.Bucket;
   encryptionKey: kms.Key;
+  userPool: cognito.UserPool;
+  userPoolClient: cognito.UserPoolClient;
+  postAuthLambda: lambda.Function;
   // Security resources from SecurityStack
-  postAuthRole: iam.Role;
   kycUploadRole: iam.Role;
   adminReviewRole: iam.Role;
   userNotificationRole: iam.Role;
   kycProcessingRole: iam.Role;
-  // Event resources from EventStack
-  eventBus: events.EventBus;
-  notificationTopic: sns.Topic;
-  kycDocumentUploadedRule: events.Rule;
-  kycStatusChangeRule: events.Rule;
-  // Auth resources from AuthStack
-  userPool: cognito.UserPool;
-  userPoolClient: cognito.UserPoolClient;
+  // Admin emails for event notifications
+  adminEmails?: string[];
 }
 
 export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
   public readonly lambdaConstruct: LambdaConstruct;
+  public readonly eventBridgeConstruct: EventBridgeConstruct;
 
-  // LambdaStackOutputs interface implementation
-  public readonly postAuthLambda: lambda.Function;
+  // LambdaStackOutputs interface implementation - Lambda functions (excluding post-auth)
   public readonly kycUploadLambda: lambda.Function;
   public readonly adminReviewLambda: lambda.Function;
   public readonly userNotificationLambda: lambda.Function;
   public readonly kycProcessingLambda: lambda.Function;
   public readonly complianceLambda?: lambda.Function;
-  public readonly postAuthLambdaArn: string;
   public readonly kycUploadLambdaArn: string;
   public readonly adminReviewLambdaArn: string;
   public readonly userNotificationLambdaArn: string;
@@ -56,6 +51,21 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
   public readonly apiId: string;
   public readonly apiRootResourceId: string;
 
+  // EventBridge resources (consolidated from EventStack)
+  public readonly eventBus: events.EventBus;
+  public readonly eventBusName: string;
+  public readonly eventBusArn: string;
+  public readonly notificationTopic: sns.Topic;
+  public readonly userNotificationTopic: sns.Topic;
+  public readonly adminNotificationTopicArn: string;
+  public readonly userNotificationTopicArn: string;
+  public readonly kycStatusChangeRule: events.Rule;
+  public readonly kycDocumentUploadedRule: events.Rule;
+  public readonly kycReviewCompletedRule: events.Rule;
+  public readonly kycStatusChangeRuleArn: string;
+  public readonly kycDocumentUploadedRuleArn: string;
+  public readonly kycReviewCompletedRuleArn: string;
+
   constructor(scope: Construct, id: string, props: LambdaStackProps) {
     super(scope, id, props);
 
@@ -65,23 +75,15 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
         table: props.table,
         documentBucket: props.documentBucket,
         encryptionKey: props.encryptionKey,
+        userPool: props.userPool,
+        userPoolClient: props.userPoolClient,
+        postAuthLambda: props.postAuthLambda,
       },
       securityOutputs: {
-        postAuthRole: props.postAuthRole,
         kycUploadRole: props.kycUploadRole,
         adminReviewRole: props.adminReviewRole,
         userNotificationRole: props.userNotificationRole,
         kycProcessingRole: props.kycProcessingRole,
-      },
-      eventOutputs: {
-        eventBus: props.eventBus,
-        notificationTopic: props.notificationTopic,
-        kycDocumentUploadedRule: props.kycDocumentUploadedRule,
-        kycStatusChangeRule: props.kycStatusChangeRule,
-      },
-      authOutputs: {
-        userPool: props.userPool,
-        userPoolClient: props.userPoolClient,
       },
     };
 
@@ -97,11 +99,9 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     // Record cross-stack references for tracking
     ResourceReferenceTracker.recordReference(id, "CoreStack", "table");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "documentBucket");
-    ResourceReferenceTracker.recordReference(
-      id,
-      "SecurityStack",
-      "postAuthRole"
-    );
+    ResourceReferenceTracker.recordReference(id, "CoreStack", "userPool");
+    ResourceReferenceTracker.recordReference(id, "CoreStack", "userPoolClient");
+    ResourceReferenceTracker.recordReference(id, "CoreStack", "postAuthLambda");
     ResourceReferenceTracker.recordReference(
       id,
       "SecurityStack",
@@ -122,50 +122,56 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       "SecurityStack",
       "kycProcessingRole"
     );
-    ResourceReferenceTracker.recordReference(id, "EventStack", "eventBus");
-    ResourceReferenceTracker.recordReference(
-      id,
-      "EventStack",
-      "notificationTopic"
-    );
-    ResourceReferenceTracker.recordReference(
-      id,
-      "EventStack",
-      "kycDocumentUploadedRule"
-    );
-    ResourceReferenceTracker.recordReference(
-      id,
-      "EventStack",
-      "kycStatusChangeRule"
-    );
-    ResourceReferenceTracker.recordReference(id, "AuthStack", "userPool");
 
     // Add environment tags
     cdk.Tags.of(this).add("Environment", props.environment);
     cdk.Tags.of(this).add("Project", "Sachain");
     cdk.Tags.of(this).add("Component", "Lambda");
 
+    // Create EventBridge construct with event-driven resources
+    this.eventBridgeConstruct = new EventBridgeConstruct(this, "EventBridge", {
+      environment: props.environment,
+      adminEmails: props.adminEmails,
+    });
+
+    // Expose EventBridge resources
+    this.eventBus = this.eventBridgeConstruct.eventBus;
+    this.eventBusName = this.eventBus.eventBusName;
+    this.eventBusArn = this.eventBus.eventBusArn;
+    this.notificationTopic = this.eventBridgeConstruct.notificationTopic;
+    this.userNotificationTopic =
+      this.eventBridgeConstruct.userNotificationTopic;
+    this.adminNotificationTopicArn = this.notificationTopic.topicArn;
+    this.userNotificationTopicArn = this.userNotificationTopic.topicArn;
+    this.kycStatusChangeRule = this.eventBridgeConstruct.kycStatusChangeRule;
+    this.kycDocumentUploadedRule =
+      this.eventBridgeConstruct.kycDocumentUploadedRule;
+    this.kycReviewCompletedRule =
+      this.eventBridgeConstruct.kycReviewCompletedRule;
+    this.kycStatusChangeRuleArn = this.kycStatusChangeRule.ruleArn;
+    this.kycDocumentUploadedRuleArn = this.kycDocumentUploadedRule.ruleArn;
+    this.kycReviewCompletedRuleArn = this.kycReviewCompletedRule.ruleArn;
+
     // Create a mock security construct object for compatibility
     const mockSecurityConstruct = {
-      postAuthRole: props.postAuthRole,
       kycUploadRole: props.kycUploadRole,
       adminReviewRole: props.adminReviewRole,
       userNotificationRole: props.userNotificationRole,
       kycProcessingRole: props.kycProcessingRole,
     };
 
-    // Create Lambda construct with all dependencies
+    // Create Lambda construct with all dependencies (excluding post-auth lambda)
     this.lambdaConstruct = new LambdaConstruct(this, "Lambda", {
       table: props.table,
       documentBucket: props.documentBucket,
+      encryptionKey: props.encryptionKey,
       environment: props.environment,
       securityConstruct: mockSecurityConstruct as any, // Type assertion for compatibility
-      eventBus: props.eventBus,
-      notificationTopic: props.notificationTopic,
+      eventBus: this.eventBus,
+      notificationTopic: this.notificationTopic,
     });
 
-    // Expose Lambda functions for cross-stack references
-    this.postAuthLambda = this.lambdaConstruct.postAuthLambda;
+    // Expose Lambda functions for cross-stack references (excluding post-auth)
     this.kycUploadLambda = this.lambdaConstruct.kycUploadLambda;
     this.adminReviewLambda = this.lambdaConstruct.adminReviewLambda;
     this.userNotificationLambda = this.lambdaConstruct.userNotificationLambda;
@@ -173,7 +179,6 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     this.api = this.lambdaConstruct.api;
 
     // Set ARNs and identifiers for interface compliance
-    this.postAuthLambdaArn = this.postAuthLambda.functionArn;
     this.kycUploadLambdaArn = this.kycUploadLambda.functionArn;
     this.adminReviewLambdaArn = this.adminReviewLambda.functionArn;
     this.userNotificationLambdaArn = this.userNotificationLambda.functionArn;
@@ -185,88 +190,161 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     // Add Cognito authorization to API endpoints
     this.lambdaConstruct.addCognitoAuthorization(props.userPool);
 
-    // Note: EventBridge integrations (Lambda targets) are not configured here
-    // to avoid circular dependencies between EventStack and LambdaStack.
-    // Lambda targets can be added later through a separate deployment or
-    // through EventBridge console/CLI after both stacks are deployed.
+    // Configure EventBridge integrations with local lambda functions
+    this.configureEventBridgeIntegrations();
 
-    // Update Lambda environment variables with EventBridge resources
-    this.adminReviewLambda.addEnvironment(
-      "EVENT_BUS_NAME",
-      props.eventBus.eventBusName
-    );
+    // Add EventBridge permissions to roles (since EventBridge resources are created here)
+    this.addEventBridgePermissions(props);
 
     // Create stack outputs for cross-stack references
     this.createStackOutputs(props.environment);
   }
 
-  // Note: EventBridge integrations are commented out to avoid circular dependencies.
-  // Lambda targets for event rules can be added through:
-  // 1. A separate CDK stack deployed after both EventStack and LambdaStack
-  // 2. AWS CLI/Console configuration post-deployment
-  // 3. A custom resource that configures the targets after deployment
-  //
-  // private configureEventBridgeIntegrations(props: LambdaStackProps): void {
-  //   props.kycDocumentUploadedRule.addTarget(
-  //     new targets.LambdaFunction(this.kycProcessingLambda, {
-  //       retryAttempts: 3,
-  //       maxEventAge: cdk.Duration.hours(2),
-  //     })
-  //   );
-  //   props.kycStatusChangeRule.addTarget(
-  //     new targets.LambdaFunction(this.userNotificationLambda)
-  //   );
-  // }
+  private configureEventBridgeIntegrations(): void {
+    // Configure event rule targets to reference local lambda functions
+    this.eventBridgeConstruct.addLambdaTargets(
+      this.kycProcessingLambda,
+      this.userNotificationLambda
+    );
+  }
+
+  private addEventBridgePermissions(props: LambdaStackProps): void {
+    // Add EventBridge permissions to KYC upload role
+    // Using wildcard for event bus to avoid circular dependency
+    props.kycUploadRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "EventBridgePutEvents",
+        effect: iam.Effect.ALLOW,
+        actions: ["events:PutEvents"],
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
+        ],
+        conditions: {
+          StringEquals: {
+            "events:source": "sachain.kyc",
+          },
+        },
+      })
+    );
+
+    // Add EventBridge permissions to admin review role
+    props.adminReviewRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "EventBridgePutEvents",
+        effect: iam.Effect.ALLOW,
+        actions: ["events:PutEvents"],
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
+        ],
+        conditions: {
+          StringEquals: {
+            "events:source": "sachain.kyc",
+          },
+        },
+      })
+    );
+
+    // Add SNS permissions to KYC processing role for admin notifications
+    // Using wildcard for SNS topics to avoid circular dependency
+    props.kycProcessingRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "SNSPublishAdminNotifications",
+        effect: iam.Effect.ALLOW,
+        actions: ["sns:Publish"],
+        resources: [
+          `arn:aws:sns:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:sachain-kyc-admin-notifications-*`,
+          `arn:aws:sns:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:sachain-user-notifications-*`,
+        ],
+      })
+    );
+  }
 
   private createStackOutputs(environment: string): void {
     // Export API Gateway URL
     new cdk.CfnOutput(this, "ApiUrl", {
       value: this.api.url,
       description: "Sachain API Gateway URL",
-      exportName: `${environment}-sachain-api-url`,
+      exportName: `${environment}-sachain-lambda-api-url`,
     });
 
     // Export Lambda function ARNs for monitoring and other integrations
-    new cdk.CfnOutput(this, "PostAuthLambdaArn", {
-      value: this.postAuthLambda.functionArn,
-      description: "Post-Authentication Lambda Function ARN",
-      exportName: `${environment}-sachain-post-auth-lambda-arn`,
-    });
-
     new cdk.CfnOutput(this, "KycUploadLambdaArn", {
       value: this.kycUploadLambda.functionArn,
       description: "KYC Upload Lambda Function ARN",
-      exportName: `${environment}-sachain-kyc-upload-lambda-arn`,
+      exportName: `${environment}-sachain-lambda-kyc-upload-lambda-arn`,
     });
 
     new cdk.CfnOutput(this, "AdminReviewLambdaArn", {
       value: this.adminReviewLambda.functionArn,
       description: "Admin Review Lambda Function ARN",
-      exportName: `${environment}-sachain-admin-review-lambda-arn`,
+      exportName: `${environment}-sachain-lambda-admin-review-lambda-arn`,
     });
 
     new cdk.CfnOutput(this, "UserNotificationLambdaArn", {
       value: this.userNotificationLambda.functionArn,
       description: "User Notification Lambda Function ARN",
-      exportName: `${environment}-sachain-user-notification-lambda-arn`,
+      exportName: `${environment}-sachain-lambda-user-notification-lambda-arn`,
     });
 
     new cdk.CfnOutput(this, "KycProcessingLambdaArn", {
       value: this.kycProcessingLambda.functionArn,
       description: "KYC Processing Lambda Function ARN",
-      exportName: `${environment}-sachain-kyc-processing-lambda-arn`,
+      exportName: `${environment}-sachain-lambda-kyc-processing-lambda-arn`,
     });
 
     new cdk.CfnOutput(this, "ApiId", {
       value: this.api.restApiId,
       description: "API Gateway REST API ID",
-      exportName: `${environment}-sachain-api-id`,
+      exportName: `${environment}-sachain-lambda-api-id`,
     });
 
     new cdk.CfnOutput(this, "ApiRootResourceId", {
       value: this.api.restApiRootResourceId,
       description: "API Gateway Root Resource ID",
-      exportName: `${environment}-sachain-api-root-resource-id`,
+      exportName: `${environment}-sachain-lambda-api-root-resource-id`,
+    });
+
+    // Export EventBridge resources (consolidated from EventStack)
+    new cdk.CfnOutput(this, "EventBusName", {
+      value: this.eventBus.eventBusName,
+      description: "EventBridge Bus Name",
+      exportName: `${environment}-sachain-lambda-event-bus-name`,
+    });
+
+    new cdk.CfnOutput(this, "EventBusArn", {
+      value: this.eventBus.eventBusArn,
+      description: "EventBridge Bus ARN",
+      exportName: `${environment}-sachain-lambda-event-bus-arn`,
+    });
+
+    new cdk.CfnOutput(this, "AdminNotificationTopicArn", {
+      value: this.notificationTopic.topicArn,
+      description: "Admin Notification SNS Topic ARN",
+      exportName: `${environment}-sachain-lambda-admin-notification-topic-arn`,
+    });
+
+    new cdk.CfnOutput(this, "UserNotificationTopicArn", {
+      value: this.userNotificationTopic.topicArn,
+      description: "User Notification SNS Topic ARN",
+      exportName: `${environment}-sachain-lambda-user-notification-topic-arn`,
+    });
+
+    new cdk.CfnOutput(this, "KycStatusChangeRuleArn", {
+      value: this.kycStatusChangeRule.ruleArn,
+      description: "KYC Status Change Event Rule ARN",
+      exportName: `${environment}-sachain-lambda-kyc-status-change-rule-arn`,
+    });
+
+    new cdk.CfnOutput(this, "KycDocumentUploadedRuleArn", {
+      value: this.kycDocumentUploadedRule.ruleArn,
+      description: "KYC Document Uploaded Event Rule ARN",
+      exportName: `${environment}-sachain-lambda-kyc-document-uploaded-rule-arn`,
+    });
+
+    new cdk.CfnOutput(this, "KycReviewCompletedRuleArn", {
+      value: this.kycReviewCompletedRule.ruleArn,
+      description: "KYC Review Completed Event Rule ARN",
+      exportName: `${environment}-sachain-lambda-kyc-review-completed-rule-arn`,
     });
   }
 }

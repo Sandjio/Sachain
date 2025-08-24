@@ -5,6 +5,7 @@
 import {
   CrossStackValidator,
   DependencyResolver,
+  ResourceReferenceTracker,
   CrossStackValidationError,
   StackDeploymentError,
   StackErrorType,
@@ -26,19 +27,16 @@ describe("Enhanced CrossStackValidator", () => {
     });
 
     test("should validate SecurityStack with proper dependencies", () => {
-      // First deploy CoreStack
+      // First deploy CoreStack (now includes auth resources)
       CrossStackValidator.validateStackDeployment("CoreStack", {});
       CrossStackValidator.markStackDeployed("CoreStack");
-
-      // Deploy EventStack
-      CrossStackValidator.validateStackDeployment("EventStack", {});
-      CrossStackValidator.markStackDeployed("EventStack");
 
       // Now SecurityStack should validate successfully
       const mockDependencies = {
         table: { tableName: "test-table" },
         documentBucket: { bucketName: "test-bucket" },
         encryptionKey: { keyId: "test-key" },
+        userPool: { userPoolId: "test-pool" }, // Now from CoreStack
       };
 
       expect(() => {
@@ -60,19 +58,16 @@ describe("Enhanced CrossStackValidator", () => {
     });
 
     test("should validate LambdaStack with all dependencies", () => {
-      // Deploy CoreStack with proper dependencies
+      // Deploy CoreStack with proper dependencies (now includes auth resources)
       CrossStackValidator.validateStackDeployment("CoreStack", {});
       CrossStackValidator.markStackDeployed("CoreStack");
-
-      // Deploy EventStack
-      CrossStackValidator.validateStackDeployment("EventStack", {});
-      CrossStackValidator.markStackDeployed("EventStack");
 
       // Deploy SecurityStack with proper dependencies
       const securityDeps = {
         table: { tableName: "test-table" },
         documentBucket: { bucketName: "test-bucket" },
         encryptionKey: { keyId: "test-key" },
+        userPool: { userPoolId: "test-pool" }, // Now from CoreStack
       };
       CrossStackValidator.validateStackDeployment(
         "SecurityStack",
@@ -80,19 +75,17 @@ describe("Enhanced CrossStackValidator", () => {
       );
       CrossStackValidator.markStackDeployed("SecurityStack");
 
-      // Deploy AuthStack
-      CrossStackValidator.validateStackDeployment("AuthStack", {});
-      CrossStackValidator.markStackDeployed("AuthStack");
-
       const mockDependencies = {
-        postAuthRole: { roleArn: "arn:aws:iam::123456789012:role/test" },
         kycUploadRole: { roleArn: "arn:aws:iam::123456789012:role/test" },
         adminReviewRole: { roleArn: "arn:aws:iam::123456789012:role/test" },
         userNotificationRole: {
           roleArn: "arn:aws:iam::123456789012:role/test",
         },
         kycProcessingRole: { roleArn: "arn:aws:iam::123456789012:role/test" },
-        userPool: { userPoolId: "test-pool" },
+        userPool: { userPoolId: "test-pool" }, // From CoreStack
+        postAuthLambda: {
+          functionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
+        }, // From CoreStack
       };
 
       expect(() => {
@@ -107,22 +100,25 @@ describe("Enhanced CrossStackValidator", () => {
   describe("Enhanced Validation Methods", () => {
     test("should validate CoreStack outputs with detailed errors", () => {
       const invalidOutputs = {
-        table: { tableName: "" }, // Invalid - empty name
+        table: { tableName: "" } as any, // Invalid - empty name
         documentBucket: undefined,
         encryptionKey: undefined,
+        userPool: undefined, // Now required in CoreStack
+        userPoolClient: undefined, // Now required in CoreStack
+        postAuthLambda: undefined, // Now required in CoreStack
       };
 
       expect(() => {
         CrossStackValidator.validateCoreStackOutputs(
           invalidOutputs,
-          "TestStack"
+          "ProductionStack" // Use non-test stack name
         );
       }).toThrow(CrossStackValidationError);
 
       try {
         CrossStackValidator.validateCoreStackOutputs(
           invalidOutputs,
-          "TestStack"
+          "ProductionStack"
         );
       } catch (error) {
         if (error instanceof CrossStackValidationError) {
@@ -138,8 +134,7 @@ describe("Enhanced CrossStackValidator", () => {
 
     test("should validate SecurityStack outputs with role validation", () => {
       const invalidOutputs = {
-        postAuthRole: { roleArn: "" }, // Invalid - empty ARN
-        kycUploadRole: undefined,
+        kycUploadRole: { roleArn: "" }, // Invalid - empty ARN
         adminReviewRole: undefined,
         userNotificationRole: undefined,
         kycProcessingRole: undefined,
@@ -153,7 +148,7 @@ describe("Enhanced CrossStackValidator", () => {
       }).toThrow(CrossStackValidationError);
     });
 
-    test("should validate EventStack outputs with resource properties", () => {
+    test("should validate LambdaStack event outputs with resource properties", () => {
       const invalidOutputs = {
         eventBus: { eventBusName: "" }, // Invalid - empty name
         notificationTopic: undefined,
@@ -162,21 +157,22 @@ describe("Enhanced CrossStackValidator", () => {
       };
 
       expect(() => {
-        CrossStackValidator.validateEventStackOutputs(
+        CrossStackValidator.validateLambdaStackEventOutputs(
           invalidOutputs,
           "TestStack"
         );
       }).toThrow(CrossStackValidationError);
     });
 
-    test("should validate AuthStack outputs with Cognito validation", () => {
+    test("should validate CoreStack auth outputs with Cognito validation", () => {
       const invalidOutputs = {
         userPool: { userPoolId: "" }, // Invalid - empty ID
         userPoolClient: undefined,
+        postAuthLambda: undefined,
       };
 
       expect(() => {
-        CrossStackValidator.validateAuthStackOutputs(
+        CrossStackValidator.validateCoreStackAuthOutputs(
           invalidOutputs,
           "TestStack"
         );
@@ -228,15 +224,11 @@ describe("Enhanced CrossStackValidator", () => {
         CrossStackValidator.validateDependenciesDeployed("SecurityStack");
       }).toThrow(CrossStackValidationError);
 
-      // Deploy CoreStack
+      // Deploy CoreStack (now includes auth resources)
       CrossStackValidator.initializeDeployment("CoreStack", []);
       CrossStackValidator.markStackDeployed("CoreStack");
 
-      // Deploy EventStack
-      CrossStackValidator.initializeDeployment("EventStack", []);
-      CrossStackValidator.markStackDeployed("EventStack");
-
-      // Now SecurityStack should pass
+      // Now SecurityStack should pass (no longer needs EventStack or AuthStack)
       expect(() => {
         CrossStackValidator.validateDependenciesDeployed("SecurityStack");
       }).not.toThrow();
@@ -313,9 +305,7 @@ describe("Enhanced DependencyResolver", () => {
       const order = DependencyResolver.getDeploymentOrder();
       expect(order).toEqual([
         "CoreStack",
-        "EventStack",
         "SecurityStack",
-        "AuthStack",
         "LambdaStack",
         "MonitoringStack",
       ]);
@@ -325,13 +315,10 @@ describe("Enhanced DependencyResolver", () => {
       expect(DependencyResolver.getStackDependencies("CoreStack")).toEqual([]);
       expect(DependencyResolver.getStackDependencies("SecurityStack")).toEqual([
         "CoreStack",
-        "EventStack",
       ]);
       expect(DependencyResolver.getStackDependencies("LambdaStack")).toEqual([
         "CoreStack",
         "SecurityStack",
-        "EventStack",
-        "AuthStack",
       ]);
     });
 
@@ -348,7 +335,7 @@ describe("Enhanced DependencyResolver", () => {
     });
 
     test("should validate deployment order with proper dependencies", () => {
-      const deployedStacks = ["CoreStack", "EventStack"];
+      const deployedStacks = ["CoreStack"];
 
       expect(() => {
         DependencyResolver.validateDeploymentOrder(
@@ -366,7 +353,7 @@ describe("Enhanced DependencyResolver", () => {
     });
 
     test("should provide detailed error for missing dependencies", () => {
-      const deployedStacks = ["CoreStack"]; // Missing EventStack
+      const deployedStacks = []; // Missing CoreStack
 
       try {
         DependencyResolver.validateDeploymentOrder(
@@ -421,12 +408,140 @@ describe("Enhanced DependencyResolver", () => {
       const order = DependencyResolver.getOptimalDeploymentOrder();
       expect(order).toEqual([
         "CoreStack",
-        "EventStack",
         "SecurityStack",
-        "AuthStack",
         "LambdaStack",
         "MonitoringStack",
       ]);
+    });
+  });
+});
+
+describe("ResourceReferenceTracker", () => {
+  beforeEach(() => {
+    ResourceReferenceTracker.clearResourceTracking();
+    ResourceReferenceTracker.initializeResourceTracking();
+  });
+
+  describe("Resource Ownership Tracking", () => {
+    test("should correctly identify resource owners for consolidated stacks", () => {
+      // Core Stack resources (including auth resources)
+      expect(ResourceReferenceTracker.getResourceOwner("table")).toEqual({
+        stack: "CoreStack",
+        resource: "table",
+      });
+      expect(ResourceReferenceTracker.getResourceOwner("userPool")).toEqual({
+        stack: "CoreStack",
+        resource: "userPool",
+      });
+      expect(
+        ResourceReferenceTracker.getResourceOwner("postAuthLambda")
+      ).toEqual({
+        stack: "CoreStack",
+        resource: "postAuthLambda",
+      });
+
+      // Lambda Stack resources (including event resources)
+      expect(ResourceReferenceTracker.getResourceOwner("eventBus")).toEqual({
+        stack: "LambdaStack",
+        resource: "eventBus",
+      });
+      expect(
+        ResourceReferenceTracker.getResourceOwner("kycUploadLambda")
+      ).toEqual({
+        stack: "LambdaStack",
+        resource: "kycUploadLambda",
+      });
+
+      // Security Stack resources
+      expect(
+        ResourceReferenceTracker.getResourceOwner("kycUploadRole")
+      ).toEqual({
+        stack: "SecurityStack",
+        resource: "kycUploadRole",
+      });
+    });
+
+    test("should return undefined for unknown resources", () => {
+      expect(
+        ResourceReferenceTracker.getResourceOwner("unknownResource")
+      ).toBeUndefined();
+    });
+
+    test("should get all resources for a specific stack", () => {
+      const coreResources =
+        ResourceReferenceTracker.getStackResources("CoreStack");
+      expect(coreResources).toContain("table");
+      expect(coreResources).toContain("userPool");
+      expect(coreResources).toContain("postAuthLambda");
+
+      const lambdaResources =
+        ResourceReferenceTracker.getStackResources("LambdaStack");
+      expect(lambdaResources).toContain("eventBus");
+      expect(lambdaResources).toContain("kycUploadLambda");
+      expect(lambdaResources).toContain("notificationTopic");
+    });
+  });
+
+  describe("Resource Reference Validation", () => {
+    test("should validate resource references correctly", () => {
+      expect(ResourceReferenceTracker.validateResourceReference("table")).toBe(
+        true
+      );
+      expect(
+        ResourceReferenceTracker.validateResourceReference(
+          "userPool",
+          "CoreStack"
+        )
+      ).toBe(true);
+      expect(
+        ResourceReferenceTracker.validateResourceReference(
+          "userPool",
+          "SecurityStack"
+        )
+      ).toBe(false);
+      expect(
+        ResourceReferenceTracker.validateResourceReference("unknownResource")
+      ).toBe(false);
+    });
+  });
+
+  describe("Migration Mapping", () => {
+    test("should provide correct migration mapping", () => {
+      const migrationMap =
+        ResourceReferenceTracker.getResourceMigrationMapping();
+
+      // Auth resources moved from AuthStack to CoreStack
+      expect(migrationMap.get("userPool")).toEqual({
+        from: "AuthStack",
+        to: "CoreStack",
+      });
+      expect(migrationMap.get("userPoolClient")).toEqual({
+        from: "AuthStack",
+        to: "CoreStack",
+      });
+
+      // Post-auth lambda moved from LambdaStack to CoreStack
+      expect(migrationMap.get("postAuthLambda")).toEqual({
+        from: "LambdaStack",
+        to: "CoreStack",
+      });
+
+      // Event resources moved from EventStack to LambdaStack
+      expect(migrationMap.get("eventBus")).toEqual({
+        from: "EventStack",
+        to: "LambdaStack",
+      });
+      expect(migrationMap.get("notificationTopic")).toEqual({
+        from: "EventStack",
+        to: "LambdaStack",
+      });
+    });
+
+    test("should validate consolidated references", () => {
+      const validation =
+        ResourceReferenceTracker.validateConsolidatedReferences();
+      expect(validation.valid).toBe(true);
+      expect(validation.issues).toHaveLength(0);
     });
   });
 });
