@@ -2,9 +2,8 @@ import * as cdk from "aws-cdk-lib";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import * as sns from "aws-cdk-lib/aws-sns";
-import * as events from "aws-cdk-lib/aws-events";
 import * as kms from "aws-cdk-lib/aws-kms";
+import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
 import { SecurityConstruct } from "../constructs";
 import { SecurityStackOutputs, StackDependencies } from "../interfaces";
@@ -12,26 +11,24 @@ import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
 export interface SecurityStackProps extends cdk.StackProps {
   environment: string;
-  // Core resources from CoreStack
+  // Core resources from CoreStack (now includes auth resources)
   table: dynamodb.Table;
   documentBucket: s3.Bucket;
   encryptionKey: kms.Key;
-  // Event resources (optional for now, will be required when EventStack is created)
-  notificationTopic?: sns.Topic;
-  eventBus?: events.EventBus;
+  userPool: cognito.UserPool;
+  // Note: Event resources (notificationTopic, eventBus) are created in LambdaStack
+  // EventBridge permissions will be added directly in LambdaStack to avoid circular dependencies
 }
 
 export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
   public readonly securityConstruct: SecurityConstruct;
 
   // SecurityStackOutputs interface implementation
-  public readonly postAuthRole: iam.Role;
   public readonly kycUploadRole: iam.Role;
   public readonly adminReviewRole: iam.Role;
   public readonly userNotificationRole: iam.Role;
   public readonly kycProcessingRole: iam.Role;
   public readonly complianceRole?: iam.Role;
-  public readonly postAuthRoleArn: string;
   public readonly kycUploadRoleArn: string;
   public readonly adminReviewRoleArn: string;
   public readonly userNotificationRoleArn: string;
@@ -41,37 +38,28 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
   constructor(scope: Construct, id: string, props: SecurityStackProps) {
     super(scope, id, props);
 
-    // Validate dependencies
+    // Validate dependencies - now all resources come from CoreStack (consolidated)
     const dependencies: StackDependencies["security"] = {
       coreOutputs: {
         table: props.table,
         documentBucket: props.documentBucket,
         encryptionKey: props.encryptionKey,
+        userPool: props.userPool,
       },
-      eventOutputs:
-        props.notificationTopic && props.eventBus
-          ? {
-              notificationTopic: props.notificationTopic,
-              eventBus: props.eventBus,
-            }
-          : undefined,
     };
 
-    CrossStackValidator.validateCoreStackOutputs(dependencies.coreOutputs, id);
+    CrossStackValidator.validateCoreStackOutputs(dependencies.coreOutputs, id, [
+      "table",
+      "documentBucket",
+      "encryptionKey",
+      "userPool",
+    ]);
 
-    // Record cross-stack references for tracking
+    // Record cross-stack references for tracking - all from CoreStack now
     ResourceReferenceTracker.recordReference(id, "CoreStack", "table");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "documentBucket");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "encryptionKey");
-
-    if (dependencies.eventOutputs) {
-      ResourceReferenceTracker.recordReference(
-        id,
-        "EventStack",
-        "notificationTopic"
-      );
-      ResourceReferenceTracker.recordReference(id, "EventStack", "eventBus");
-    }
+    ResourceReferenceTracker.recordReference(id, "CoreStack", "userPool");
 
     // Add environment tags
     cdk.Tags.of(this).add("Environment", props.environment);
@@ -79,24 +67,22 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
     cdk.Tags.of(this).add("Component", "Security");
 
     // Create security construct with least-privilege IAM roles
+    // Event resources (notificationTopic, eventBus) will come from LambdaStack after consolidation
     this.securityConstruct = new SecurityConstruct(this, "Security", {
       environment: props.environment,
       table: props.table,
       documentBucket: props.documentBucket,
       encryptionKey: props.encryptionKey,
-      notificationTopic: props.notificationTopic,
-      eventBus: props.eventBus,
+      // EventBridge permissions will be added in LambdaStack to avoid circular dependencies
     });
 
     // Expose roles for cross-stack references
-    this.postAuthRole = this.securityConstruct.postAuthRole;
     this.kycUploadRole = this.securityConstruct.kycUploadRole;
     this.adminReviewRole = this.securityConstruct.adminReviewRole;
     this.userNotificationRole = this.securityConstruct.userNotificationRole;
     this.kycProcessingRole = this.securityConstruct.kycProcessingRole;
 
     // Set role ARNs for interface compliance
-    this.postAuthRoleArn = this.postAuthRole.roleArn;
     this.kycUploadRoleArn = this.kycUploadRole.roleArn;
     this.adminReviewRoleArn = this.adminReviewRole.roleArn;
     this.userNotificationRoleArn = this.userNotificationRole.roleArn;
@@ -107,35 +93,29 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
   }
 
   private createStackOutputs(environment: string): void {
-    // Export role ARNs for use by other stacks
-    new cdk.CfnOutput(this, "PostAuthRoleArn", {
-      value: this.postAuthRole.roleArn,
-      description: "Post-Authentication Lambda Role ARN",
-      exportName: `${environment}-sachain-post-auth-role-arn`,
-    });
-
+    // Export role ARNs for use by other stacks - using updated export names for consolidated structure
     new cdk.CfnOutput(this, "KycUploadRoleArn", {
       value: this.kycUploadRole.roleArn,
       description: "KYC Upload Lambda Role ARN",
-      exportName: `${environment}-sachain-kyc-upload-role-arn`,
+      exportName: `${environment}-sachain-security-kyc-upload-role-arn`,
     });
 
     new cdk.CfnOutput(this, "AdminReviewRoleArn", {
       value: this.adminReviewRole.roleArn,
       description: "Admin Review Lambda Role ARN",
-      exportName: `${environment}-sachain-admin-review-role-arn`,
+      exportName: `${environment}-sachain-security-admin-review-role-arn`,
     });
 
     new cdk.CfnOutput(this, "UserNotificationRoleArn", {
       value: this.userNotificationRole.roleArn,
       description: "User Notification Lambda Role ARN",
-      exportName: `${environment}-sachain-user-notification-role-arn`,
+      exportName: `${environment}-sachain-security-user-notification-role-arn`,
     });
 
     new cdk.CfnOutput(this, "KycProcessingRoleArn", {
       value: this.kycProcessingRole.roleArn,
       description: "KYC Processing Lambda Role ARN",
-      exportName: `${environment}-sachain-kyc-processing-role-arn`,
+      exportName: `${environment}-sachain-security-kyc-processing-role-arn`,
     });
   }
 

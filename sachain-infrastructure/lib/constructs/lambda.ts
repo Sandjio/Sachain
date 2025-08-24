@@ -4,12 +4,9 @@ import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as sns from "aws-cdk-lib/aws-sns";
-import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as events from "aws-cdk-lib/aws-events";
-import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
-import * as kms from "aws-cdk-lib/aws-kms";
 import { Construct } from "constructs";
 import { SecurityConstruct } from "./security";
 import * as path from "path";
@@ -17,16 +14,14 @@ import * as path from "path";
 export interface LambdaConstructProps {
   table: dynamodb.Table;
   documentBucket?: s3.Bucket;
-  encryptionKey?: kms.Key;
+  encryptionKey?: import("aws-cdk-lib/aws-kms").Key;
   notificationTopic?: sns.Topic;
   eventBus?: events.EventBus;
   environment: string;
   securityConstruct?: SecurityConstruct;
-  userPool?: cognito.UserPool;
 }
 
 export class LambdaConstruct extends Construct {
-  public readonly postAuthLambda: lambda.Function;
   public readonly kycUploadLambda: lambda.Function;
   public readonly adminReviewLambda: lambda.Function;
   public readonly userNotificationLambda: lambda.Function;
@@ -38,39 +33,6 @@ export class LambdaConstruct extends Construct {
 
   constructor(scope: Construct, id: string, props: LambdaConstructProps) {
     super(scope, id);
-
-    // Post-Authentication Lambda
-    this.postAuthLambda = new NodejsFunction(this, "PostAuthLambda", {
-      functionName: `sachain-post-auth-${props.environment}`,
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "handler",
-      entry: path.join(
-        __dirname,
-        "../../..",
-        "backend/src/lambdas/post-auth/index.ts"
-      ),
-      role: props.securityConstruct?.postAuthRole,
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        target: "node20",
-        externalModules: [
-          "@aws-sdk/client-dynamodb",
-          "@aws-sdk/lib-dynamodb",
-          "@aws-sdk/client-cloudwatch",
-        ],
-      },
-      projectRoot: path.join(__dirname, "../../.."),
-      environment: {
-        TABLE_NAME: props.table.tableName,
-        ENVIRONMENT: props.environment,
-      },
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 256,
-      // deadLetterQueue: Temporarily removed to avoid circular dependencies
-      // Can be added back later after stack refactoring is complete
-      tracing: lambda.Tracing.ACTIVE,
-    });
 
     // KYC Upload Lambda
     this.kycUploadLambda = new NodejsFunction(this, "KYCUploadLambda", {
@@ -95,6 +57,7 @@ export class LambdaConstruct extends Construct {
           "@aws-sdk/client-sns",
           "@aws-sdk/client-cloudwatch",
           "@aws-sdk/lib-dynamodb",
+          "@aws-sdk/client-eventbridge",
         ],
       },
       projectRoot: path.join(__dirname, "../../.."),
@@ -102,13 +65,11 @@ export class LambdaConstruct extends Construct {
         TABLE_NAME: props.table.tableName,
         BUCKET_NAME: props.documentBucket?.bucketName || "",
         EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
-        KMS_KEY_ID: props.encryptionKey?.keyArn || "",
         ENVIRONMENT: props.environment,
+        KMS_KEY_ID: props.encryptionKey?.keyId || "",
       },
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
-      // deadLetterQueue: Temporarily removed to avoid circular dependencies
-      // Can be added back later after stack refactoring is complete
       tracing: lambda.Tracing.ACTIVE,
     });
 
@@ -138,13 +99,12 @@ export class LambdaConstruct extends Construct {
       environment: {
         TABLE_NAME: props.table.tableName,
         SNS_TOPIC_ARN: props.notificationTopic?.topicArn || "",
+        EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
         ENVIRONMENT: props.environment,
         ADMIN_PORTAL_URL: `https://admin.sachain-${props.environment}.com`,
       },
       timeout: cdk.Duration.minutes(2),
       memorySize: 512,
-      // deadLetterQueue: Temporarily removed to avoid circular dependencies
-      // Can be added back later after stack refactoring is complete
       tracing: lambda.Tracing.ACTIVE,
     });
 
@@ -178,8 +138,6 @@ export class LambdaConstruct extends Construct {
       },
       timeout: cdk.Duration.minutes(2),
       memorySize: 512,
-      // deadLetterQueue: Temporarily removed to avoid circular dependencies
-      // Can be added back later after stack refactoring is complete
       tracing: lambda.Tracing.ACTIVE,
     });
 
@@ -211,14 +169,13 @@ export class LambdaConstruct extends Construct {
         projectRoot: path.join(__dirname, "../../.."),
         environment: {
           TABLE_NAME: props.table.tableName,
-          // ENVIRONMENT: props.environment,
+          SNS_TOPIC_ARN: props.notificationTopic?.topicArn || "",
+          ENVIRONMENT: props.environment,
           FRONTEND_URL: `https://app.sachain-${props.environment}.com`,
           FROM_EMAIL: `no-reply@emmasandjio.com`,
         },
         timeout: cdk.Duration.seconds(30),
         memorySize: 256,
-        // deadLetterQueue: Temporarily removed to avoid circular dependencies
-        // Can be added back later after stack refactoring is complete
         tracing: lambda.Tracing.ACTIVE,
       }
     );
@@ -251,18 +208,6 @@ export class LambdaConstruct extends Construct {
         metricsEnabled: true,
       },
     });
-
-    // KYC Upload Integration
-    const kycUploadIntegration = new apigateway.LambdaIntegration(
-      this.kycUploadLambda,
-      { proxy: true }
-    );
-
-    // Admin Review Integration
-    const adminReviewIntegration = new apigateway.LambdaIntegration(
-      this.adminReviewLambda,
-      { proxy: true }
-    );
 
     // Store resources for later authorization setup
     this.kycResource = this.api.root.addResource("kyc");

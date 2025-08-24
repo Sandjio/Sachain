@@ -18,7 +18,7 @@ import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 
 /**
  * Core Stack Outputs
- * Contains foundational resources (DynamoDB, S3, KMS)
+ * Contains foundational resources (DynamoDB, S3, KMS) and authentication resources (Cognito)
  */
 export interface CoreStackOutputs {
   // DynamoDB resources
@@ -35,6 +35,18 @@ export interface CoreStackOutputs {
   encryptionKey: kms.Key;
   kmsKeyArn: string;
   kmsKeyId: string;
+
+  // Cognito resources (consolidated from AuthStack)
+  userPool: cognito.UserPool;
+  userPoolClient: cognito.UserPoolClient;
+  userPoolId: string;
+  userPoolArn: string;
+  userPoolClientId: string;
+  userPoolDomain: string;
+
+  // Post-authentication lambda (moved from LambdaStack)
+  postAuthLambda: lambda.Function;
+  postAuthLambdaArn: string;
 }
 
 /**
@@ -43,7 +55,6 @@ export interface CoreStackOutputs {
  */
 export interface SecurityStackOutputs {
   // Lambda execution roles
-  postAuthRole: iam.Role;
   kycUploadRole: iam.Role;
   adminReviewRole: iam.Role;
   userNotificationRole: iam.Role;
@@ -51,7 +62,6 @@ export interface SecurityStackOutputs {
   complianceRole?: iam.Role; // Optional for future compliance lambda
 
   // Role ARNs for cross-stack references
-  postAuthRoleArn: string;
   kycUploadRoleArn: string;
   adminReviewRoleArn: string;
   userNotificationRoleArn: string;
@@ -60,11 +70,31 @@ export interface SecurityStackOutputs {
 }
 
 /**
- * Event Stack Outputs
- * Contains EventBridge and SNS resources for event-driven architecture
+ * Lambda Stack Outputs
+ * Contains Lambda functions, API Gateway, and event-driven resources (EventBridge, SNS)
  */
-export interface EventStackOutputs {
-  // EventBridge resources
+export interface LambdaStackOutputs {
+  // Lambda functions (excluding post-auth which moved to CoreStack)
+  kycUploadLambda: lambda.Function;
+  adminReviewLambda: lambda.Function;
+  userNotificationLambda: lambda.Function;
+  kycProcessingLambda: lambda.Function;
+  complianceLambda?: lambda.Function; // Optional for future compliance lambda
+
+  // Lambda function ARNs
+  kycUploadLambdaArn: string;
+  adminReviewLambdaArn: string;
+  userNotificationLambdaArn: string;
+  kycProcessingLambdaArn: string;
+  complianceLambdaArn?: string;
+
+  // API Gateway resources
+  api: apigateway.RestApi;
+  apiUrl: string;
+  apiId: string;
+  apiRootResourceId: string;
+
+  // EventBridge resources (consolidated from EventStack)
   eventBus: events.EventBus;
   eventBusName: string;
   eventBusArn: string;
@@ -82,50 +112,6 @@ export interface EventStackOutputs {
   kycStatusChangeRuleArn: string;
   kycDocumentUploadedRuleArn: string;
   kycReviewCompletedRuleArn: string;
-}
-
-/**
- * Auth Stack Outputs
- * Contains Cognito User Pool and related authentication resources
- */
-export interface AuthStackOutputs {
-  // Cognito resources
-  userPool: cognito.UserPool;
-  userPoolClient: cognito.UserPoolClient;
-
-  // Identifiers for API Gateway authorization
-  userPoolId: string;
-  userPoolArn: string;
-  userPoolClientId: string;
-  userPoolDomain: string;
-}
-
-/**
- * Lambda Stack Outputs
- * Contains Lambda functions and API Gateway
- */
-export interface LambdaStackOutputs {
-  // Lambda functions
-  postAuthLambda: lambda.Function;
-  kycUploadLambda: lambda.Function;
-  adminReviewLambda: lambda.Function;
-  userNotificationLambda: lambda.Function;
-  kycProcessingLambda: lambda.Function;
-  complianceLambda?: lambda.Function; // Optional for future compliance lambda
-
-  // Lambda function ARNs
-  postAuthLambdaArn: string;
-  kycUploadLambdaArn: string;
-  adminReviewLambdaArn: string;
-  userNotificationLambdaArn: string;
-  kycProcessingLambdaArn: string;
-  complianceLambdaArn?: string;
-
-  // API Gateway resources
-  api: apigateway.RestApi;
-  apiUrl: string;
-  apiId: string;
-  apiRootResourceId: string;
 }
 
 /**
@@ -153,8 +139,6 @@ export interface MonitoringStackOutputs {
 export interface CrossStackReferences {
   core: CoreStackOutputs;
   security: SecurityStackOutputs;
-  events: EventStackOutputs;
-  auth: AuthStackOutputs;
   lambda: LambdaStackOutputs;
   monitoring: MonitoringStackOutputs;
 }
@@ -178,62 +162,48 @@ export interface StackConfig {
  */
 export interface StackDependencies {
   core: {
-    // CoreStack has no dependencies
+    // CoreStack has no dependencies - now includes auth resources
   };
 
   security: {
-    // SecurityStack depends on CoreStack and EventStack
+    // SecurityStack depends on CoreStack (which now includes auth resources)
     coreOutputs: Pick<
       CoreStackOutputs,
-      "table" | "documentBucket" | "encryptionKey"
+      "table" | "documentBucket" | "encryptionKey" | "userPool"
     >;
-    eventOutputs?: Pick<EventStackOutputs, "notificationTopic" | "eventBus">;
-  };
-
-  events: {
-    // EventStack has no dependencies
-  };
-
-  auth: {
-    // AuthStack optionally depends on LambdaStack for post-auth trigger
-    lambdaOutputs?: Pick<LambdaStackOutputs, "postAuthLambda">;
   };
 
   lambda: {
-    // LambdaStack depends on all other stacks except monitoring
+    // LambdaStack depends on CoreStack and SecurityStack (now includes event resources)
     coreOutputs: Pick<
       CoreStackOutputs,
-      "table" | "documentBucket" | "encryptionKey"
+      | "table"
+      | "documentBucket"
+      | "encryptionKey"
+      | "userPool"
+      | "userPoolClient"
+      | "postAuthLambda"
     >;
     securityOutputs: Pick<
       SecurityStackOutputs,
-      | "postAuthRole"
       | "kycUploadRole"
       | "adminReviewRole"
       | "userNotificationRole"
       | "kycProcessingRole"
     >;
-    eventOutputs: Pick<
-      EventStackOutputs,
-      | "eventBus"
-      | "notificationTopic"
-      | "kycDocumentUploadedRule"
-      | "kycStatusChangeRule"
-    >;
-    authOutputs: Pick<AuthStackOutputs, "userPool" | "userPoolClient">;
   };
 
   monitoring: {
-    // MonitoringStack depends on LambdaStack
+    // MonitoringStack depends on LambdaStack and CoreStack
     lambdaOutputs: Pick<
       LambdaStackOutputs,
-      | "postAuthLambda"
       | "kycUploadLambda"
       | "adminReviewLambda"
       | "userNotificationLambda"
       | "kycProcessingLambda"
       | "complianceLambda"
     >;
+    coreOutputs: Pick<CoreStackOutputs, "postAuthLambda">;
   };
 }
 
@@ -242,22 +212,33 @@ export interface StackDependencies {
  * Standardizes CloudFormation export names for cross-stack references
  */
 export interface ExportNames {
-  // Core Stack exports
+  // Core Stack exports (including auth resources)
   tableName: (environment: string) => string;
   tableArn: (environment: string) => string;
   bucketName: (environment: string) => string;
   bucketArn: (environment: string) => string;
   kmsKeyArn: (environment: string) => string;
   kmsKeyId: (environment: string) => string;
+  userPoolId: (environment: string) => string;
+  userPoolArn: (environment: string) => string;
+  userPoolClientId: (environment: string) => string;
+  userPoolDomain: (environment: string) => string;
+  postAuthLambdaArn: (environment: string) => string;
 
   // Security Stack exports
-  postAuthRoleArn: (environment: string) => string;
   kycUploadRoleArn: (environment: string) => string;
   adminReviewRoleArn: (environment: string) => string;
   userNotificationRoleArn: (environment: string) => string;
   kycProcessingRoleArn: (environment: string) => string;
 
-  // Event Stack exports
+  // Lambda Stack exports (including event resources)
+  apiUrl: (environment: string) => string;
+  apiId: (environment: string) => string;
+  apiRootResourceId: (environment: string) => string;
+  kycUploadLambdaArn: (environment: string) => string;
+  adminReviewLambdaArn: (environment: string) => string;
+  userNotificationLambdaArn: (environment: string) => string;
+  kycProcessingLambdaArn: (environment: string) => string;
   eventBusName: (environment: string) => string;
   eventBusArn: (environment: string) => string;
   adminNotificationTopicArn: (environment: string) => string;
@@ -265,22 +246,6 @@ export interface ExportNames {
   kycStatusChangeRuleArn: (environment: string) => string;
   kycDocumentUploadedRuleArn: (environment: string) => string;
   kycReviewCompletedRuleArn: (environment: string) => string;
-
-  // Auth Stack exports
-  userPoolId: (environment: string) => string;
-  userPoolArn: (environment: string) => string;
-  userPoolClientId: (environment: string) => string;
-  userPoolDomain: (environment: string) => string;
-
-  // Lambda Stack exports
-  apiUrl: (environment: string) => string;
-  apiId: (environment: string) => string;
-  apiRootResourceId: (environment: string) => string;
-  postAuthLambdaArn: (environment: string) => string;
-  kycUploadLambdaArn: (environment: string) => string;
-  adminReviewLambdaArn: (environment: string) => string;
-  userNotificationLambdaArn: (environment: string) => string;
-  kycProcessingLambdaArn: (environment: string) => string;
 
   // Monitoring Stack exports
   dashboardUrl: (environment: string) => string;
@@ -293,54 +258,54 @@ export interface ExportNames {
  * Standard export names implementation
  */
 export const EXPORT_NAMES: ExportNames = {
-  // Core Stack exports
-  tableName: (env) => `${env}-sachain-table-name`,
-  tableArn: (env) => `${env}-sachain-table-arn`,
-  bucketName: (env) => `${env}-sachain-bucket-name`,
-  bucketArn: (env) => `${env}-sachain-bucket-arn`,
-  kmsKeyArn: (env) => `${env}-sachain-kms-key-arn`,
-  kmsKeyId: (env) => `${env}-sachain-kms-key-id`,
+  // Core Stack exports (including auth resources)
+  tableName: (env) => `${env}-sachain-core-table-name`,
+  tableArn: (env) => `${env}-sachain-core-table-arn`,
+  bucketName: (env) => `${env}-sachain-core-bucket-name`,
+  bucketArn: (env) => `${env}-sachain-core-bucket-arn`,
+  kmsKeyArn: (env) => `${env}-sachain-core-kms-key-arn`,
+  kmsKeyId: (env) => `${env}-sachain-core-kms-key-id`,
+  userPoolId: (env) => `${env}-sachain-core-user-pool-id`,
+  userPoolArn: (env) => `${env}-sachain-core-user-pool-arn`,
+  userPoolClientId: (env) => `${env}-sachain-core-user-pool-client-id`,
+  userPoolDomain: (env) => `${env}-sachain-core-user-pool-domain`,
+  postAuthLambdaArn: (env) => `${env}-sachain-core-post-auth-lambda-arn`,
 
   // Security Stack exports
-  postAuthRoleArn: (env) => `${env}-sachain-post-auth-role-arn`,
-  kycUploadRoleArn: (env) => `${env}-sachain-kyc-upload-role-arn`,
-  adminReviewRoleArn: (env) => `${env}-sachain-admin-review-role-arn`,
-  userNotificationRoleArn: (env) => `${env}-sachain-user-notification-role-arn`,
-  kycProcessingRoleArn: (env) => `${env}-sachain-kyc-processing-role-arn`,
+  kycUploadRoleArn: (env) => `${env}-sachain-security-kyc-upload-role-arn`,
+  adminReviewRoleArn: (env) => `${env}-sachain-security-admin-review-role-arn`,
+  userNotificationRoleArn: (env) =>
+    `${env}-sachain-security-user-notification-role-arn`,
+  kycProcessingRoleArn: (env) =>
+    `${env}-sachain-security-kyc-processing-role-arn`,
 
-  // Event Stack exports
-  eventBusName: (env) => `${env}-sachain-event-bus-name`,
-  eventBusArn: (env) => `${env}-sachain-event-bus-arn`,
-  adminNotificationTopicArn: (env) =>
-    `${env}-sachain-admin-notification-topic-arn`,
-  userNotificationTopicArn: (env) =>
-    `${env}-sachain-user-notification-topic-arn`,
-  kycStatusChangeRuleArn: (env) => `${env}-sachain-kyc-status-change-rule-arn`,
-  kycDocumentUploadedRuleArn: (env) =>
-    `${env}-sachain-kyc-document-uploaded-rule-arn`,
-  kycReviewCompletedRuleArn: (env) =>
-    `${env}-sachain-kyc-review-completed-rule-arn`,
-
-  // Auth Stack exports
-  userPoolId: (env) => `${env}-sachain-user-pool-id`,
-  userPoolArn: (env) => `${env}-sachain-user-pool-arn`,
-  userPoolClientId: (env) => `${env}-sachain-user-pool-client-id`,
-  userPoolDomain: (env) => `${env}-sachain-user-pool-domain`,
-
-  // Lambda Stack exports
-  apiUrl: (env) => `${env}-sachain-api-url`,
-  apiId: (env) => `${env}-sachain-api-id`,
-  apiRootResourceId: (env) => `${env}-sachain-api-root-resource-id`,
-  postAuthLambdaArn: (env) => `${env}-sachain-post-auth-lambda-arn`,
-  kycUploadLambdaArn: (env) => `${env}-sachain-kyc-upload-lambda-arn`,
-  adminReviewLambdaArn: (env) => `${env}-sachain-admin-review-lambda-arn`,
+  // Lambda Stack exports (including event resources)
+  apiUrl: (env) => `${env}-sachain-lambda-api-url`,
+  apiId: (env) => `${env}-sachain-lambda-api-id`,
+  apiRootResourceId: (env) => `${env}-sachain-lambda-api-root-resource-id`,
+  kycUploadLambdaArn: (env) => `${env}-sachain-lambda-kyc-upload-lambda-arn`,
+  adminReviewLambdaArn: (env) =>
+    `${env}-sachain-lambda-admin-review-lambda-arn`,
   userNotificationLambdaArn: (env) =>
-    `${env}-sachain-user-notification-lambda-arn`,
-  kycProcessingLambdaArn: (env) => `${env}-sachain-kyc-processing-lambda-arn`,
+    `${env}-sachain-lambda-user-notification-lambda-arn`,
+  kycProcessingLambdaArn: (env) =>
+    `${env}-sachain-lambda-kyc-processing-lambda-arn`,
+  eventBusName: (env) => `${env}-sachain-lambda-event-bus-name`,
+  eventBusArn: (env) => `${env}-sachain-lambda-event-bus-arn`,
+  adminNotificationTopicArn: (env) =>
+    `${env}-sachain-lambda-admin-notification-topic-arn`,
+  userNotificationTopicArn: (env) =>
+    `${env}-sachain-lambda-user-notification-topic-arn`,
+  kycStatusChangeRuleArn: (env) =>
+    `${env}-sachain-lambda-kyc-status-change-rule-arn`,
+  kycDocumentUploadedRuleArn: (env) =>
+    `${env}-sachain-lambda-kyc-document-uploaded-rule-arn`,
+  kycReviewCompletedRuleArn: (env) =>
+    `${env}-sachain-lambda-kyc-review-completed-rule-arn`,
 
   // Monitoring Stack exports
-  dashboardUrl: (env) => `${env}-sachain-dashboard-url`,
-  dashboardName: (env) => `${env}-sachain-dashboard-name`,
-  alertTopicArn: (env) => `${env}-sachain-alert-topic-arn`,
-  alarmCount: (env) => `${env}-sachain-alarm-count`,
+  dashboardUrl: (env) => `${env}-sachain-monitoring-dashboard-url`,
+  dashboardName: (env) => `${env}-sachain-monitoring-dashboard-name`,
+  alertTopicArn: (env) => `${env}-sachain-monitoring-alert-topic-arn`,
+  alarmCount: (env) => `${env}-sachain-monitoring-alarm-count`,
 };

@@ -72,8 +72,13 @@ log_error() {
   echo -e "${RED}❌ $1${NC}"
 }
 
-# Stack name
-STACK_NAME="SachainKYCStack-$ENVIRONMENT"
+# Consolidated stack names
+CORE_STACK_NAME="SachainCoreStack-$ENVIRONMENT"
+SECURITY_STACK_NAME="SachainSecurityStack-$ENVIRONMENT"
+LAMBDA_STACK_NAME="SachainLambdaStack-$ENVIRONMENT"
+MONITORING_STACK_NAME="SachainMonitoringStack-$ENVIRONMENT"
+
+STACK_NAMES=("$CORE_STACK_NAME" "$SECURITY_STACK_NAME" "$LAMBDA_STACK_NAME" "$MONITORING_STACK_NAME")
 
 # Validation results
 VALIDATION_RESULTS=()
@@ -110,47 +115,65 @@ check_aws_cli() {
   log_success "AWS CLI is properly configured"
 }
 
-# Validate CloudFormation stack
+# Validate CloudFormation stacks
 validate_stack() {
-  log_info "Validating CloudFormation stack..."
+  log_info "Validating CloudFormation stacks..."
   
-  local stack_status=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
+  local all_healthy=true
   
-  if [[ "$stack_status" == "NOT_FOUND" ]]; then
-    add_validation_result "CloudFormation Stack" "FAIL" "Stack $STACK_NAME not found"
+  for stack_name in "${STACK_NAMES[@]}"; do
+    local stack_status=$(aws cloudformation describe-stacks --stack-name "$stack_name" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
+    
+    if [[ "$stack_status" == "NOT_FOUND" ]]; then
+      add_validation_result "CloudFormation Stack ($stack_name)" "FAIL" "Stack not found"
+      all_healthy=false
+      continue
+    fi
+    
+    if [[ ! "$stack_status" =~ ^(CREATE_COMPLETE|UPDATE_COMPLETE)$ ]]; then
+      add_validation_result "CloudFormation Stack ($stack_name)" "FAIL" "Stack is in $stack_status state"
+      all_healthy=false
+      continue
+    fi
+    
+    add_validation_result "CloudFormation Stack ($stack_name)" "PASS" "Stack is in $stack_status state"
+  done
+  
+  if [[ "$all_healthy" == "true" ]]; then
+    log_success "All CloudFormation stacks are healthy"
+  else
+    log_error "Some CloudFormation stacks have issues"
     return 1
   fi
-  
-  if [[ ! "$stack_status" =~ ^(CREATE_COMPLETE|UPDATE_COMPLETE)$ ]]; then
-    add_validation_result "CloudFormation Stack" "FAIL" "Stack is in $stack_status state"
-    return 1
-  fi
-  
-  add_validation_result "CloudFormation Stack" "PASS" "Stack is in $stack_status state"
-  log_success "CloudFormation stack is healthy"
 }
 
-# Get stack outputs
+# Get stack outputs from consolidated stacks
 get_stack_outputs() {
-  log_info "Retrieving stack outputs..."
+  log_info "Retrieving stack outputs from consolidated stacks..."
   
-  local outputs=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query 'Stacks[0].Outputs' --output json 2>/dev/null || echo "[]")
+  # Get outputs from CoreStack (auth and core resources)
+  local core_outputs=$(aws cloudformation describe-stacks --stack-name "$CORE_STACK_NAME" --query 'Stacks[0].Outputs' --output json 2>/dev/null || echo "[]")
   
-  if [[ "$outputs" == "[]" ]]; then
+  # Get outputs from LambdaStack (lambda functions, API, events)
+  local lambda_outputs=$(aws cloudformation describe-stacks --stack-name "$LAMBDA_STACK_NAME" --query 'Stacks[0].Outputs' --output json 2>/dev/null || echo "[]")
+  
+  if [[ "$core_outputs" == "[]" && "$lambda_outputs" == "[]" ]]; then
     add_validation_result "Stack Outputs" "FAIL" "No stack outputs found"
     return 1
   fi
   
-  # Extract key outputs
-  USER_POOL_ID=$(echo "$outputs" | jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue')
-  USER_POOL_CLIENT_ID=$(echo "$outputs" | jq -r '.[] | select(.OutputKey=="UserPoolClientId") | .OutputValue')
-  DYNAMODB_TABLE_NAME=$(echo "$outputs" | jq -r '.[] | select(.OutputKey=="DynamoDBTableName") | .OutputValue')
-  S3_BUCKET_NAME=$(echo "$outputs" | jq -r '.[] | select(.OutputKey=="S3BucketName") | .OutputValue')
-  EVENT_BUS_NAME=$(echo "$outputs" | jq -r '.[] | select(.OutputKey=="EventBusName") | .OutputValue')
-  API_URL=$(echo "$outputs" | jq -r '.[] | select(.OutputKey=="KYCUploadApiUrl") | .OutputValue')
+  # Extract key outputs from CoreStack
+  USER_POOL_ID=$(echo "$core_outputs" | jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue')
+  USER_POOL_CLIENT_ID=$(echo "$core_outputs" | jq -r '.[] | select(.OutputKey=="UserPoolClientId") | .OutputValue')
+  DYNAMODB_TABLE_NAME=$(echo "$core_outputs" | jq -r '.[] | select(.OutputKey=="DynamoDBTableName") | .OutputValue')
+  S3_BUCKET_NAME=$(echo "$core_outputs" | jq -r '.[] | select(.OutputKey=="S3BucketName") | .OutputValue')
   
-  add_validation_result "Stack Outputs" "PASS" "All required outputs found"
-  log_success "Stack outputs retrieved successfully"
+  # Extract key outputs from LambdaStack
+  EVENT_BUS_NAME=$(echo "$lambda_outputs" | jq -r '.[] | select(.OutputKey=="EventBusName") | .OutputValue')
+  API_URL=$(echo "$lambda_outputs" | jq -r '.[] | select(.OutputKey=="KYCUploadApiUrl") | .OutputValue')
+  
+  add_validation_result "Stack Outputs" "PASS" "All required outputs found from consolidated stacks"
+  log_success "Stack outputs retrieved successfully from consolidated stacks"
 }
 
 # Validate Cognito User Pool
@@ -392,7 +415,7 @@ generate_report() {
 {
   "environment": "$ENVIRONMENT",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "stack_name": "$STACK_NAME",
+  "stack_names": [$(printf '"%s",' "${STACK_NAMES[@]}" | sed 's/,$//')]
   "summary": {
     "total_tests": $total_tests,
     "passed_tests": $passed_tests,
@@ -464,7 +487,7 @@ main() {
   echo ""
   log_info "🔍 Starting Sachain KYC Infrastructure Validation"
   log_info "Environment: $ENVIRONMENT"
-  log_info "Stack: $STACK_NAME"
+  log_info "Consolidated Stacks: ${STACK_NAMES[*]}"
   echo ""
   
   # Run validations

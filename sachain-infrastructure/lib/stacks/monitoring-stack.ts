@@ -7,8 +7,9 @@ import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
 export interface MonitoringStackProps extends cdk.StackProps {
   environment: string;
-  // Lambda functions from LambdaStack
+  // Post-auth lambda from CoreStack (consolidated structure)
   postAuthLambda: lambda.Function;
+  // Lambda functions from LambdaStack (consolidated structure)
   kycUploadLambda: lambda.Function;
   adminReviewLambda: lambda.Function;
   userNotificationLambda: lambda.Function;
@@ -38,26 +39,24 @@ export class MonitoringStack
   constructor(scope: Construct, id: string, props: MonitoringStackProps) {
     super(scope, id, props);
 
-    // Validate dependencies
+    // Validate dependencies for consolidated stack structure
     const dependencies: StackDependencies["monitoring"] = {
       lambdaOutputs: {
-        postAuthLambda: props.postAuthLambda,
         kycUploadLambda: props.kycUploadLambda,
         adminReviewLambda: props.adminReviewLambda,
         userNotificationLambda: props.userNotificationLambda,
         kycProcessingLambda: props.kycProcessingLambda,
         complianceLambda: props.complianceLambda,
       },
+      coreOutputs: {
+        postAuthLambda: props.postAuthLambda,
+      },
     };
 
     CrossStackValidator.validateMonitoringStackDependencies(dependencies, id);
 
-    // Record cross-stack references for tracking
-    ResourceReferenceTracker.recordReference(
-      id,
-      "LambdaStack",
-      "postAuthLambda"
-    );
+    // Record cross-stack references for tracking (consolidated structure)
+    ResourceReferenceTracker.recordReference(id, "CoreStack", "postAuthLambda");
     ResourceReferenceTracker.recordReference(
       id,
       "LambdaStack",
@@ -91,10 +90,10 @@ export class MonitoringStack
     cdk.Tags.of(this).add("Project", "Sachain");
     cdk.Tags.of(this).add("Component", "Monitoring");
 
-    // Collect all Lambda functions for monitoring
+    // Collect all Lambda functions for monitoring (consolidated structure)
     const lambdaFunctions = [
-      props.postAuthLambda,
-      props.kycUploadLambda,
+      props.postAuthLambda, // From CoreStack (consolidated auth resources)
+      props.kycUploadLambda, // From LambdaStack (consolidated event resources)
       props.adminReviewLambda,
       props.userNotificationLambda,
       props.kycProcessingLambda,
@@ -130,32 +129,34 @@ export class MonitoringStack
   }
 
   private createStackOutputs(environment: string): void {
-    // Export dashboard URL
+    // Export dashboard URL (consolidated monitoring for all stacks)
     new cdk.CfnOutput(this, "DashboardUrl", {
       value: this.dashboardUrl,
-      description: "CloudWatch Dashboard URL",
-      exportName: `${environment}-sachain-dashboard-url`,
+      description: "CloudWatch Dashboard URL for consolidated stack monitoring",
+      exportName: `${environment}-sachain-monitoring-dashboard-url`,
     });
 
-    // Export alert topic ARN
+    // Export alert topic ARN (consolidated alerting for all stacks)
     new cdk.CfnOutput(this, "AlertTopicArn", {
       value: this.alertTopicArn,
-      description: "SNS Alert Topic ARN",
-      exportName: `${environment}-sachain-alert-topic-arn`,
+      description: "SNS Alert Topic ARN for consolidated stack monitoring",
+      exportName: `${environment}-sachain-monitoring-alert-topic-arn`,
     });
 
     // Export dashboard name for programmatic access
     new cdk.CfnOutput(this, "DashboardName", {
       value: this.monitoringConstruct.dashboard.dashboardName,
-      description: "CloudWatch Dashboard Name",
-      exportName: `${environment}-sachain-dashboard-name`,
+      description:
+        "CloudWatch Dashboard Name for consolidated stack monitoring",
+      exportName: `${environment}-sachain-monitoring-dashboard-name`,
     });
 
-    // Export number of alarms created
+    // Export number of alarms created (includes alarms for all consolidated stacks)
     new cdk.CfnOutput(this, "AlarmCount", {
       value: this.alarmArns.length.toString(),
-      description: "Number of CloudWatch Alarms Created",
-      exportName: `${environment}-sachain-alarm-count`,
+      description:
+        "Number of CloudWatch Alarms Created for consolidated stack monitoring",
+      exportName: `${environment}-sachain-monitoring-alarm-count`,
     });
   }
 }

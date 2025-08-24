@@ -6,12 +6,9 @@ import { Construct } from "constructs";
 import {
   CoreStack,
   SecurityStack,
-  EventStack,
-  AuthStack,
   LambdaStack,
   MonitoringStack,
 } from "../lib/stacks";
-import { PostAuthConfiguratorStack } from "../lib/stacks/post-auth-configurator-stack";
 import { getEnvironmentConfig } from "../lib/config";
 import {
   CrossStackValidator,
@@ -44,15 +41,12 @@ try {
   process.exit(1);
 }
 
-// Initialize error handling for all stacks
+// Initialize error handling for all stacks (consolidated structure)
 const stackNames = [
   `SachainCoreStack-${environment}`,
-  `SachainEventStack-${environment}`,
   `SachainSecurityStack-${environment}`,
-  `SachainAuthStack-${environment}`,
   `SachainLambdaStack-${environment}`,
   `SachainMonitoringStack-${environment}`,
-  `SachainPostAuthConfiguratorStack-${environment}`,
 ];
 
 stackNames.forEach((stackName) => {
@@ -76,7 +70,7 @@ const commonProps = {
   },
 };
 
-// 1. Create CoreStack first (foundational resources)
+// 1. Create CoreStack first (foundational resources + auth resources)
 let coreStack: CoreStack;
 try {
   // CrossStackValidator.validateStackDeployment("CoreStack", {});
@@ -84,7 +78,7 @@ try {
   coreStack = new CoreStack(app, `SachainCoreStack-${environment}`, {
     ...commonProps,
     environment,
-    description: `Sachain Core infrastructure (DynamoDB, S3) for ${environment} environment`,
+    description: `Sachain Core infrastructure (DynamoDB, S3, Cognito, Post-Auth Lambda) for ${environment} environment`,
     tags: {
       ...commonProps.tags,
       Component: "Core",
@@ -103,42 +97,14 @@ try {
   throw error;
 }
 
-// 2. Create EventStack (independent of other stacks)
-let eventStack: EventStack;
-try {
-  // CrossStackValidator.validateStackDeployment("EventStack", {});
-
-  eventStack = new EventStack(app, `SachainEventStack-${environment}`, {
-    ...commonProps,
-    environment,
-    description: `Sachain Event infrastructure (EventBridge, SNS) for ${environment} environment`,
-    tags: {
-      ...commonProps.tags,
-      Component: "Events",
-    },
-  });
-
-  CrossStackValidator.markStackDeployed("EventStack");
-  console.log("✓ EventStack created successfully");
-} catch (error) {
-  const failureContext = DeploymentErrorHandler.handleDeploymentFailure(
-    "EventStack",
-    environment,
-    error instanceof Error ? error : new Error(String(error))
-  );
-  console.error("✗ EventStack creation failed:", failureContext.errorMessage);
-  throw error;
-}
-
-// 3. Create SecurityStack (depends on CoreStack and EventStack)
+// 2. Create SecurityStack (depends on CoreStack which now includes auth resources)
 let securityStack: SecurityStack;
 try {
   const securityDependencies = {
     table: coreStack.table,
     documentBucket: coreStack.documentBucket,
     encryptionKey: coreStack.encryptionKey,
-    notificationTopic: eventStack.notificationTopic,
-    eventBus: eventStack.eventBus,
+    userPool: coreStack.userPool,
   };
 
   // CrossStackValidator.validateStackDeployment(
@@ -176,58 +142,22 @@ try {
   throw error;
 }
 
-// 4. Create AuthStack without post-auth Lambda initially to break circular dependency
-// The post-auth Lambda trigger will be configured later after LambdaStack is deployed
-let authStack: AuthStack;
-try {
-  // CrossStackValidator.validateStackDeployment("AuthStack", {});
-
-  authStack = new AuthStack(app, `SachainAuthStack-${environment}`, {
-    ...commonProps,
-    environment,
-    // postAuthLambda will be configured later to avoid circular dependency
-    postAuthLambda: undefined,
-    description: `Sachain Authentication infrastructure (Cognito) for ${environment} environment`,
-    tags: {
-      ...commonProps.tags,
-      Component: "Authentication",
-    },
-  });
-
-  CrossStackValidator.markStackDeployed("AuthStack");
-  console.log("✓ AuthStack created successfully");
-} catch (error) {
-  const failureContext = DeploymentErrorHandler.handleDeploymentFailure(
-    "AuthStack",
-    environment,
-    error instanceof Error ? error : new Error(String(error))
-  );
-  console.error("✗ AuthStack creation failed:", failureContext.errorMessage);
-  throw error;
-}
-
-// 5. Create LambdaStack (depends on CoreStack, SecurityStack, EventStack, and AuthStack)
+// 3. Create LambdaStack (depends on CoreStack and SecurityStack, now includes event resources)
 let lambdaStack: LambdaStack;
 try {
   const lambdaDependencies = {
-    // Core resources
+    // Core resources (now includes auth)
     table: coreStack.table,
     documentBucket: coreStack.documentBucket,
     encryptionKey: coreStack.encryptionKey,
+    userPool: coreStack.userPool,
+    userPoolClient: coreStack.userPoolClient,
+    postAuthLambda: coreStack.postAuthLambda,
     // Security resources
-    postAuthRole: securityStack.postAuthRole,
     kycUploadRole: securityStack.kycUploadRole,
     adminReviewRole: securityStack.adminReviewRole,
     userNotificationRole: securityStack.userNotificationRole,
     kycProcessingRole: securityStack.kycProcessingRole,
-    // Event resources
-    eventBus: eventStack.eventBus,
-    notificationTopic: eventStack.notificationTopic,
-    kycDocumentUploadedRule: eventStack.kycDocumentUploadedRule,
-    kycStatusChangeRule: eventStack.kycStatusChangeRule,
-    // Auth resources
-    userPool: authStack.userPool,
-    userPoolClient: authStack.userPoolClient,
   };
 
   // CrossStackValidator.validateStackDeployment(
@@ -239,7 +169,7 @@ try {
     ...commonProps,
     environment,
     ...lambdaDependencies,
-    description: `Sachain Lambda infrastructure (Functions, API Gateway) for ${environment} environment`,
+    description: `Sachain Lambda infrastructure (Functions, API Gateway, EventBridge, SNS) for ${environment} environment`,
     tags: {
       ...commonProps.tags,
       Component: "Lambda",
@@ -258,50 +188,11 @@ try {
   throw error;
 }
 
-// 6. Create PostAuthConfiguratorStack to wire Cognito post-auth trigger
-let postAuthConfiguratorStack: PostAuthConfiguratorStack;
-try {
-  const postAuthConfigDeps = {
-    userPoolId: authStack.userPool.userPoolId,
-    postAuthLambda: lambdaStack.postAuthLambda,
-  };
-
-  postAuthConfiguratorStack = new PostAuthConfiguratorStack(
-    app,
-    `SachainPostAuthConfiguratorStack-${environment}`,
-    {
-      ...commonProps,
-      environment,
-      userPoolId: postAuthConfigDeps.userPoolId,
-      postAuthLambda: postAuthConfigDeps.postAuthLambda,
-      description: `Configure Cognito PostAuth Lambda for ${environment}`,
-      tags: {
-        ...commonProps.tags,
-        Component: "AuthConfigurator",
-      },
-    }
-  );
-
-  CrossStackValidator.markStackDeployed("PostAuthConfiguratorStack");
-  console.log("✓ PostAuthConfiguratorStack created successfully");
-} catch (error) {
-  const failureContext = DeploymentErrorHandler.handleDeploymentFailure(
-    "PostAuthConfiguratorStack",
-    environment,
-    error instanceof Error ? error : new Error(String(error))
-  );
-  console.error(
-    "✗ PostAuthConfiguratorStack creation failed:",
-    failureContext.errorMessage
-  );
-  throw error;
-}
-
-// 7. Create MonitoringStack (depends on LambdaStack)
+// 4. Create MonitoringStack (depends on LambdaStack and CoreStack)
 let monitoringStack: MonitoringStack;
 try {
   const monitoringDependencies = {
-    postAuthLambda: lambdaStack.postAuthLambda,
+    postAuthLambda: coreStack.postAuthLambda,
     kycUploadLambda: lambdaStack.kycUploadLambda,
     adminReviewLambda: lambdaStack.adminReviewLambda,
     userNotificationLambda: lambdaStack.userNotificationLambda,
@@ -344,18 +235,12 @@ try {
   throw error;
 }
 
-// Set up explicit dependencies to ensure proper deployment order
+// Set up explicit dependencies to ensure proper deployment order (consolidated structure)
 securityStack.addDependency(coreStack);
-securityStack.addDependency(eventStack);
-authStack.addDependency(securityStack);
 lambdaStack.addDependency(coreStack);
 lambdaStack.addDependency(securityStack);
-lambdaStack.addDependency(eventStack);
-lambdaStack.addDependency(authStack);
-// Ensure configurator runs after both Auth and Lambda stacks
-postAuthConfiguratorStack.addDependency(lambdaStack);
-postAuthConfiguratorStack.addDependency(authStack);
 monitoringStack.addDependency(lambdaStack);
+monitoringStack.addDependency(coreStack);
 
 // Generate deployment report
 console.log("\n" + "=".repeat(60));
@@ -382,15 +267,14 @@ if (failedStacks.length > 0) {
   console.log("✅ All stacks created successfully!");
 }
 
-// Note: Post-deployment configuration needed:
-// 1. Configure Cognito User Pool post-auth trigger to use the actual Lambda from LambdaStack
-// 2. Add EventBridge Lambda targets for event rules (removed to avoid circular dependencies)
-// 3. Re-add Dead Letter Queues to Lambda functions (removed to avoid circular dependencies)
+// Note: Consolidated stack structure deployed successfully:
+// 1. CoreStack now includes auth resources (Cognito, Post-Auth Lambda)
+// 2. LambdaStack now includes event resources (EventBridge, SNS)
+// 3. SecurityStack depends only on CoreStack
+// 4. MonitoringStack depends on both LambdaStack and CoreStack
 //
-// These configurations can be added through:
-// - AWS CLI/Console after deployment
-// - A separate CDK stack deployed after the main stacks
-// - Custom resources or CDK aspects
+// This eliminates the need for separate AuthStack and EventStack,
+// reducing complexity and cross-stack dependencies.
 
 // Handle process exit for deployment failures
 process.on("exit", (code) => {

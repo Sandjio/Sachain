@@ -6,3 +6,4 @@ export * from "./s3";
 export * from "./eventbridge";
 export * from "./monitoring";
 export * from "./security";
+export * from "./post-auth-lambda";

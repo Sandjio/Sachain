@@ -38,7 +38,6 @@ describe("SecurityStack", () => {
 
     expect(stack).toBeDefined();
     expect(stack.securityConstruct).toBeDefined();
-    expect(stack.postAuthRole).toBeDefined();
     expect(stack.kycUploadRole).toBeDefined();
     expect(stack.adminReviewRole).toBeDefined();
     expect(stack.userNotificationRole).toBeDefined();
@@ -79,39 +78,39 @@ describe("SecurityStack", () => {
 
     const template = Template.fromStack(stack);
 
-    // Check that all role ARNs are exported
+    // Check that all role ARNs are exported with updated naming convention
     template.hasOutput("PostAuthRoleArn", {
       Description: "Post-Authentication Lambda Role ARN",
       Export: {
-        Name: "test-sachain-post-auth-role-arn",
+        Name: "test-sachain-security-post-auth-role-arn",
       },
     });
 
     template.hasOutput("KycUploadRoleArn", {
       Description: "KYC Upload Lambda Role ARN",
       Export: {
-        Name: "test-sachain-kyc-upload-role-arn",
+        Name: "test-sachain-security-kyc-upload-role-arn",
       },
     });
 
     template.hasOutput("AdminReviewRoleArn", {
       Description: "Admin Review Lambda Role ARN",
       Export: {
-        Name: "test-sachain-admin-review-role-arn",
+        Name: "test-sachain-security-admin-review-role-arn",
       },
     });
 
     template.hasOutput("UserNotificationRoleArn", {
       Description: "User Notification Lambda Role ARN",
       Export: {
-        Name: "test-sachain-user-notification-role-arn",
+        Name: "test-sachain-security-user-notification-role-arn",
       },
     });
 
     template.hasOutput("KycProcessingRoleArn", {
       Description: "KYC Processing Lambda Role ARN",
       Export: {
-        Name: "test-sachain-kyc-processing-role-arn",
+        Name: "test-sachain-security-kyc-processing-role-arn",
       },
     });
   });

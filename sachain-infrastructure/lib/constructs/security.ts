@@ -13,8 +13,6 @@ export interface SecurityConstructProps {
   table: dynamodb.Table;
   documentBucket: s3.Bucket;
   encryptionKey: kms.Key;
-  notificationTopic?: sns.Topic;
-  eventBus?: events.EventBus;
 }
 
 export interface LambdaSecurityConfig {
@@ -51,7 +49,7 @@ export interface LambdaSecurityConfig {
 }
 
 export class SecurityConstruct extends Construct {
-  public readonly postAuthRole: iam.Role;
+  // public readonly postAuthRole: iam.Role;
   public readonly kycUploadRole: iam.Role;
   public readonly adminReviewRole: iam.Role;
   public readonly userNotificationRole: iam.Role;
@@ -60,8 +58,6 @@ export class SecurityConstruct extends Construct {
   private readonly table: dynamodb.Table;
   private readonly documentBucket: s3.Bucket;
   private readonly encryptionKey: kms.Key;
-  private readonly notificationTopic?: sns.Topic;
-  private readonly eventBus?: events.EventBus;
   private readonly environment: string;
 
   constructor(scope: Construct, id: string, props: SecurityConstructProps) {
@@ -70,12 +66,10 @@ export class SecurityConstruct extends Construct {
     this.table = props.table;
     this.documentBucket = props.documentBucket;
     this.encryptionKey = props.encryptionKey;
-    this.notificationTopic = props.notificationTopic;
-    this.eventBus = props.eventBus;
     this.environment = props.environment;
 
     // Create least-privilege IAM roles for each Lambda function
-    this.postAuthRole = this.createPostAuthRole();
+    // this.postAuthRole = this.createPostAuthRole();
     this.kycUploadRole = this.createKycUploadRole();
     this.adminReviewRole = this.createAdminReviewRole();
     this.userNotificationRole = this.createUserNotificationRole();
@@ -86,60 +80,6 @@ export class SecurityConstruct extends Construct {
 
     // Add cross-service access controls
     this.addCrossServiceAccessControls();
-  }
-
-  private createPostAuthRole(): iam.Role {
-    const role = new iam.Role(this, "PostAuthLambdaRole", {
-      roleName: `sachain-post-auth-lambda-role-${this.environment}`,
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-      description: "Least-privilege role for Post-Authentication Lambda",
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName(
-          "service-role/AWSLambdaBasicExecutionRole"
-        ),
-      ],
-    });
-
-    // DynamoDB permissions - only write access to user profiles
-    role.addToPolicy(
-      new iam.PolicyStatement({
-        sid: "DynamoDBUserProfileWrite",
-        effect: iam.Effect.ALLOW,
-        actions: [
-          "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:GetItem",
-        ],
-        resources: [this.table.tableArn],
-      })
-    );
-
-    // CloudWatch metrics permissions with namespace restriction
-    role.addToPolicy(
-      new iam.PolicyStatement({
-        sid: "CloudWatchMetrics",
-        effect: iam.Effect.ALLOW,
-        actions: ["cloudwatch:PutMetricData"],
-        resources: ["*"],
-        conditions: {
-          StringEquals: {
-            "cloudwatch:namespace": "Sachain/PostAuth",
-          },
-        },
-      })
-    );
-
-    // X-Ray tracing permissions
-    role.addToPolicy(
-      new iam.PolicyStatement({
-        sid: "XRayTracing",
-        effect: iam.Effect.ALLOW,
-        actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
-        resources: ["*"],
-      })
-    );
-
-    return role;
   }
 
   private createKycUploadRole(): iam.Role {
@@ -190,8 +130,8 @@ export class SecurityConstruct extends Construct {
         conditions: {
           StringEquals: {
             "s3:x-amz-server-side-encryption": "aws:kms",
-            "s3:x-amz-server-side-encryption-aws-kms-key-id":
-              this.encryptionKey.keyArn,
+            // "s3:x-amz-server-side-encryption-aws-kms-key-id":
+            //   this.encryptionKey.keyArn,
           },
         },
       })
@@ -234,21 +174,22 @@ export class SecurityConstruct extends Construct {
     );
 
     // EventBridge permissions for publishing upload events
-    if (this.eventBus) {
-      role.addToPolicy(
-        new iam.PolicyStatement({
-          sid: "EventBridgePutEvents",
-          effect: iam.Effect.ALLOW,
-          actions: ["events:PutEvents"],
-          resources: [this.eventBus.eventBusArn],
-          conditions: {
-            StringEquals: {
-              "events:source": "sachain.kyc",
-            },
+    // Using wildcard for event bus to avoid circular dependency
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "EventBridgePutEvents",
+        effect: iam.Effect.ALLOW,
+        actions: ["events:PutEvents"],
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
+        ],
+        conditions: {
+          StringEquals: {
+            "events:source": "sachain.kyc",
           },
-        })
-      );
-    }
+        },
+      })
+    );
 
     // CloudWatch metrics permissions
     role.addToPolicy(
@@ -314,16 +255,18 @@ export class SecurityConstruct extends Construct {
     );
 
     // SNS permissions for notifications
-    if (this.notificationTopic) {
-      role.addToPolicy(
-        new iam.PolicyStatement({
-          sid: "SNSPublish",
-          effect: iam.Effect.ALLOW,
-          actions: ["sns:Publish"],
-          resources: [this.notificationTopic.topicArn],
-        })
-      );
-    }
+    // Using wildcard for SNS topics to avoid circular dependency
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "SNSPublish",
+        effect: iam.Effect.ALLOW,
+        actions: ["sns:Publish"],
+        resources: [
+          `arn:aws:sns:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:sachain-kyc-admin-notifications-*`,
+          `arn:aws:sns:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:sachain-user-notifications-*`,
+        ],
+      })
+    );
 
     // CloudWatch metrics permissions
     role.addToPolicy(
@@ -412,21 +355,22 @@ export class SecurityConstruct extends Construct {
     );
 
     // EventBridge permissions for publishing status changes
-    if (this.eventBus) {
-      role.addToPolicy(
-        new iam.PolicyStatement({
-          sid: "EventBridgePutEvents",
-          effect: iam.Effect.ALLOW,
-          actions: ["events:PutEvents"],
-          resources: [this.eventBus.eventBusArn],
-          conditions: {
-            StringEquals: {
-              "events:source": "sachain.kyc",
-            },
+    // Using wildcard for event bus to avoid circular dependency
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "EventBridgePutEvents",
+        effect: iam.Effect.ALLOW,
+        actions: ["events:PutEvents"],
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
+        ],
+        conditions: {
+          StringEquals: {
+            "events:source": "sachain.kyc",
           },
-        })
-      );
-    }
+        },
+      })
+    );
 
     // CloudWatch metrics permissions
     role.addToPolicy(
@@ -558,7 +502,6 @@ export class SecurityConstruct extends Construct {
 
     // Add to all roles
     [
-      this.postAuthRole,
       this.kycUploadRole,
       this.adminReviewRole,
       this.userNotificationRole,
@@ -599,10 +542,9 @@ export class SecurityConstruct extends Construct {
    */
   public applyToLambdaFunction(
     lambdaFunction: lambda.Function,
-    roleType: "postAuth" | "kycUpload" | "adminReview" | "userNotification"
+    roleType: "kycUpload" | "adminReview" | "userNotification"
   ): void {
     const roleMap = {
-      postAuth: this.postAuthRole,
       kycUpload: this.kycUploadRole,
       adminReview: this.adminReviewRole,
       userNotification: this.userNotificationRole,
@@ -623,14 +565,6 @@ export class SecurityConstruct extends Construct {
   public getSecurityComplianceReport(): any {
     return {
       roles: {
-        postAuth: {
-          roleName: this.postAuthRole.roleName,
-          permissions: [
-            "dynamodb:read-write-user-profiles",
-            "cloudwatch:metrics",
-            "xray:tracing",
-          ],
-        },
         kycUpload: {
           roleName: this.kycUploadRole.roleName,
           permissions: [

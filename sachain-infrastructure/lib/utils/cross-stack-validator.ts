@@ -3,6 +3,7 @@
  *
  * Utilities for validating cross-stack dependencies and ensuring
  * proper resource resolution between stacks.
+ * Updated for consolidated stack structure (AuthStack -> CoreStack, EventStack -> LambdaStack)
  */
 
 import * as cdk from "aws-cdk-lib";
@@ -10,8 +11,6 @@ import { Construct } from "constructs";
 import {
   CoreStackOutputs,
   SecurityStackOutputs,
-  EventStackOutputs,
-  AuthStackOutputs,
   LambdaStackOutputs,
   MonitoringStackOutputs,
   StackDependencies,
@@ -171,6 +170,256 @@ export class StackDeploymentError extends Error {
 }
 
 /**
+ * Resource Reference Tracker for consolidated stacks
+ */
+export class ResourceReferenceTracker {
+  private static resourceMap: Map<string, { stack: string; resource: string }> =
+    new Map();
+
+  /**
+   * Initialize resource tracking for consolidated stacks
+   */
+  static initializeResourceTracking(): void {
+    this.resourceMap.clear();
+
+    // Core Stack resources (includes auth resources from former AuthStack)
+    this.resourceMap.set("table", { stack: "CoreStack", resource: "table" });
+    this.resourceMap.set("documentBucket", {
+      stack: "CoreStack",
+      resource: "documentBucket",
+    });
+    this.resourceMap.set("encryptionKey", {
+      stack: "CoreStack",
+      resource: "encryptionKey",
+    });
+    this.resourceMap.set("userPool", {
+      stack: "CoreStack",
+      resource: "userPool",
+    });
+    this.resourceMap.set("userPoolClient", {
+      stack: "CoreStack",
+      resource: "userPoolClient",
+    });
+    this.resourceMap.set("postAuthLambda", {
+      stack: "CoreStack",
+      resource: "postAuthLambda",
+    });
+
+    // Security Stack resources
+    this.resourceMap.set("kycUploadRole", {
+      stack: "SecurityStack",
+      resource: "kycUploadRole",
+    });
+    this.resourceMap.set("adminReviewRole", {
+      stack: "SecurityStack",
+      resource: "adminReviewRole",
+    });
+    this.resourceMap.set("userNotificationRole", {
+      stack: "SecurityStack",
+      resource: "userNotificationRole",
+    });
+    this.resourceMap.set("kycProcessingRole", {
+      stack: "SecurityStack",
+      resource: "kycProcessingRole",
+    });
+
+    // Lambda Stack resources (includes event resources from former EventStack)
+    this.resourceMap.set("api", { stack: "LambdaStack", resource: "api" });
+    this.resourceMap.set("kycUploadLambda", {
+      stack: "LambdaStack",
+      resource: "kycUploadLambda",
+    });
+    this.resourceMap.set("adminReviewLambda", {
+      stack: "LambdaStack",
+      resource: "adminReviewLambda",
+    });
+    this.resourceMap.set("userNotificationLambda", {
+      stack: "LambdaStack",
+      resource: "userNotificationLambda",
+    });
+    this.resourceMap.set("kycProcessingLambda", {
+      stack: "LambdaStack",
+      resource: "kycProcessingLambda",
+    });
+    this.resourceMap.set("eventBus", {
+      stack: "LambdaStack",
+      resource: "eventBus",
+    });
+    this.resourceMap.set("notificationTopic", {
+      stack: "LambdaStack",
+      resource: "notificationTopic",
+    });
+    this.resourceMap.set("userNotificationTopic", {
+      stack: "LambdaStack",
+      resource: "userNotificationTopic",
+    });
+    this.resourceMap.set("kycStatusChangeRule", {
+      stack: "LambdaStack",
+      resource: "kycStatusChangeRule",
+    });
+    this.resourceMap.set("kycDocumentUploadedRule", {
+      stack: "LambdaStack",
+      resource: "kycDocumentUploadedRule",
+    });
+    this.resourceMap.set("kycReviewCompletedRule", {
+      stack: "LambdaStack",
+      resource: "kycReviewCompletedRule",
+    });
+
+    // Monitoring Stack resources
+    this.resourceMap.set("dashboard", {
+      stack: "MonitoringStack",
+      resource: "dashboard",
+    });
+    this.resourceMap.set("alertTopic", {
+      stack: "MonitoringStack",
+      resource: "alertTopic",
+    });
+  }
+
+  /**
+   * Get the stack that owns a specific resource
+   */
+  static getResourceOwner(
+    resourceName: string
+  ): { stack: string; resource: string } | undefined {
+    return this.resourceMap.get(resourceName);
+  }
+
+  /**
+   * Get all resources owned by a specific stack
+   */
+  static getStackResources(stackName: string): string[] {
+    const resources: string[] = [];
+    for (const [resourceName, owner] of this.resourceMap.entries()) {
+      if (owner.stack === stackName) {
+        resources.push(resourceName);
+      }
+    }
+    return resources;
+  }
+
+  /**
+   * Validate that a resource reference is valid for the consolidated structure
+   */
+  static validateResourceReference(
+    resourceName: string,
+    expectedStack?: string
+  ): boolean {
+    const owner = this.getResourceOwner(resourceName);
+    if (!owner) {
+      return false;
+    }
+
+    if (expectedStack && owner.stack !== expectedStack) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Get migration mapping for resources that moved between stacks
+   */
+  static getResourceMigrationMapping(): Map<
+    string,
+    { from: string; to: string }
+  > {
+    const migrationMap = new Map<string, { from: string; to: string }>();
+
+    // Auth resources moved from AuthStack to CoreStack
+    migrationMap.set("userPool", { from: "AuthStack", to: "CoreStack" });
+    migrationMap.set("userPoolClient", { from: "AuthStack", to: "CoreStack" });
+
+    // Post-auth lambda moved from LambdaStack to CoreStack
+    migrationMap.set("postAuthLambda", {
+      from: "LambdaStack",
+      to: "CoreStack",
+    });
+
+    // Event resources moved from EventStack to LambdaStack
+    migrationMap.set("eventBus", { from: "EventStack", to: "LambdaStack" });
+    migrationMap.set("notificationTopic", {
+      from: "EventStack",
+      to: "LambdaStack",
+    });
+    migrationMap.set("userNotificationTopic", {
+      from: "EventStack",
+      to: "LambdaStack",
+    });
+    migrationMap.set("kycStatusChangeRule", {
+      from: "EventStack",
+      to: "LambdaStack",
+    });
+    migrationMap.set("kycDocumentUploadedRule", {
+      from: "EventStack",
+      to: "LambdaStack",
+    });
+    migrationMap.set("kycReviewCompletedRule", {
+      from: "EventStack",
+      to: "LambdaStack",
+    });
+
+    return migrationMap;
+  }
+
+  /**
+   * Validate that all cross-stack references are updated for the new structure
+   */
+  static validateConsolidatedReferences(): {
+    valid: boolean;
+    issues: string[];
+  } {
+    const issues: string[] = [];
+    const migrationMap = this.getResourceMigrationMapping();
+
+    // Check that no references to deleted stacks exist
+    const deletedStacks = ["AuthStack", "EventStack"];
+    for (const deletedStack of deletedStacks) {
+      // In a real implementation, this would check actual CloudFormation exports
+      // For now, we just validate the mapping is complete
+      for (const [resource, migration] of migrationMap.entries()) {
+        if (migration.from === deletedStack) {
+          const newOwner = this.getResourceOwner(resource);
+          if (!newOwner || newOwner.stack !== migration.to) {
+            issues.push(
+              `Resource ${resource} not properly migrated from ${migration.from} to ${migration.to}`
+            );
+          }
+        }
+      }
+    }
+
+    return {
+      valid: issues.length === 0,
+      issues,
+    };
+  }
+
+  /**
+   * Clear resource tracking (useful for testing)
+   */
+  static clearResourceTracking(): void {
+    this.resourceMap.clear();
+  }
+
+  /**
+   * Records a cross-stack reference (for backward compatibility)
+   */
+  static recordReference(
+    fromStack: string,
+    toStack: string,
+    resourceName: string
+  ): void {
+    // This method is kept for backward compatibility with existing stack files
+    // In the consolidated structure, we track resources differently
+    console.log(
+      `Recording reference: ${fromStack} -> ${toStack}.${resourceName}`
+    );
+  }
+}
+
+/**
  * Enhanced cross-stack validator with comprehensive error handling
  */
 export class CrossStackValidator {
@@ -227,8 +476,6 @@ export class CrossStackValidator {
     const allStacks = [
       "CoreStack",
       "SecurityStack",
-      "EventStack",
-      "AuthStack",
       "LambdaStack",
       "MonitoringStack",
     ];
@@ -263,9 +510,6 @@ export class CrossStackValidator {
         case "SecurityStack":
           this.validateSecurityStackDeployment(dependencies);
           break;
-        case "AuthStack":
-          this.validateAuthStackDeployment(dependencies);
-          break;
         case "LambdaStack":
           this.validateLambdaStackDeployment(dependencies);
           break;
@@ -294,7 +538,7 @@ export class CrossStackValidator {
   }
 
   /**
-   * Validate SecurityStack deployment requirements
+   * Validate SecurityStack deployment requirements (updated for consolidated CoreStack)
    */
   private static validateSecurityStackDeployment(dependencies: any): void {
     if (!dependencies.table) {
@@ -323,33 +567,22 @@ export class CrossStackValidator {
         StackErrorType.MISSING_DEPENDENCY
       );
     }
-  }
 
-  /**
-   * Validate AuthStack deployment requirements
-   */
-  private static validateAuthStackDeployment(dependencies: any): void {
-    // AuthStack has minimal dependencies, but we can validate configuration
-    if (
-      dependencies.postAuthLambda &&
-      !dependencies.postAuthLambda.functionArn
-    ) {
+    if (!dependencies.userPool) {
       throw new CrossStackValidationError(
-        "Invalid post-auth Lambda configuration",
-        "AuthStack",
-        "LambdaStack.postAuthLambda",
-        StackErrorType.INVALID_CONFIGURATION,
-        "Ensure the post-auth Lambda function is properly configured"
+        "Cognito User Pool is required for SecurityStack (now from CoreStack)",
+        "SecurityStack",
+        "CoreStack.userPool",
+        StackErrorType.MISSING_DEPENDENCY
       );
     }
   }
 
   /**
-   * Validate LambdaStack deployment requirements
+   * Validate LambdaStack deployment requirements (updated for consolidated structure)
    */
   private static validateLambdaStackDeployment(dependencies: any): void {
     const requiredRoles = [
-      "postAuthRole",
       "kycUploadRole",
       "adminReviewRole",
       "userNotificationRole",
@@ -369,12 +602,24 @@ export class CrossStackValidator {
 
     if (!dependencies.userPool) {
       throw new CrossStackValidationError(
-        "Cognito User Pool is required for LambdaStack",
+        "Cognito User Pool is required for LambdaStack (from CoreStack)",
         "LambdaStack",
-        "AuthStack.userPool",
+        "CoreStack.userPool",
         StackErrorType.MISSING_DEPENDENCY
       );
     }
+
+    if (!dependencies.postAuthLambda) {
+      throw new CrossStackValidationError(
+        "Post-auth Lambda is required for LambdaStack (from CoreStack)",
+        "LambdaStack",
+        "CoreStack.postAuthLambda",
+        StackErrorType.MISSING_DEPENDENCY
+      );
+    }
+
+    // Note: Event resources (EventBridge, SNS) are now created within LambdaStack
+    // so no external dependencies needed for them
   }
 
   /**
@@ -382,7 +627,6 @@ export class CrossStackValidator {
    */
   private static validateMonitoringStackDeployment(dependencies: any): void {
     const requiredLambdas = [
-      "postAuthLambda",
       "kycUploadLambda",
       "adminReviewLambda",
       "userNotificationLambda",
@@ -399,20 +643,42 @@ export class CrossStackValidator {
         );
       }
     }
+
+    // Post-auth lambda comes from CoreStack now
+    if (!dependencies.postAuthLambda) {
+      throw new CrossStackValidationError(
+        "Post-auth Lambda is required for MonitoringStack",
+        "MonitoringStack",
+        "CoreStack.postAuthLambda",
+        StackErrorType.MISSING_DEPENDENCY
+      );
+    }
   }
+
   /**
-   * Validates CoreStack outputs with enhanced error handling
+   * Validates CoreStack outputs with enhanced error handling (includes auth resources)
    */
   static validateCoreStackOutputs(
     outputs: Partial<CoreStackOutputs>,
-    stackName: string
+    stackName: string,
+    requiredOutputs?: (keyof CoreStackOutputs)[]
   ): void {
     // Skip validation for test stacks
     if (stackName.includes("Test")) {
       return;
     }
 
-    const required = ["table", "documentBucket", "encryptionKey"];
+    // Default required outputs for backward compatibility
+    const defaultRequired = [
+      "table",
+      "documentBucket",
+      "encryptionKey",
+      "userPool",
+      "userPoolClient",
+      "postAuthLambda",
+    ];
+
+    const required = requiredOutputs || defaultRequired;
 
     for (const prop of required) {
       if (!outputs[prop as keyof CoreStackOutputs]) {
@@ -446,6 +712,139 @@ export class CrossStackValidator {
         "Check CoreStack S3 bucket configuration"
       );
     }
+
+    // Validate auth resources (consolidated from AuthStack)
+    if (outputs.userPool && !outputs.userPool.userPoolId) {
+      throw new CrossStackValidationError(
+        "CoreStack userPool is missing userPoolId property",
+        stackName,
+        "CoreStack.userPool",
+        StackErrorType.INVALID_CONFIGURATION,
+        "Check CoreStack Cognito User Pool configuration"
+      );
+    }
+
+    if (outputs.userPoolClient && !outputs.userPoolClient.userPoolClientId) {
+      throw new CrossStackValidationError(
+        "CoreStack userPoolClient is missing userPoolClientId property",
+        stackName,
+        "CoreStack.userPoolClient",
+        StackErrorType.INVALID_CONFIGURATION,
+        "Check CoreStack Cognito User Pool Client configuration"
+      );
+    }
+
+    if (outputs.postAuthLambda && !outputs.postAuthLambda.functionArn) {
+      throw new CrossStackValidationError(
+        "CoreStack postAuthLambda is missing functionArn property",
+        stackName,
+        "CoreStack.postAuthLambda",
+        StackErrorType.INVALID_CONFIGURATION,
+        "Check CoreStack post-auth Lambda configuration"
+      );
+    }
+  }
+
+  /**
+   * Validates LambdaStack event outputs (consolidated from EventStack)
+   */
+  static validateLambdaStackEventOutputs(
+    outputs: Partial<LambdaStackOutputs>,
+    stackName: string
+  ): void {
+    const required = [
+      "eventBus",
+      "notificationTopic",
+      "kycDocumentUploadedRule",
+      "kycStatusChangeRule",
+    ];
+
+    for (const prop of required) {
+      if (!outputs[prop as keyof LambdaStackOutputs]) {
+        throw new CrossStackValidationError(
+          `Missing required LambdaStack event output: ${prop}. Ensure LambdaStack is deployed successfully.`,
+          stackName,
+          `LambdaStack.${prop}`,
+          StackErrorType.MISSING_DEPENDENCY,
+          `Deploy LambdaStack first: cdk deploy SachainLambdaStack-{environment}`
+        );
+      }
+    }
+
+    // Validate event resource properties
+    if (outputs.eventBus && !outputs.eventBus.eventBusName) {
+      throw new CrossStackValidationError(
+        "LambdaStack eventBus is missing eventBusName property",
+        stackName,
+        "LambdaStack.eventBus",
+        StackErrorType.INVALID_CONFIGURATION,
+        "Check LambdaStack EventBridge configuration"
+      );
+    }
+
+    if (outputs.notificationTopic && !outputs.notificationTopic.topicArn) {
+      throw new CrossStackValidationError(
+        "LambdaStack notificationTopic is missing topicArn property",
+        stackName,
+        "LambdaStack.notificationTopic",
+        StackErrorType.INVALID_CONFIGURATION,
+        "Check LambdaStack SNS topic configuration"
+      );
+    }
+  }
+
+  /**
+   * Validates CoreStack auth outputs (consolidated from AuthStack)
+   */
+  static validateCoreStackAuthOutputs(
+    outputs: Partial<CoreStackOutputs>,
+    stackName: string
+  ): void {
+    const required = ["userPool", "userPoolClient", "postAuthLambda"];
+
+    for (const prop of required) {
+      if (!outputs[prop as keyof CoreStackOutputs]) {
+        throw new CrossStackValidationError(
+          `Missing required CoreStack auth output: ${prop}. Ensure CoreStack is deployed successfully.`,
+          stackName,
+          `CoreStack.${prop}`,
+          StackErrorType.MISSING_DEPENDENCY,
+          `Deploy CoreStack first: cdk deploy SachainCoreStack-{environment}`
+        );
+      }
+    }
+
+    // Validate Cognito resource properties
+    if (outputs.userPool && !outputs.userPool.userPoolId) {
+      throw new CrossStackValidationError(
+        "CoreStack userPool is missing userPoolId property",
+        stackName,
+        "CoreStack.userPool",
+        StackErrorType.INVALID_CONFIGURATION,
+        "Check CoreStack Cognito User Pool configuration"
+      );
+    }
+
+    if (outputs.userPoolClient && !outputs.userPoolClient.userPoolClientId) {
+      throw new CrossStackValidationError(
+        "CoreStack userPoolClient is missing userPoolClientId property",
+        stackName,
+        "CoreStack.userPoolClient",
+        StackErrorType.INVALID_CONFIGURATION,
+        "Check CoreStack Cognito User Pool Client configuration"
+      );
+    }
+
+    // Validate post-auth lambda properties
+    if (outputs.postAuthLambda && !outputs.postAuthLambda.functionArn) {
+      throw new CrossStackValidationError(
+        "CoreStack postAuthLambda is missing functionArn property",
+        stackName,
+        "CoreStack.postAuthLambda",
+        StackErrorType.INVALID_CONFIGURATION,
+        "Check CoreStack post-auth Lambda configuration"
+      );
+    }
   }
 
   /**
@@ -456,7 +855,6 @@ export class CrossStackValidator {
     stackName: string
   ): void {
     const required = [
-      "postAuthRole",
       "kycUploadRole",
       "adminReviewRole",
       "userNotificationRole",
@@ -491,97 +889,6 @@ export class CrossStackValidator {
   }
 
   /**
-   * Validates EventStack outputs with enhanced error handling
-   */
-  static validateEventStackOutputs(
-    outputs: Partial<EventStackOutputs>,
-    stackName: string
-  ): void {
-    const required = [
-      "eventBus",
-      "notificationTopic",
-      "kycDocumentUploadedRule",
-      "kycStatusChangeRule",
-    ];
-
-    for (const prop of required) {
-      if (!outputs[prop as keyof EventStackOutputs]) {
-        throw new CrossStackValidationError(
-          `Missing required EventStack output: ${prop}. Ensure EventStack is deployed successfully.`,
-          stackName,
-          `EventStack.${prop}`,
-          StackErrorType.MISSING_DEPENDENCY,
-          `Deploy EventStack first: cdk deploy SachainEventStack-{environment}`
-        );
-      }
-    }
-
-    // Validate event resource properties
-    if (outputs.eventBus && !outputs.eventBus.eventBusName) {
-      throw new CrossStackValidationError(
-        "EventStack eventBus is missing eventBusName property",
-        stackName,
-        "EventStack.eventBus",
-        StackErrorType.INVALID_CONFIGURATION,
-        "Check EventStack EventBridge configuration"
-      );
-    }
-
-    if (outputs.notificationTopic && !outputs.notificationTopic.topicArn) {
-      throw new CrossStackValidationError(
-        "EventStack notificationTopic is missing topicArn property",
-        stackName,
-        "EventStack.notificationTopic",
-        StackErrorType.INVALID_CONFIGURATION,
-        "Check EventStack SNS topic configuration"
-      );
-    }
-  }
-
-  /**
-   * Validates AuthStack outputs with enhanced error handling
-   */
-  static validateAuthStackOutputs(
-    outputs: Partial<AuthStackOutputs>,
-    stackName: string
-  ): void {
-    const required = ["userPool", "userPoolClient"];
-
-    for (const prop of required) {
-      if (!outputs[prop as keyof AuthStackOutputs]) {
-        throw new CrossStackValidationError(
-          `Missing required AuthStack output: ${prop}. Ensure AuthStack is deployed successfully.`,
-          stackName,
-          `AuthStack.${prop}`,
-          StackErrorType.MISSING_DEPENDENCY,
-          `Deploy AuthStack first: cdk deploy SachainAuthStack-{environment}`
-        );
-      }
-    }
-
-    // Validate Cognito resource properties
-    if (outputs.userPool && !outputs.userPool.userPoolId) {
-      throw new CrossStackValidationError(
-        "AuthStack userPool is missing userPoolId property",
-        stackName,
-        "AuthStack.userPool",
-        StackErrorType.INVALID_CONFIGURATION,
-        "Check AuthStack Cognito User Pool configuration"
-      );
-    }
-
-    if (outputs.userPoolClient && !outputs.userPoolClient.userPoolClientId) {
-      throw new CrossStackValidationError(
-        "AuthStack userPoolClient is missing userPoolClientId property",
-        stackName,
-        "AuthStack.userPoolClient",
-        StackErrorType.INVALID_CONFIGURATION,
-        "Check AuthStack Cognito User Pool Client configuration"
-      );
-    }
-  }
-
-  /**
    * Validates LambdaStack dependencies before stack creation
    */
   static validateLambdaStackDependencies(
@@ -590,8 +897,6 @@ export class CrossStackValidator {
   ): void {
     this.validateCoreStackOutputs(deps.coreOutputs, stackName);
     this.validateSecurityStackOutputs(deps.securityOutputs, stackName);
-    this.validateEventStackOutputs(deps.eventOutputs, stackName);
-    this.validateAuthStackOutputs(deps.authOutputs, stackName);
   }
 
   /**
@@ -601,15 +906,15 @@ export class CrossStackValidator {
     deps: StackDependencies["monitoring"],
     stackName: string
   ): void {
-    const required = [
-      "postAuthLambda",
+    const requiredFromLambdaStack = [
       "kycUploadLambda",
       "adminReviewLambda",
       "userNotificationLambda",
       "kycProcessingLambda",
     ];
 
-    for (const prop of required) {
+    // Validate lambda functions from LambdaStack
+    for (const prop of requiredFromLambdaStack) {
       if (!deps.lambdaOutputs[prop as keyof typeof deps.lambdaOutputs]) {
         throw new CrossStackValidationError(
           `Missing required LambdaStack output: ${prop}. Ensure LambdaStack is deployed successfully.`,
@@ -619,6 +924,17 @@ export class CrossStackValidator {
           `Deploy LambdaStack first: cdk deploy SachainLambdaStack-{environment}`
         );
       }
+    }
+
+    // Validate post-auth lambda from CoreStack (consolidated structure)
+    if (!deps.coreOutputs.postAuthLambda) {
+      throw new CrossStackValidationError(
+        `Missing required CoreStack output: postAuthLambda. Ensure CoreStack is deployed successfully.`,
+        stackName,
+        `CoreStack.postAuthLambda`,
+        StackErrorType.MISSING_DEPENDENCY,
+        `Deploy CoreStack first: cdk deploy SachainCoreStack-{environment}`
+      );
     }
   }
 
@@ -755,109 +1071,21 @@ export class CrossStackValidator {
 }
 
 /**
- * Helper functions for cross-stack reference resolution
- */
-export class CrossStackReferenceHelper {
-  /**
-   * Creates a CloudFormation import value for cross-stack references
-   */
-  static importValue(exportName: string): string {
-    return cdk.Fn.importValue(exportName);
-  }
-
-  /**
-   * Creates a cross-stack reference for importing resources from another stack
-   */
-  static createImportReference(
-    scope: Construct,
-    id: string,
-    exportName: string
-  ): string {
-    return cdk.Fn.importValue(exportName);
-  }
-
-  /**
-   * Creates standardized export names for resources
-   */
-  static getExportName(
-    environment: string,
-    resourceType: keyof typeof EXPORT_NAMES
-  ): string {
-    return EXPORT_NAMES[resourceType](environment);
-  }
-
-  /**
-   * Validates that an export name follows the standard naming convention
-   */
-  static validateExportName(exportName: string, environment: string): boolean {
-    return (
-      exportName.startsWith(`${environment}-sachain-`) && exportName.length > 0
-    );
-  }
-
-  /**
-   * Creates a cross-stack reference with validation
-   */
-  static createCrossStackReference<T extends cdk.IResource>(
-    scope: Construct,
-    id: string,
-    exportName: string,
-    resourceType: new (...args: any[]) => T
-  ): T {
-    try {
-      const importedValue = this.importValue(exportName);
-      // Note: This is a simplified example. In practice, you'd need to use
-      // specific CDK methods for importing different resource types
-      return new resourceType(scope, id, { importedValue });
-    } catch (error) {
-      throw new CrossStackValidationError(
-        `Failed to create cross-stack reference for ${exportName}: ${error}`,
-        scope.node.id,
-        exportName
-      );
-    }
-  }
-
-  /**
-   * Validates that all required exports exist for a stack
-   */
-  static validateRequiredExports(
-    environment: string,
-    requiredExports: (keyof typeof EXPORT_NAMES)[]
-  ): string[] {
-    const missingExports: string[] = [];
-
-    for (const exportKey of requiredExports) {
-      const exportName = EXPORT_NAMES[exportKey](environment);
-      if (!this.validateExportName(exportName, environment)) {
-        missingExports.push(exportName);
-      }
-    }
-
-    return missingExports;
-  }
-}
-
-/**
  * Enhanced cross-stack dependency resolver with error handling
  */
 export class DependencyResolver {
   private static readonly STACK_ORDER = [
     "CoreStack",
-    "EventStack",
     "SecurityStack",
-    "AuthStack",
     "LambdaStack",
     "MonitoringStack",
   ];
 
   private static readonly STACK_DEPENDENCIES: Record<string, string[]> = {
-    CoreStack: [],
-    EventStack: [],
-    SecurityStack: ["CoreStack", "EventStack"],
-    AuthStack: ["SecurityStack"],
-    LambdaStack: ["CoreStack", "SecurityStack", "EventStack", "AuthStack"],
-    MonitoringStack: ["LambdaStack"],
+    CoreStack: [], // Now includes auth resources (from AuthStack)
+    SecurityStack: ["CoreStack"], // Depends only on CoreStack (which includes auth)
+    LambdaStack: ["CoreStack", "SecurityStack"], // Now includes event resources (from EventStack)
+    MonitoringStack: ["LambdaStack", "CoreStack"], // Depends on both for lambda and post-auth lambda
   };
 
   /**
@@ -1025,88 +1253,85 @@ export class DependencyResolver {
 }
 
 /**
- * Resource reference tracker for debugging cross-stack issues
+ * Helper functions for cross-stack reference resolution
  */
-export class ResourceReferenceTracker {
-  private static references: Map<string, Set<string>> = new Map();
+export class CrossStackReferenceHelper {
+  /**
+   * Creates a CloudFormation import value for cross-stack references
+   */
+  static importValue(exportName: string): string {
+    return cdk.Fn.importValue(exportName);
+  }
 
   /**
-   * Records a cross-stack reference
+   * Creates a cross-stack reference for importing resources from another stack
    */
-  static recordReference(
-    fromStack: string,
-    toStack: string,
-    resourceName: string
-  ): void {
-    const key = `${fromStack}->${toStack}`;
-    if (!this.references.has(key)) {
-      this.references.set(key, new Set());
+  static createImportReference(
+    scope: Construct,
+    id: string,
+    exportName: string
+  ): string {
+    return cdk.Fn.importValue(exportName);
+  }
+
+  /**
+   * Creates standardized export names for resources
+   */
+  static getExportName(
+    environment: string,
+    resourceType: keyof typeof EXPORT_NAMES
+  ): string {
+    return EXPORT_NAMES[resourceType](environment);
+  }
+
+  /**
+   * Validates that an export name follows the standard naming convention
+   */
+  static validateExportName(exportName: string, environment: string): boolean {
+    return (
+      exportName.startsWith(`${environment}-sachain-`) && exportName.length > 0
+    );
+  }
+
+  /**
+   * Creates a cross-stack reference with validation
+   */
+  static createCrossStackReference<T extends cdk.IResource>(
+    scope: Construct,
+    id: string,
+    exportName: string,
+    resourceType: new (...args: any[]) => T
+  ): T {
+    try {
+      const importedValue = this.importValue(exportName);
+      // Note: This is a simplified example. In practice, you'd need to use
+      // specific CDK methods for importing different resource types
+      return new resourceType(scope, id, { importedValue });
+    } catch (error) {
+      throw new CrossStackValidationError(
+        `Failed to create cross-stack reference for ${exportName}: ${error}`,
+        scope.node.id,
+        exportName
+      );
     }
-    this.references.get(key)!.add(resourceName);
   }
 
   /**
-   * Gets all recorded references
+   * Validates that all required exports exist for a stack
    */
-  static getAllReferences(): Map<string, Set<string>> {
-    return new Map(this.references);
-  }
+  static validateRequiredExports(
+    environment: string,
+    requiredExports: (keyof typeof EXPORT_NAMES)[]
+  ): string[] {
+    const missingExports: string[] = [];
 
-  /**
-   * Gets references from a specific stack
-   */
-  static getReferencesFromStack(stackName: string): Map<string, Set<string>> {
-    const result = new Map<string, Set<string>>();
-
-    for (const [key, resources] of this.references) {
-      if (key.startsWith(`${stackName}->`)) {
-        result.set(key, resources);
+    for (const exportKey of requiredExports) {
+      const exportName = EXPORT_NAMES[exportKey](environment);
+      if (!this.validateExportName(exportName, environment)) {
+        missingExports.push(exportName);
       }
     }
 
-    return result;
-  }
-
-  /**
-   * Gets references to a specific stack
-   */
-  static getReferencesToStack(stackName: string): Map<string, Set<string>> {
-    const result = new Map<string, Set<string>>();
-
-    for (const [key, resources] of this.references) {
-      if (key.endsWith(`->${stackName}`)) {
-        result.set(key, resources);
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Clears all recorded references (useful for testing)
-   */
-  static clearReferences(): void {
-    this.references.clear();
-  }
-
-  /**
-   * Generates a dependency report
-   */
-  static generateDependencyReport(): string {
-    const lines: string[] = [
-      "Cross-Stack Dependency Report",
-      "=".repeat(35),
-      "",
-    ];
-
-    for (const [key, resources] of this.references) {
-      lines.push(`${key}:`);
-      for (const resource of resources) {
-        lines.push(`  - ${resource}`);
-      }
-      lines.push("");
-    }
-
-    return lines.join("\n");
+    return missingExports;
   }
 }

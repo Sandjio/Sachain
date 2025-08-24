@@ -7,6 +7,7 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as events from "aws-cdk-lib/aws-events";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 import { LambdaStack } from "../../lib/stacks/lambda-stack";
 
 // Mock the utils module to avoid validation issues in unit tests
@@ -31,6 +32,8 @@ describe("LambdaStack", () => {
   let mockEventBus: events.EventBus;
   let mockNotificationTopic: sns.Topic;
   let mockUserPool: cognito.UserPool;
+  let mockUserPoolClient: cognito.UserPoolClient;
+  let mockPostAuthLambda: lambda.Function;
   let mockRoles: {
     postAuthRole: iam.Role;
     kycUploadRole: iam.Role;
@@ -80,6 +83,25 @@ describe("LambdaStack", () => {
     // Create mock Cognito User Pool
     mockUserPool = new cognito.UserPool(mockStack, "MockUserPool", {
       userPoolName: "test-user-pool",
+    });
+
+    // Create mock Cognito User Pool Client
+    mockUserPoolClient = new cognito.UserPoolClient(
+      mockStack,
+      "MockUserPoolClient",
+      {
+        userPool: mockUserPool,
+        generateSecret: false,
+        userPoolClientName: "test-user-pool-client",
+      }
+    );
+
+    // Create mock Post-Authentication Lambda function
+    mockPostAuthLambda = new lambda.Function(mockStack, "MockPostAuthLambda", {
+      functionName: "test-post-auth-lambda",
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "index.handler",
+      code: lambda.Code.fromInline("exports.handler = async () => {};"),
     });
 
     // Create mock IAM roles
@@ -141,31 +163,24 @@ describe("LambdaStack", () => {
       environment: "test",
       table: mockTable,
       documentBucket: mockBucket,
-      postAuthRole: mockRoles.postAuthRole,
       kycUploadRole: mockRoles.kycUploadRole,
       adminReviewRole: mockRoles.adminReviewRole,
       userNotificationRole: mockRoles.userNotificationRole,
       kycProcessingRole: mockRoles.kycProcessingRole,
-      eventBus: mockEventBus,
-      notificationTopic: mockNotificationTopic,
-      kycDocumentUploadedRule: mockEventRules.kycDocumentUploadedRule,
-      kycStatusChangeRule: mockEventRules.kycStatusChangeRule,
       userPool: mockUserPool,
+      encryptionKey: mockEncryptionKey,
+      userPoolClient: mockUserPoolClient,
+      postAuthLambda: mockPostAuthLambda,
     });
 
     template = Template.fromStack(stack);
   });
 
   test("creates all required Lambda functions", () => {
-    // Verify that all Lambda functions are created
-    template.resourceCountIs("AWS::Lambda::Function", 5);
+    // Verify that all Lambda functions are created (excluding post-auth which is now in CoreStack)
+    template.resourceCountIs("AWS::Lambda::Function", 4);
 
-    // Check for specific Lambda functions by name pattern
-    template.hasResourceProperties("AWS::Lambda::Function", {
-      FunctionName: "sachain-post-auth-test",
-      Runtime: "nodejs20.x",
-    });
-
+    // Check for specific Lambda functions by name pattern (post-auth lambda is now in CoreStack)
     template.hasResourceProperties("AWS::Lambda::Function", {
       FunctionName: "sachain-kyc-upload-test",
       Runtime: "nodejs20.x",
@@ -257,17 +272,31 @@ describe("LambdaStack", () => {
       },
     });
 
-    template.hasOutput("PostAuthLambdaArn", {
-      Description: "Post-Authentication Lambda Function ARN",
-      Export: {
-        Name: "test-sachain-post-auth-lambda-arn",
-      },
-    });
-
     template.hasOutput("KycUploadLambdaArn", {
       Description: "KYC Upload Lambda Function ARN",
       Export: {
-        Name: "test-sachain-kyc-upload-lambda-arn",
+        Name: "test-sachain-lambda-kyc-upload-lambda-arn",
+      },
+    });
+
+    template.hasOutput("AdminReviewLambdaArn", {
+      Description: "Admin Review Lambda Function ARN",
+      Export: {
+        Name: "test-sachain-lambda-admin-review-lambda-arn",
+      },
+    });
+
+    template.hasOutput("UserNotificationLambdaArn", {
+      Description: "User Notification Lambda Function ARN",
+      Export: {
+        Name: "test-sachain-lambda-user-notification-lambda-arn",
+      },
+    });
+
+    template.hasOutput("KycProcessingLambdaArn", {
+      Description: "KYC Processing Lambda Function ARN",
+      Export: {
+        Name: "test-sachain-lambda-kyc-processing-lambda-arn",
       },
     });
   });
@@ -285,13 +314,20 @@ describe("LambdaStack", () => {
   });
 
   test("exposes Lambda functions for cross-stack references", () => {
-    // Verify that the stack exposes the Lambda functions
-    expect(stack.postAuthLambda).toBeDefined();
+    // Verify that the stack exposes the Lambda functions (post-auth is now in CoreStack)
     expect(stack.kycUploadLambda).toBeDefined();
     expect(stack.adminReviewLambda).toBeDefined();
     expect(stack.userNotificationLambda).toBeDefined();
     expect(stack.kycProcessingLambda).toBeDefined();
     expect(stack.api).toBeDefined();
+
+    // Verify event-related resources are exposed (consolidated from EventStack)
+    expect(stack.eventBus).toBeDefined();
+    expect(stack.notificationTopic).toBeDefined();
+    expect(stack.userNotificationTopic).toBeDefined();
+    expect(stack.kycStatusChangeRule).toBeDefined();
+    expect(stack.kycDocumentUploadedRule).toBeDefined();
+    expect(stack.kycReviewCompletedRule).toBeDefined();
   });
 
   test("configures EventBridge integrations", () => {
@@ -299,5 +335,158 @@ describe("LambdaStack", () => {
     // This is tested indirectly through the Lambda construct integration
     expect(stack.kycProcessingLambda).toBeDefined();
     expect(stack.userNotificationLambda).toBeDefined();
+  });
+
+  // Event functionality tests (consolidated from EventStack)
+  describe("EventBridge Resources", () => {
+    test("creates custom EventBridge bus", () => {
+      template.hasResourceProperties("AWS::Events::EventBus", {
+        Name: "sachain-kyc-events-test",
+      });
+    });
+
+    test("creates KYC status change rule", () => {
+      template.hasResourceProperties("AWS::Events::Rule", {
+        Name: "sachain-kyc-status-change-test",
+        Description: "Route KYC status change events to user notifications",
+        EventPattern: {
+          source: ["sachain.kyc"],
+          "detail-type": ["KYC Status Changed"],
+          detail: {
+            eventType: ["KYC_STATUS_CHANGED"],
+            newStatus: ["approved", "rejected"],
+          },
+        },
+      });
+    });
+
+    test("creates KYC document uploaded rule", () => {
+      template.hasResourceProperties("AWS::Events::Rule", {
+        Name: "sachain-kyc-document-uploaded-test",
+        Description: "Route KYC document upload events to admin notifications",
+        EventPattern: {
+          source: ["sachain.kyc"],
+          "detail-type": ["KYC Document Uploaded"],
+          detail: {
+            eventType: ["KYC_DOCUMENT_UPLOADED"],
+          },
+        },
+      });
+    });
+
+    test("creates KYC review completed rule", () => {
+      template.hasResourceProperties("AWS::Events::Rule", {
+        Name: "sachain-kyc-review-completed-test",
+        Description:
+          "Route KYC review completion events for audit and analytics",
+        EventPattern: {
+          source: ["sachain.kyc"],
+          "detail-type": ["KYC Review Completed"],
+          detail: {
+            eventType: ["KYC_REVIEW_COMPLETED"],
+          },
+        },
+      });
+    });
+
+    test("exposes event bus for cross-stack access", () => {
+      expect(stack.eventBus).toBeDefined();
+      expect(stack.eventBus.eventBusArn).toBeDefined();
+    });
+
+    test("exposes event rules for cross-stack access", () => {
+      expect(stack.kycStatusChangeRule).toBeDefined();
+      expect(stack.kycDocumentUploadedRule).toBeDefined();
+      expect(stack.kycReviewCompletedRule).toBeDefined();
+    });
+  });
+
+  describe("SNS Resources", () => {
+    test("creates admin notification topic", () => {
+      template.hasResourceProperties("AWS::SNS::Topic", {
+        TopicName: "sachain-kyc-admin-notifications-test",
+        DisplayName: "Sachain KYC Admin Notifications",
+        FifoTopic: false,
+      });
+    });
+
+    test("creates user notification topic", () => {
+      template.hasResourceProperties("AWS::SNS::Topic", {
+        TopicName: "sachain-kyc-user-notifications-test",
+        DisplayName: "Sachain KYC User Notifications",
+        FifoTopic: false,
+      });
+    });
+
+    test("exposes notification topics for cross-stack access", () => {
+      expect(stack.notificationTopic).toBeDefined();
+      expect(stack.userNotificationTopic).toBeDefined();
+    });
+  });
+
+  describe("Event Stack Outputs", () => {
+    test("exports event bus name and ARN", () => {
+      template.hasOutput("EventBusName", {
+        Export: {
+          Name: "test-sachain-lambda-event-bus-name",
+        },
+      });
+
+      template.hasOutput("EventBusArn", {
+        Export: {
+          Name: "test-sachain-lambda-event-bus-arn",
+        },
+      });
+    });
+
+    test("exports notification topic ARNs", () => {
+      template.hasOutput("AdminNotificationTopicArn", {
+        Export: {
+          Name: "test-sachain-lambda-admin-notification-topic-arn",
+        },
+      });
+
+      template.hasOutput("UserNotificationTopicArn", {
+        Export: {
+          Name: "test-sachain-lambda-user-notification-topic-arn",
+        },
+      });
+    });
+
+    test("exports event rule ARNs", () => {
+      template.hasOutput("KycStatusChangeRuleArn", {
+        Export: {
+          Name: "test-sachain-lambda-kyc-status-change-rule-arn",
+        },
+      });
+
+      template.hasOutput("KycDocumentUploadedRuleArn", {
+        Export: {
+          Name: "test-sachain-lambda-kyc-document-uploaded-rule-arn",
+        },
+      });
+
+      template.hasOutput("KycReviewCompletedRuleArn", {
+        Export: {
+          Name: "test-sachain-lambda-kyc-review-completed-rule-arn",
+        },
+      });
+    });
+  });
+
+  describe("CloudWatch Resources", () => {
+    test("creates log group for event debugging", () => {
+      template.hasResourceProperties("AWS::Logs::LogGroup", {
+        RetentionInDays: 30,
+      });
+    });
+  });
+
+  describe("Environment Configuration", () => {
+    test("uses environment in event resource naming", () => {
+      const resources = template.findResources("AWS::Events::EventBus");
+      const eventBusResource = Object.values(resources)[0];
+      expect(eventBusResource.Properties.Name).toBe("sachain-kyc-events-test");
+    });
   });
 });

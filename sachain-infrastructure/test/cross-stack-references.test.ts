@@ -10,8 +10,6 @@ import { Template } from "aws-cdk-lib/assertions";
 import {
   CoreStack,
   SecurityStack,
-  EventStack,
-  AuthStack,
   LambdaStack,
   MonitoringStack,
 } from "../lib/stacks";
@@ -26,9 +24,7 @@ import { EXPORT_NAMES } from "../lib/interfaces";
 describe("Cross-Stack Reference Integration", () => {
   let app: cdk.App;
   let coreStack: CoreStack;
-  let eventStack: EventStack;
   let securityStack: SecurityStack;
-  let authStack: AuthStack;
   let lambdaStack: LambdaStack;
   let monitoringStack: MonitoringStack;
 
@@ -39,17 +35,12 @@ describe("Cross-Stack Reference Integration", () => {
 
   beforeEach(() => {
     // Clear any previous references
-    ResourceReferenceTracker.clearReferences();
+    ResourceReferenceTracker.clearResourceTracking();
 
     app = new cdk.App();
 
-    // Create stacks in dependency order
+    // Create stacks in dependency order (consolidated structure)
     coreStack = new CoreStack(app, `CoreStack-${environment}`, {
-      ...commonProps,
-      environment,
-    });
-
-    eventStack = new EventStack(app, `EventStack-${environment}`, {
       ...commonProps,
       environment,
     });
@@ -60,13 +51,7 @@ describe("Cross-Stack Reference Integration", () => {
       table: coreStack.table,
       documentBucket: coreStack.documentBucket,
       encryptionKey: coreStack.encryptionKey,
-      notificationTopic: eventStack.notificationTopic,
-      eventBus: eventStack.eventBus,
-    });
-
-    authStack = new AuthStack(app, `AuthStack-${environment}`, {
-      ...commonProps,
-      environment,
+      userPool: coreStack.userPool,
     });
 
     lambdaStack = new LambdaStack(app, `LambdaStack-${environment}`, {
@@ -74,16 +59,14 @@ describe("Cross-Stack Reference Integration", () => {
       environment,
       table: coreStack.table,
       documentBucket: coreStack.documentBucket,
-      postAuthRole: securityStack.postAuthRole,
+      encryptionKey: coreStack.encryptionKey,
+      userPool: coreStack.userPool,
+      userPoolClient: coreStack.userPoolClient,
+      postAuthLambda: coreStack.postAuthLambda,
       kycUploadRole: securityStack.kycUploadRole,
       adminReviewRole: securityStack.adminReviewRole,
       userNotificationRole: securityStack.userNotificationRole,
       kycProcessingRole: securityStack.kycProcessingRole,
-      eventBus: eventStack.eventBus,
-      notificationTopic: eventStack.notificationTopic,
-      kycDocumentUploadedRule: eventStack.kycDocumentUploadedRule,
-      kycStatusChangeRule: eventStack.kycStatusChangeRule,
-      userPool: authStack.userPool,
     });
 
     monitoringStack = new MonitoringStack(
@@ -92,7 +75,7 @@ describe("Cross-Stack Reference Integration", () => {
       {
         ...commonProps,
         environment,
-        postAuthLambda: lambdaStack.postAuthLambda,
+        postAuthLambda: coreStack.postAuthLambda,
         kycUploadLambda: lambdaStack.kycUploadLambda,
         adminReviewLambda: lambdaStack.adminReviewLambda,
         userNotificationLambda: lambdaStack.userNotificationLambda,
@@ -102,12 +85,8 @@ describe("Cross-Stack Reference Integration", () => {
 
     // Set up explicit dependencies to ensure proper deployment order
     securityStack.addDependency(coreStack);
-    securityStack.addDependency(eventStack);
-    authStack.addDependency(securityStack);
     lambdaStack.addDependency(coreStack);
     lambdaStack.addDependency(securityStack);
-    lambdaStack.addDependency(eventStack);
-    lambdaStack.addDependency(authStack);
     monitoringStack.addDependency(lambdaStack);
   });
 
@@ -165,9 +144,62 @@ describe("Cross-Stack Reference Integration", () => {
       });
     });
 
-    test("EventStack exports all required event resources", () => {
-      const template = Template.fromStack(eventStack);
+    test("CoreStack exports all required auth resources (consolidated from AuthStack)", () => {
+      const template = Template.fromStack(coreStack);
 
+      template.hasOutput("UserPoolId", {
+        Export: { Name: EXPORT_NAMES.userPoolId(environment) },
+      });
+
+      template.hasOutput("UserPoolArn", {
+        Export: { Name: EXPORT_NAMES.userPoolArn(environment) },
+      });
+
+      template.hasOutput("UserPoolClientId", {
+        Export: { Name: EXPORT_NAMES.userPoolClientId(environment) },
+      });
+
+      template.hasOutput("UserPoolDomain", {
+        Export: { Name: EXPORT_NAMES.userPoolDomain(environment) },
+      });
+
+      template.hasOutput("PostAuthLambdaArn", {
+        Export: { Name: EXPORT_NAMES.postAuthLambdaArn(environment) },
+      });
+    });
+
+    test("LambdaStack exports all required Lambda, API and event resources", () => {
+      const template = Template.fromStack(lambdaStack);
+
+      template.hasOutput("ApiUrl", {
+        Export: { Name: EXPORT_NAMES.apiUrl(environment) },
+      });
+
+      template.hasOutput("ApiId", {
+        Export: { Name: EXPORT_NAMES.apiId(environment) },
+      });
+
+      template.hasOutput("ApiRootResourceId", {
+        Export: { Name: EXPORT_NAMES.apiRootResourceId(environment) },
+      });
+
+      template.hasOutput("KycUploadLambdaArn", {
+        Export: { Name: EXPORT_NAMES.kycUploadLambdaArn(environment) },
+      });
+
+      template.hasOutput("AdminReviewLambdaArn", {
+        Export: { Name: EXPORT_NAMES.adminReviewLambdaArn(environment) },
+      });
+
+      template.hasOutput("UserNotificationLambdaArn", {
+        Export: { Name: EXPORT_NAMES.userNotificationLambdaArn(environment) },
+      });
+
+      template.hasOutput("KycProcessingLambdaArn", {
+        Export: { Name: EXPORT_NAMES.kycProcessingLambdaArn(environment) },
+      });
+
+      // Event resources (consolidated from EventStack)
       template.hasOutput("EventBusName", {
         Export: { Name: EXPORT_NAMES.eventBusName(environment) },
       });
@@ -197,62 +229,6 @@ describe("Cross-Stack Reference Integration", () => {
       });
     });
 
-    test("AuthStack exports all required Cognito resources", () => {
-      const template = Template.fromStack(authStack);
-
-      template.hasOutput("UserPoolId", {
-        Export: { Name: EXPORT_NAMES.userPoolId(environment) },
-      });
-
-      template.hasOutput("UserPoolArn", {
-        Export: { Name: EXPORT_NAMES.userPoolArn(environment) },
-      });
-
-      template.hasOutput("UserPoolClientId", {
-        Export: { Name: EXPORT_NAMES.userPoolClientId(environment) },
-      });
-
-      template.hasOutput("UserPoolDomain", {
-        Export: { Name: EXPORT_NAMES.userPoolDomain(environment) },
-      });
-    });
-
-    test("LambdaStack exports all required Lambda and API resources", () => {
-      const template = Template.fromStack(lambdaStack);
-
-      template.hasOutput("ApiUrl", {
-        Export: { Name: EXPORT_NAMES.apiUrl(environment) },
-      });
-
-      template.hasOutput("ApiId", {
-        Export: { Name: EXPORT_NAMES.apiId(environment) },
-      });
-
-      template.hasOutput("ApiRootResourceId", {
-        Export: { Name: EXPORT_NAMES.apiRootResourceId(environment) },
-      });
-
-      template.hasOutput("PostAuthLambdaArn", {
-        Export: { Name: EXPORT_NAMES.postAuthLambdaArn(environment) },
-      });
-
-      template.hasOutput("KycUploadLambdaArn", {
-        Export: { Name: EXPORT_NAMES.kycUploadLambdaArn(environment) },
-      });
-
-      template.hasOutput("AdminReviewLambdaArn", {
-        Export: { Name: EXPORT_NAMES.adminReviewLambdaArn(environment) },
-      });
-
-      template.hasOutput("UserNotificationLambdaArn", {
-        Export: { Name: EXPORT_NAMES.userNotificationLambdaArn(environment) },
-      });
-
-      template.hasOutput("KycProcessingLambdaArn", {
-        Export: { Name: EXPORT_NAMES.kycProcessingLambdaArn(environment) },
-      });
-    });
-
     test("MonitoringStack exports all required monitoring resources", () => {
       const template = Template.fromStack(monitoringStack);
 
@@ -275,7 +251,8 @@ describe("Cross-Stack Reference Integration", () => {
   });
 
   describe("Cross-Stack Interface Implementation", () => {
-    test("CoreStack implements CoreStackOutputs interface correctly", () => {
+    test("CoreStack implements CoreStackOutputs interface correctly (including auth)", () => {
+      // Core resources
       expect(coreStack.table).toBeDefined();
       expect(coreStack.tableName).toBeDefined();
       expect(coreStack.tableArn).toBeDefined();
@@ -285,6 +262,16 @@ describe("Cross-Stack Reference Integration", () => {
       expect(coreStack.encryptionKey).toBeDefined();
       expect(coreStack.kmsKeyArn).toBeDefined();
       expect(coreStack.kmsKeyId).toBeDefined();
+
+      // Auth resources (consolidated from AuthStack)
+      expect(coreStack.userPool).toBeDefined();
+      expect(coreStack.userPoolClient).toBeDefined();
+      expect(coreStack.userPoolId).toBeDefined();
+      expect(coreStack.userPoolArn).toBeDefined();
+      expect(coreStack.userPoolClientId).toBeDefined();
+      expect(coreStack.userPoolDomain).toBeDefined();
+      expect(coreStack.postAuthLambda).toBeDefined();
+      expect(coreStack.postAuthLambdaArn).toBeDefined();
     });
 
     test("SecurityStack implements SecurityStackOutputs interface correctly", () => {
@@ -300,38 +287,12 @@ describe("Cross-Stack Reference Integration", () => {
       expect(securityStack.kycProcessingRoleArn).toBeDefined();
     });
 
-    test("EventStack implements EventStackOutputs interface correctly", () => {
-      expect(eventStack.eventBus).toBeDefined();
-      expect(eventStack.eventBusName).toBeDefined();
-      expect(eventStack.eventBusArn).toBeDefined();
-      expect(eventStack.notificationTopic).toBeDefined();
-      expect(eventStack.userNotificationTopic).toBeDefined();
-      expect(eventStack.adminNotificationTopicArn).toBeDefined();
-      expect(eventStack.userNotificationTopicArn).toBeDefined();
-      expect(eventStack.kycStatusChangeRule).toBeDefined();
-      expect(eventStack.kycDocumentUploadedRule).toBeDefined();
-      expect(eventStack.kycReviewCompletedRule).toBeDefined();
-      expect(eventStack.kycStatusChangeRuleArn).toBeDefined();
-      expect(eventStack.kycDocumentUploadedRuleArn).toBeDefined();
-      expect(eventStack.kycReviewCompletedRuleArn).toBeDefined();
-    });
-
-    test("AuthStack implements AuthStackOutputs interface correctly", () => {
-      expect(authStack.userPool).toBeDefined();
-      expect(authStack.userPoolClient).toBeDefined();
-      expect(authStack.userPoolId).toBeDefined();
-      expect(authStack.userPoolArn).toBeDefined();
-      expect(authStack.userPoolClientId).toBeDefined();
-      expect(authStack.userPoolDomain).toBeDefined();
-    });
-
-    test("LambdaStack implements LambdaStackOutputs interface correctly", () => {
-      expect(lambdaStack.postAuthLambda).toBeDefined();
+    test("LambdaStack implements LambdaStackOutputs interface correctly (including events)", () => {
+      // Lambda resources (excluding post-auth which moved to CoreStack)
       expect(lambdaStack.kycUploadLambda).toBeDefined();
       expect(lambdaStack.adminReviewLambda).toBeDefined();
       expect(lambdaStack.userNotificationLambda).toBeDefined();
       expect(lambdaStack.kycProcessingLambda).toBeDefined();
-      expect(lambdaStack.postAuthLambdaArn).toBeDefined();
       expect(lambdaStack.kycUploadLambdaArn).toBeDefined();
       expect(lambdaStack.adminReviewLambdaArn).toBeDefined();
       expect(lambdaStack.userNotificationLambdaArn).toBeDefined();
@@ -340,6 +301,21 @@ describe("Cross-Stack Reference Integration", () => {
       expect(lambdaStack.apiUrl).toBeDefined();
       expect(lambdaStack.apiId).toBeDefined();
       expect(lambdaStack.apiRootResourceId).toBeDefined();
+
+      // Event resources (consolidated from EventStack)
+      expect(lambdaStack.eventBus).toBeDefined();
+      expect(lambdaStack.eventBusName).toBeDefined();
+      expect(lambdaStack.eventBusArn).toBeDefined();
+      expect(lambdaStack.notificationTopic).toBeDefined();
+      expect(lambdaStack.userNotificationTopic).toBeDefined();
+      expect(lambdaStack.adminNotificationTopicArn).toBeDefined();
+      expect(lambdaStack.userNotificationTopicArn).toBeDefined();
+      expect(lambdaStack.kycStatusChangeRule).toBeDefined();
+      expect(lambdaStack.kycDocumentUploadedRule).toBeDefined();
+      expect(lambdaStack.kycReviewCompletedRule).toBeDefined();
+      expect(lambdaStack.kycStatusChangeRuleArn).toBeDefined();
+      expect(lambdaStack.kycDocumentUploadedRuleArn).toBeDefined();
+      expect(lambdaStack.kycReviewCompletedRuleArn).toBeDefined();
     });
 
     test("MonitoringStack implements MonitoringStackOutputs interface correctly", () => {
@@ -396,28 +372,21 @@ describe("Cross-Stack Reference Integration", () => {
       }).not.toThrow();
     });
 
-    test("CrossStackValidator validates LambdaStack dependencies", () => {
+    test("CrossStackValidator validates LambdaStack dependencies (consolidated)", () => {
       const validDependencies = {
         coreOutputs: {
           table: coreStack.table,
           documentBucket: coreStack.documentBucket,
           encryptionKey: coreStack.encryptionKey,
+          userPool: coreStack.userPool,
+          userPoolClient: coreStack.userPoolClient,
+          postAuthLambda: coreStack.postAuthLambda,
         },
         securityOutputs: {
-          postAuthRole: securityStack.postAuthRole,
           kycUploadRole: securityStack.kycUploadRole,
           adminReviewRole: securityStack.adminReviewRole,
           userNotificationRole: securityStack.userNotificationRole,
           kycProcessingRole: securityStack.kycProcessingRole,
-        },
-        eventOutputs: {
-          eventBus: eventStack.eventBus,
-          notificationTopic: eventStack.notificationTopic,
-          kycDocumentUploadedRule: eventStack.kycDocumentUploadedRule,
-          kycStatusChangeRule: eventStack.kycStatusChangeRule,
-        },
-        authOutputs: {
-          userPool: authStack.userPool,
         },
       };
 
@@ -459,20 +428,18 @@ describe("Cross-Stack Reference Integration", () => {
   });
 
   describe("Dependency Resolution", () => {
-    test("DependencyResolver returns correct deployment order", () => {
+    test("DependencyResolver returns correct deployment order (consolidated)", () => {
       const order = DependencyResolver.getDeploymentOrder();
       expect(order).toEqual([
         "CoreStack",
-        "EventStack",
         "SecurityStack",
-        "AuthStack",
         "LambdaStack",
         "MonitoringStack",
       ]);
     });
 
-    test("DependencyResolver validates deployment order correctly", () => {
-      const deployedStacks = ["CoreStack", "EventStack"];
+    test("DependencyResolver validates deployment order correctly (consolidated)", () => {
+      const deployedStacks = ["CoreStack"];
 
       expect(() => {
         DependencyResolver.validateDeploymentOrder(
@@ -491,17 +458,14 @@ describe("Cross-Stack Reference Integration", () => {
       );
     });
 
-    test("DependencyResolver returns correct stack dependencies", () => {
+    test("DependencyResolver returns correct stack dependencies (consolidated)", () => {
       expect(DependencyResolver.getStackDependencies("CoreStack")).toEqual([]);
       expect(DependencyResolver.getStackDependencies("SecurityStack")).toEqual([
         "CoreStack",
-        "EventStack",
       ]);
       expect(DependencyResolver.getStackDependencies("LambdaStack")).toEqual([
         "CoreStack",
-        "EventStack",
         "SecurityStack",
-        "AuthStack",
       ]);
     });
   });
@@ -530,16 +494,13 @@ describe("Cross-Stack Reference Integration", () => {
   });
 
   describe("Cross-Stack Reference Resolution", () => {
-    test("All stacks can access required cross-stack resources", () => {
+    test("All stacks can access required cross-stack resources (consolidated)", () => {
       // Test that SecurityStack can access CoreStack resources
       expect(securityStack.node.dependencies).toContain(coreStack);
-      expect(securityStack.node.dependencies).toContain(eventStack);
 
       // Test that LambdaStack can access all required resources
       expect(lambdaStack.node.dependencies).toContain(coreStack);
       expect(lambdaStack.node.dependencies).toContain(securityStack);
-      expect(lambdaStack.node.dependencies).toContain(eventStack);
-      expect(lambdaStack.node.dependencies).toContain(authStack);
 
       // Test that MonitoringStack can access LambdaStack resources
       expect(monitoringStack.node.dependencies).toContain(lambdaStack);

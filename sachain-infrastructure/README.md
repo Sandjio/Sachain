@@ -48,6 +48,15 @@ The following environment variables can be configured:
 - `AWS_ACCOUNT_ID`: AWS account ID for deployment
 - `AWS_REGION`: AWS region for deployment
 
+## Stack Architecture
+
+The infrastructure is organized into four consolidated stacks:
+
+1. **CoreStack**: Foundational resources including DynamoDB, S3, KMS, Cognito User Pool, and post-authentication Lambda
+2. **SecurityStack**: IAM roles and policies with least-privilege access
+3. **LambdaStack**: Lambda functions, API Gateway, EventBridge, and SNS resources
+4. **MonitoringStack**: CloudWatch dashboards, alarms, and monitoring resources
+
 ## Project Structure
 
 ```
@@ -61,8 +70,14 @@ sachain-infrastructure/
 │   │   ├── eventbridge.ts   # EventBridge construct
 │   │   ├── monitoring.ts    # CloudWatch monitoring construct
 │   │   └── index.ts         # Construct exports
-│   ├── config.ts           # Environment configuration
-│   └── stacks/                          # Modular stack definitions
+│   ├── stacks/             # Consolidated stack definitions
+│   │   ├── core-stack.ts   # Core infrastructure and auth
+│   │   ├── security-stack.ts # IAM roles and policies
+│   │   ├── lambda-stack.ts # Lambda functions and events
+│   │   └── monitoring-stack.ts # Monitoring and alerting
+│   ├── interfaces/         # Cross-stack reference interfaces
+│   ├── utils/             # Utility functions and validators
+│   └── config.ts          # Environment configuration
 ├── bin/
 │   └── sachain-infrastructure.ts  # CDK app entry point
 ├── test/
