@@ -25,8 +25,9 @@ export class LambdaConstruct extends Construct {
   public readonly kycUploadLambda: lambda.Function;
   public readonly adminReviewLambda: lambda.Function;
   public readonly userNotificationLambda: lambda.Function;
-  public readonly api: apigateway.RestApi;
   public readonly kycProcessingLambda: lambda.Function;
+  public readonly projectCreationLambda: lambda.Function;
+  public readonly api: apigateway.RestApi;
   private cognitoAuthorizer?: apigateway.CognitoUserPoolsAuthorizer;
   private kycResource: apigateway.Resource;
   private adminResource: apigateway.Resource;
@@ -180,6 +181,37 @@ export class LambdaConstruct extends Construct {
       }
     );
 
+    // Project Creation Lambda
+    this.projectCreationLambda = new NodejsFunction(
+      this,
+      "ProjectCreationLambda",
+      {
+        functionName: `sachain-project-creation-${props.environment}`,
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "handler",
+        entry: path.join(
+          __dirname,
+          "../../..",
+          "backend/src/lambdas/project-creation/index.ts"
+        ),
+        role: props.securityConstruct?.projectCreationRole,
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          target: "node20",
+          externalModules: ["aws-lambda", "@aws-sdk/client-dynamodb"],
+        },
+        projectRoot: path.join(__dirname, "../../.."),
+        environment: {
+          TABLE_NAME: props.table.tableName,
+          ENVIRONMENT: props.environment,
+        },
+        timeout: cdk.Duration.minutes(2),
+        memorySize: 512,
+        tracing: lambda.Tracing.ACTIVE,
+      }
+    );
+
     // Create unified API Gateway
     this.api = new apigateway.RestApi(this, "SachainApi", {
       restApiName: `sachain-api-${props.environment}`,
@@ -239,6 +271,12 @@ export class LambdaConstruct extends Construct {
       { proxy: true }
     );
 
+    // Projects creation Integration
+    const projectCreationIntegration = new apigateway.LambdaIntegration(
+      this.projectCreationLambda,
+      { proxy: true }
+    );
+
     // Add KYC endpoints with authorization
     const uploadResource = this.kycResource.addResource("upload");
     uploadResource.addMethod("POST", kycUploadIntegration, {
@@ -261,6 +299,12 @@ export class LambdaConstruct extends Construct {
 
     const documentsResource = this.adminResource.addResource("documents");
     documentsResource.addMethod("GET", adminReviewIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    const projectResource = this.adminResource.addResource("projects");
+    projectResource.addMethod("POST", projectCreationIntegration, {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
