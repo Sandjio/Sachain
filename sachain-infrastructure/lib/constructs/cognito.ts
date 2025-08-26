@@ -5,6 +5,7 @@ import { Construct } from "constructs";
 
 export interface CognitoConstructProps {
   postAuthLambda?: lambda.Function;
+  postAddUserToGroupLambda?: lambda.Function;
   environment: string;
 }
 
@@ -58,11 +59,11 @@ export class CognitoConstruct extends Construct {
           mutable: true,
         },
         givenName: {
-          required: false,
+          required: true,
           mutable: true,
         },
         familyName: {
-          required: false,
+          required: true,
           mutable: true,
         },
       },
@@ -98,6 +99,7 @@ export class CognitoConstruct extends Construct {
       ...(props.postAuthLambda && {
         lambdaTriggers: {
           postAuthentication: props.postAuthLambda,
+          postConfirmation: props.postAddUserToGroupLambda,
         },
       }),
 
