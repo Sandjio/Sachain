@@ -107,11 +107,30 @@ export class CognitoConstruct extends Construct {
           ? cdk.RemovalPolicy.RETAIN
           : cdk.RemovalPolicy.DESTROY,
     });
+
     // Managed UI domain for Cognito User Pool
     this.userPool.addDomain("CognitoDomain", {
       cognitoDomain: {
         domainPrefix: `sachain-${props.environment}`,
       },
+      managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
+    });
+
+    // Add Groups to the user pool
+    this.userPool.addGroup("EntrepreneurGroup", {
+      groupName: "Entrepreneur",
+      description: "Group for entrepreneurs",
+      precedence: 1,
+    });
+    this.userPool.addGroup("InvestorGroup", {
+      groupName: "Investor",
+      description: "Group for investors",
+      precedence: 2,
+    });
+    this.userPool.addGroup("AdminGroup", {
+      groupName: "Admin",
+      description: "Group for admins",
+      precedence: 0,
     });
 
     // Task 3.2: Create User Pool Client and configure authentication flow
