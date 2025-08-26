@@ -4,6 +4,9 @@
 // Export compliance models
 export * from "./compliance";
 
+// Export project models
+export * from "./project";
+
 export interface UserProfile {
   PK: string; // USER#${userId}
   SK: string; // PROFILE
