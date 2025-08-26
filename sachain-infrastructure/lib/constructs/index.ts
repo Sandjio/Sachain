@@ -7,3 +7,4 @@ export * from "./eventbridge";
 export * from "./monitoring";
 export * from "./security";
 export * from "./post-auth-lambda";
+export * from "./post-confirm-lambda";

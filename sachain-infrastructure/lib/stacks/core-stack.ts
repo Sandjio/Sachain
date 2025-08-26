@@ -5,9 +5,9 @@ import {
   S3Construct,
   CognitoConstruct,
   PostAuthLambdaConstruct,
-  // SecurityConstruct,
+  PostConfirmLambdaConstruct,
 } from "../constructs";
-import { CoreStackOutputs, StackConfig } from "../interfaces";
+import { CoreStackOutputs } from "../interfaces";
 
 export interface CoreStackProps extends cdk.StackProps {
   environment: string;
@@ -19,6 +19,7 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
   public readonly s3Construct: S3Construct;
   public readonly cognitoConstruct: CognitoConstruct;
   public readonly postAuthLambdaConstruct: PostAuthLambdaConstruct;
+  public readonly postConfirmLambdaConstruct: PostConfirmLambdaConstruct;
 
   // CoreStackOutputs interface implementation
   public readonly table: cdk.aws_dynamodb.Table;
@@ -41,6 +42,7 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
 
   // Post-authentication lambda (moved from LambdaStack)
   public readonly postAuthLambda: cdk.aws_lambda.Function;
+  public readonly postAddUserToGroupLambda: cdk.aws_lambda.Function;
   public readonly postAuthLambdaArn: string;
 
   constructor(scope: Construct, id: string, props: CoreStackProps) {
@@ -68,15 +70,26 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
       {
         table: this.dynamoDBConstruct.table,
         environment: props.environment,
-        // postAuthRole: props.postAuthRole,
       }
     );
 
     // Create Cognito User Pool with post-auth lambda trigger (consolidated from AuthStack)
     this.cognitoConstruct = new CognitoConstruct(this, "Cognito", {
       postAuthLambda: this.postAuthLambdaConstruct.postAuthLambda,
+      postAddUserToGroupLambda:
+        this.postConfirmLambdaConstruct.postAddUserToGroupLambda,
       environment: props.environment,
     });
+
+    // Create post-authentication lambda
+    this.postConfirmLambdaConstruct = new PostConfirmLambdaConstruct(
+      this,
+      "PostConfirmLambda",
+      {
+        environment: props.environment,
+        userPool: this.cognitoConstruct.userPool,
+      }
+    );
 
     // Grant Cognito permission to invoke the post-auth lambda
     this.postAuthLambdaConstruct.grantInvokeToUserPool(

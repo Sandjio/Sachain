@@ -357,4 +357,42 @@ describe("CoreStack", () => {
       expect(stack.postAuthLambdaConstruct).toBeDefined();
     });
   });
+
+  describe("Post-Confirmation Lambda", () => {
+    test("creates post-confirmation lambda function", () => {
+      template.hasResourceProperties("AWS::Lambda::Function", {
+        FunctionName: "sachain-post-add-user-to-group-test",
+        Runtime: "nodejs20.x",
+        Handler: "index.handler",
+        Timeout: 30,
+      });
+    });
+
+    test("configures post-confirmation Lambda trigger", () => {
+      // Verify Lambda trigger is configured - check that LambdaConfig section exists
+      const userPools = template.findResources("AWS::Cognito::UserPool");
+      const userPoolKeys = Object.keys(userPools);
+      expect(userPoolKeys.length).toBe(1);
+
+      const userPool = userPools[userPoolKeys[0]];
+      expect(userPool.Properties.LambdaConfig).toBeDefined();
+      expect(userPool.Properties.LambdaConfig.PostConfirmation).toBeDefined();
+    });
+
+    test("post-confirmation lambda has proper IAM permissions", () => {
+      // Verify that the lambda has an execution role
+      const lambdaFunctions = template.findResources("AWS::Lambda::Function");
+      const postConfirmLambda = Object.values(lambdaFunctions).find(
+        (fn: any) =>
+          fn.Properties.FunctionName === "sachain-post-add-user-to-group-test"
+      );
+      expect(postConfirmLambda).toBeDefined();
+      expect((postConfirmLambda as any).Properties.Role).toBeDefined();
+    });
+
+    test("exposes post-confirmation lambda for cross-stack references", () => {
+      expect(stack.postAddUserToGroupLambda).toBeDefined();
+      expect(stack.postAddUserToGroupLambda.role).toBeDefined();
+    });
+  });
 });
