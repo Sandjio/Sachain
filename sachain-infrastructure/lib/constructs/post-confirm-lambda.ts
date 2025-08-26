@@ -100,7 +100,6 @@ export class PostConfirmLambdaConstruct extends Construct {
           ENVIRONMENT: props.environment,
           DEFAULT_GROUP: "Investor", // Default group if userType missing/invalid
           REGION: cdk.Stack.of(this).region,
-          FUNCTION_NAME: `sachain-post-add-user-to-group-${props.environment}`,
         },
         timeout: cdk.Duration.seconds(30),
         memorySize: 256,

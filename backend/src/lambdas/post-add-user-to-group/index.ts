@@ -3,8 +3,8 @@ import {
   AdminAddUserToGroupCommand,
   AdminListGroupsForUserCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-
-import { Handler } from "aws-lambda";
+import { Handler, PostConfirmationTriggerEvent } from "aws-lambda";
+import { LambdaContext, PostConfirmEvent } from "./types";
 
 /**
  * Production-grade Cognito PostConfirmation Lambda
@@ -74,18 +74,20 @@ async function withRetry<T>(
 /**
  * Handler
  */
-export const handler: Handler = async (event, context) => {
+export const handler: Handler<PostConfirmEvent> = async (
+  event: PostConfirmEvent,
+  context: LambdaContext
+) => {
   // Basic validation of Cognito trigger shape
   try {
     console.info("PostConfirmation trigger invoked", {
-      region: process.env.AWS_REGION,
+      region: process.env.REGION,
       functionName: context.functionName,
     });
 
     // Cognito provides the following shape: event.userName, event.userPoolId, event.request.userAttributes
-    const userPoolId = (event as any).userPoolId;
-    const username = (event as any).userName;
-    const userAttributes = (event as any)?.request?.userAttributes ?? {};
+    const { userPoolId, userName: username, request } = event;
+    const userAttributes = request.userAttributes;
 
     if (!userPoolId || !username) {
       console.error("Missing userPoolId or userName in event", { event });
@@ -95,9 +97,7 @@ export const handler: Handler = async (event, context) => {
     // Read custom attribute (Cognito returns custom attributes with 'custom:' prefix)
     const rawUserType =
       userAttributes["custom:userType"] ?? userAttributes["userType"] ?? "";
-    const userType = String(rawUserType || "")
-      .trim()
-      .toLowerCase();
+    const userType = String(rawUserType).trim().toLowerCase();
 
     // Determine target group
     const defaultGroup = process.env.DEFAULT_GROUP ?? "Investor";
