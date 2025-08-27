@@ -395,4 +395,11 @@ export class ProjectRepository extends BaseRepository {
     const project = await this.getProject(projectId);
     return project?.entrepreneurId === entrepreneurId;
   }
+
+  /**
+   * Create stock NFT record
+   */
+  async createStockNFT(stockNFT: any): Promise<void> {
+    await this.putItem(stockNFT);
+  }
 }

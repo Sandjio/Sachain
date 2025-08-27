@@ -536,9 +536,12 @@ export class HederaService {
       const result = await this.retry.execute(async () => {
         const nftInfoQuery = new TokenNftInfoQuery()
           .setTokenId(tokenId)
-          .setSerialNumber(serialNumber);
+          .setNftId(serialNumber.toString());
 
-        return await nftInfoQuery.execute(this.client);
+        const nftInfos = await nftInfoQuery.execute(this.client);
+
+        // Return the first NFT info if it's an array, otherwise return as is
+        return Array.isArray(nftInfos) ? nftInfos[0] : nftInfos;
       }, "getNFTInfo");
 
       return result.result;
