@@ -27,6 +27,7 @@ export interface LambdaStackProps extends cdk.StackProps {
   adminReviewRole: iam.Role;
   userNotificationRole: iam.Role;
   kycProcessingRole: iam.Role;
+  projectCreationRole: iam.Role;
   // Admin emails for event notifications
   adminEmails?: string[];
 }
@@ -84,6 +85,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
         adminReviewRole: props.adminReviewRole,
         userNotificationRole: props.userNotificationRole,
         kycProcessingRole: props.kycProcessingRole,
+        projectCreationRole: props.projectCreationRole,
       },
     };
 
@@ -122,6 +124,11 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       "SecurityStack",
       "kycProcessingRole"
     );
+    ResourceReferenceTracker.recordReference(
+      id,
+      "SecurityStack",
+      "projectCreationRole"
+    );
 
     // Add environment tags
     cdk.Tags.of(this).add("Environment", props.environment);
@@ -158,6 +165,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       adminReviewRole: props.adminReviewRole,
       userNotificationRole: props.userNotificationRole,
       kycProcessingRole: props.kycProcessingRole,
+      projectCreationRole: props.projectCreationRole,
     };
 
     // Create Lambda construct with all dependencies (excluding post-auth lambda)

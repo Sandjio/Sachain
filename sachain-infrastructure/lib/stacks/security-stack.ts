@@ -28,11 +28,13 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
   public readonly adminReviewRole: iam.Role;
   public readonly userNotificationRole: iam.Role;
   public readonly kycProcessingRole: iam.Role;
+  public readonly projectCreationRole: iam.Role;
   public readonly complianceRole?: iam.Role;
   public readonly kycUploadRoleArn: string;
   public readonly adminReviewRoleArn: string;
   public readonly userNotificationRoleArn: string;
   public readonly kycProcessingRoleArn: string;
+  public readonly projectCreationRoleArn: string;
   public readonly complianceRoleArn?: string;
 
   constructor(scope: Construct, id: string, props: SecurityStackProps) {
@@ -81,12 +83,14 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
     this.adminReviewRole = this.securityConstruct.adminReviewRole;
     this.userNotificationRole = this.securityConstruct.userNotificationRole;
     this.kycProcessingRole = this.securityConstruct.kycProcessingRole;
+    this.projectCreationRole = this.securityConstruct.projectCreationRole;
 
     // Set role ARNs for interface compliance
     this.kycUploadRoleArn = this.kycUploadRole.roleArn;
     this.adminReviewRoleArn = this.adminReviewRole.roleArn;
     this.userNotificationRoleArn = this.userNotificationRole.roleArn;
     this.kycProcessingRoleArn = this.kycProcessingRole.roleArn;
+    this.projectCreationRoleArn = this.projectCreationRole.roleArn;
 
     // Create stack outputs for cross-stack references
     this.createStackOutputs(props.environment);
@@ -116,6 +120,12 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
       value: this.kycProcessingRole.roleArn,
       description: "KYC Processing Lambda Role ARN",
       exportName: `${environment}-sachain-security-kyc-processing-role-arn`,
+    });
+
+    new cdk.CfnOutput(this, "ProjectCreationRoleArn", {
+      value: this.projectCreationRole.roleArn,
+      description: "Project Creation Lambda Role ARN",
+      exportName: `${environment}-sachain-security-project-creation-role-arn`,
     });
   }
 

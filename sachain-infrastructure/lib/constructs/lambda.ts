@@ -199,11 +199,18 @@ export class LambdaConstruct extends Construct {
           minify: true,
           sourceMap: true,
           target: "node20",
-          externalModules: ["aws-lambda", "@aws-sdk/client-dynamodb"],
+          externalModules: [
+            "aws-lambda",
+            "@aws-sdk/client-dynamodb",
+            "@aws-sdk/lib-dynamodb",
+            "@aws-sdk/client-eventbridge",
+            "@aws-sdk/client-cloudwatch",
+          ],
         },
         projectRoot: path.join(__dirname, "../../.."),
         environment: {
           TABLE_NAME: props.table.tableName,
+          EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
           ENVIRONMENT: props.environment,
         },
         timeout: cdk.Duration.minutes(2),
@@ -303,8 +310,9 @@ export class LambdaConstruct extends Construct {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
-    const projectResource = this.adminResource.addResource("projects");
-    projectResource.addMethod("POST", projectCreationIntegration, {
+    // Add project endpoints with authorization
+    const projectsResource = this.api.root.addResource("projects");
+    projectsResource.addMethod("POST", projectCreationIntegration, {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });

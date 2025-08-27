@@ -54,6 +54,7 @@ export class SecurityConstruct extends Construct {
   public readonly adminReviewRole: iam.Role;
   public readonly userNotificationRole: iam.Role;
   public readonly kycProcessingRole: iam.Role;
+  public readonly projectCreationRole: iam.Role;
 
   private readonly table: dynamodb.Table;
   private readonly documentBucket: s3.Bucket;
@@ -74,6 +75,7 @@ export class SecurityConstruct extends Construct {
     this.adminReviewRole = this.createAdminReviewRole();
     this.userNotificationRole = this.createUserNotificationRole();
     this.kycProcessingRole = this.createKycProcessingRole();
+    this.projectCreationRole = this.createProjectCreationRole();
 
     // Add resource-based policies
     this.addResourceBasedPolicies();
@@ -472,6 +474,84 @@ export class SecurityConstruct extends Construct {
     return role;
   }
 
+  private createProjectCreationRole(): iam.Role {
+    const role = new iam.Role(this, "ProjectCreationLambdaRole", {
+      roleName: `sachain-project-creation-lambda-role-${this.environment}`,
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      description: "Least-privilege role for Project Creation Lambda",
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSLambdaBasicExecutionRole"
+        ),
+      ],
+    });
+
+    // DynamoDB permissions - read user profiles, write project data
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "DynamoDBProjectOperations",
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+        ],
+        resources: [this.table.tableArn, `${this.table.tableArn}/index/*`],
+        conditions: {
+          "ForAllValues:StringLike": {
+            "dynamodb:LeadingKeys": ["USER#*", "PROJECT#*"],
+          },
+        },
+      })
+    );
+
+    // EventBridge permissions for publishing project events
+    // Using wildcard for event bus to avoid circular dependency
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "EventBridgePutEvents",
+        effect: iam.Effect.ALLOW,
+        actions: ["events:PutEvents"],
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
+        ],
+        conditions: {
+          StringEquals: {
+            "events:source": "sachain.project",
+          },
+        },
+      })
+    );
+
+    // CloudWatch metrics permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "CloudWatchMetrics",
+        effect: iam.Effect.ALLOW,
+        actions: ["cloudwatch:PutMetricData"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: {
+            "cloudwatch:namespace": "Sachain/ProjectCreation",
+          },
+        },
+      })
+    );
+
+    // X-Ray tracing permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "XRayTracing",
+        effect: iam.Effect.ALLOW,
+        actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+        resources: ["*"],
+      })
+    );
+
+    return role;
+  }
+
   private addResourceBasedPolicies(): void {
     // Note: Resource-based policies that reference IAM roles from this construct
     // would create circular dependencies between stacks. Instead, we rely on
@@ -505,6 +585,8 @@ export class SecurityConstruct extends Construct {
       this.kycUploadRole,
       this.adminReviewRole,
       this.userNotificationRole,
+      this.kycProcessingRole,
+      this.projectCreationRole,
     ].forEach((role) => {
       role.addToPolicy(preventPrivilegeEscalation);
     });

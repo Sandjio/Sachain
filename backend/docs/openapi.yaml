@@ -374,6 +374,112 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  # Project Creation Endpoints
+  /projects:
+    post:
+      tags:
+        - Project Creation
+      summary: Create new project
+      description: |
+        Create a new project for tokenized fundraising. The entrepreneur must have completed KYC verification.
+        This endpoint validates project data, checks for duplicate names, and creates the project in draft status.
+      operationId: createProject
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+            examples:
+              basic_project:
+                summary: Basic project creation
+                value:
+                  name: "EcoTech Solutions"
+                  description: "Revolutionary solar panel technology that increases efficiency by 40% while reducing manufacturing costs. Our patented nano-coating process enables better light absorption and weather resistance."
+                  category: "CleanTech"
+                  stockSupply: 10000
+                  targetFundingGoal: 500000
+                  pricePerStock: 50
+              minimal_project:
+                summary: Minimal required fields
+                value:
+                  name: "AI Healthcare Platform"
+                  description: "AI-powered diagnostic platform that helps doctors identify diseases faster and more accurately using machine learning algorithms trained on millions of medical images."
+                  category: "Healthcare"
+                  stockSupply: 5000
+      responses:
+        "201":
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateProjectResponse"
+              examples:
+                success:
+                  summary: Successful project creation
+                  value:
+                    projectId: "proj-789"
+                    message: "Project created successfully"
+                    project:
+                      id: "proj-789"
+                      name: "EcoTech Solutions"
+                      description: "Revolutionary solar panel technology..."
+                      category: "CleanTech"
+                      stockSupply: 10000
+                      targetFundingGoal: 500000
+                      pricePerStock: 50
+                      status: "draft"
+                      createdAt: "2024-01-15T14:30:00Z"
+        "400":
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                validation_error:
+                  summary: Validation error
+                  value:
+                    message: "Project validation failed"
+                    code: "INVALID_PROJECT_DATA"
+                    details:
+                      errors:
+                        - "Project name must be between 3-100 characters"
+                        - "Stock supply must be between 1 and 1,000,000"
+                    requestId: "req-123"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - KYC not verified or duplicate project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                kyc_not_verified:
+                  summary: KYC verification required
+                  value:
+                    message: "KYC verification must be completed before creating projects"
+                    code: "KYC_NOT_VERIFIED"
+                    details:
+                      kycStatus: "pending"
+                      requiredStatus: "approved"
+                    requestId: "req-456"
+                duplicate_name:
+                  summary: Duplicate project name
+                  value:
+                    message: "A project with this name already exists for your account"
+                    code: "PROJECT_NAME_EXISTS"
+                    details:
+                      existingProjectId: "proj-123"
+                      existingProjectName: "EcoTech Solutions"
+                      attemptedName: "EcoTech Solutions"
+                    requestId: "req-789"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   securitySchemes:
     CognitoAuth:
@@ -389,6 +495,74 @@ components:
 
   schemas:
     # Request Schemas
+    CreateProjectRequest:
+      type: object
+      required:
+        - name
+        - description
+        - category
+        - stockSupply
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9\s\-_.&()]+$'
+          description: Project name (3-100 characters, alphanumeric with basic punctuation)
+          example: "EcoTech Solutions"
+        description:
+          type: string
+          minLength: 50
+          maxLength: 2000
+          description: Detailed project description (50-2000 characters)
+          example: "Revolutionary solar panel technology that increases efficiency by 40% while reducing manufacturing costs."
+        category:
+          type: string
+          enum:
+            [
+              "Technology",
+              "Healthcare",
+              "FinTech",
+              "CleanTech",
+              "Education",
+              "E-commerce",
+              "Manufacturing",
+              "Agriculture",
+              "Real Estate",
+              "Entertainment",
+              "Food & Beverage",
+              "Transportation",
+              "Other",
+            ]
+          description: Project category/industry
+          example: "CleanTech"
+        stockSupply:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          description: Total number of stock-NFTs to issue
+          example: 10000
+        targetFundingGoal:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+          description: Optional target funding amount (maximum 2 decimal places)
+          example: 500000
+        pricePerStock:
+          type: number
+          minimum: 0
+          maximum: 99999999.99999999
+          multipleOf: 0.00000001
+          description: Optional price per stock (maximum 8 decimal places)
+          example: 50
+        coverImageUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          description: Optional URL to project cover image
+          example: "https://s3.amazonaws.com/bucket/project-images/cover.jpg"
+
     PresignedUrlRequest:
       type: object
       required:
@@ -478,6 +652,119 @@ components:
           example: "Document verified successfully"
 
     # Response Schemas
+    CreateProjectResponse:
+      type: object
+      required:
+        - projectId
+        - message
+        - project
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier for the created project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project created successfully"
+        project:
+          $ref: "#/components/schemas/ProjectSummary"
+
+    ProjectSummary:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - category
+        - stockSupply
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Unique project identifier
+          example: "proj-789"
+        name:
+          type: string
+          description: Project name
+          example: "EcoTech Solutions"
+        description:
+          type: string
+          description: Project description
+          example: "Revolutionary solar panel technology..."
+        category:
+          type: string
+          description: Project category
+          example: "CleanTech"
+        stockSupply:
+          type: integer
+          description: Total number of stocks
+          example: 10000
+        targetFundingGoal:
+          type: number
+          nullable: true
+          description: Target funding amount
+          example: 500000
+        pricePerStock:
+          type: number
+          nullable: true
+          description: Price per stock
+          example: 50
+        status:
+          type: string
+          enum: [draft, minting, active, paused, completed]
+          description: Current project status
+          example: "draft"
+        createdAt:
+          type: string
+          format: date-time
+          description: Project creation timestamp
+          example: "2024-01-15T14:30:00Z"
+        coverImageUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Project cover image URL
+          example: "https://s3.amazonaws.com/bucket/project-images/cover.jpg"
+
+    ProjectErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Project validation failed"
+        code:
+          type: string
+          enum:
+            [
+              "AUTHENTICATION_FAILED",
+              "INVALID_PROJECT_DATA",
+              "KYC_NOT_VERIFIED",
+              "KYC_VALIDATION_ERROR",
+              "USER_NOT_FOUND",
+              "PROJECT_NAME_EXISTS",
+              "DATABASE_ERROR",
+              "EVENT_PUBLISHING_ERROR",
+            ]
+          description: Error code for programmatic handling
+          example: "INVALID_PROJECT_DATA"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            errors:
+              - "Project name must be between 3-100 characters"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-123"
+
     UploadResponse:
       type: object
       required:
@@ -701,3 +988,7 @@ tags:
     description: |
       Administrative endpoints for reviewing and managing KYC documents.
       Requires admin authentication and permissions.
+  - name: Project Creation
+    description: |
+      Endpoints for creating and managing entrepreneurial projects.
+      Enables entrepreneurs to tokenize their business shares using Hedera Token Service.

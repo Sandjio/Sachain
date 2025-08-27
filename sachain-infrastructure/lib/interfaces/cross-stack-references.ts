@@ -59,6 +59,7 @@ export interface SecurityStackOutputs {
   adminReviewRole: iam.Role;
   userNotificationRole: iam.Role;
   kycProcessingRole: iam.Role;
+  projectCreationRole: iam.Role;
   complianceRole?: iam.Role; // Optional for future compliance lambda
 
   // Role ARNs for cross-stack references
@@ -66,6 +67,7 @@ export interface SecurityStackOutputs {
   adminReviewRoleArn: string;
   userNotificationRoleArn: string;
   kycProcessingRoleArn: string;
+  projectCreationRoleArn: string;
   complianceRoleArn?: string;
 }
 
@@ -190,6 +192,7 @@ export interface StackDependencies {
       | "adminReviewRole"
       | "userNotificationRole"
       | "kycProcessingRole"
+      | "projectCreationRole"
     >;
   };
 
@@ -230,6 +233,7 @@ export interface ExportNames {
   adminReviewRoleArn: (environment: string) => string;
   userNotificationRoleArn: (environment: string) => string;
   kycProcessingRoleArn: (environment: string) => string;
+  projectCreationRoleArn: (environment: string) => string;
 
   // Lambda Stack exports (including event resources)
   apiUrl: (environment: string) => string;
@@ -278,6 +282,8 @@ export const EXPORT_NAMES: ExportNames = {
     `${env}-sachain-security-user-notification-role-arn`,
   kycProcessingRoleArn: (env) =>
     `${env}-sachain-security-kyc-processing-role-arn`,
+  projectCreationRoleArn: (env) =>
+    `${env}-sachain-security-project-creation-role-arn`,
 
   // Lambda Stack exports (including event resources)
   apiUrl: (env) => `${env}-sachain-lambda-api-url`,
