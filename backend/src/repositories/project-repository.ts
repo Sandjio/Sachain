@@ -402,4 +402,15 @@ export class ProjectRepository extends BaseRepository {
   async createStockNFT(stockNFT: any): Promise<void> {
     await this.putItem(stockNFT);
   }
+
+  /**
+   * Get all Hedera transactions for a project (alias for compatibility)
+   */
+  async getHederaTransactions(
+    projectId: string,
+    options?: PaginationOptions
+  ): Promise<HederaTransaction[]> {
+    const result = await this.getProjectHederaTransactions(projectId, options);
+    return result.items;
+  }
 }

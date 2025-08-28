@@ -19,6 +19,8 @@ export interface LambdaConstructProps {
   eventBus?: events.EventBus;
   environment: string;
   securityConstruct?: SecurityConstruct;
+  stockMintingRole?: import("aws-cdk-lib/aws-iam").Role;
+  stockMintingStatusRole?: import("aws-cdk-lib/aws-iam").Role;
 }
 
 export class LambdaConstruct extends Construct {
@@ -27,6 +29,8 @@ export class LambdaConstruct extends Construct {
   public readonly userNotificationLambda: lambda.Function;
   public readonly kycProcessingLambda: lambda.Function;
   public readonly projectCreationLambda: lambda.Function;
+  public readonly stockMintingLambda: lambda.Function;
+  public readonly stockMintingStatusLambda: lambda.Function;
   public readonly api: apigateway.RestApi;
   private cognitoAuthorizer?: apigateway.CognitoUserPoolsAuthorizer;
   private kycResource: apigateway.Resource;
@@ -219,6 +223,79 @@ export class LambdaConstruct extends Construct {
       }
     );
 
+    // Stock Minting Lambda
+    this.stockMintingLambda = new NodejsFunction(this, "StockMintingLambda", {
+      functionName: `sachain-stock-minting-${props.environment}`,
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/stock-minting/index.ts"
+      ),
+      role: props.stockMintingRole || props.securityConstruct?.stockMintingRole,
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: [
+          "aws-lambda",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/lib-dynamodb",
+          "@aws-sdk/client-eventbridge",
+          "@aws-sdk/client-cloudwatch",
+        ],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
+      environment: {
+        TABLE_NAME: props.table.tableName,
+        EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
+        ENVIRONMENT: props.environment,
+        FRONTEND_URL: `https://app.sachain-${props.environment}.com`,
+      },
+      timeout: cdk.Duration.minutes(15), // Longer timeout for minting operations
+      memorySize: 1024, // More memory for batch operations
+      tracing: lambda.Tracing.ACTIVE,
+    });
+
+    // Stock Minting Status Lambda
+    this.stockMintingStatusLambda = new NodejsFunction(
+      this,
+      "StockMintingStatusLambda",
+      {
+        functionName: `sachain-stock-minting-status-${props.environment}`,
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "handler",
+        entry: path.join(
+          __dirname,
+          "../../..",
+          "backend/src/lambdas/stock-minting-status/index.ts"
+        ),
+        role:
+          props.stockMintingStatusRole ||
+          props.securityConstruct?.stockMintingStatusRole,
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          target: "node20",
+          externalModules: [
+            "aws-lambda",
+            "@aws-sdk/client-dynamodb",
+            "@aws-sdk/lib-dynamodb",
+            "@aws-sdk/client-cloudwatch",
+          ],
+        },
+        projectRoot: path.join(__dirname, "../../.."),
+        environment: {
+          TABLE_NAME: props.table.tableName,
+          ENVIRONMENT: props.environment,
+        },
+        timeout: cdk.Duration.minutes(2),
+        memorySize: 512,
+        tracing: lambda.Tracing.ACTIVE,
+      }
+    );
+
     // Create unified API Gateway
     this.api = new apigateway.RestApi(this, "SachainApi", {
       restApiName: `sachain-api-${props.environment}`,
@@ -284,6 +361,18 @@ export class LambdaConstruct extends Construct {
       { proxy: true }
     );
 
+    // Stock Minting Integration
+    const stockMintingIntegration = new apigateway.LambdaIntegration(
+      this.stockMintingLambda,
+      { proxy: true }
+    );
+
+    // Stock Minting Status Integration
+    const stockMintingStatusIntegration = new apigateway.LambdaIntegration(
+      this.stockMintingStatusLambda,
+      { proxy: true }
+    );
+
     // Add KYC endpoints with authorization
     const uploadResource = this.kycResource.addResource("upload");
     uploadResource.addMethod("POST", kycUploadIntegration, {
@@ -313,6 +402,23 @@ export class LambdaConstruct extends Construct {
     // Add project endpoints with authorization
     const projectsResource = this.api.root.addResource("projects");
     projectsResource.addMethod("POST", projectCreationIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // Add stock minting endpoints
+    const projectIdResource = projectsResource.addResource("{projectId}");
+    const mintStocksResource = projectIdResource.addResource("mint-stocks");
+
+    // POST /projects/{projectId}/mint-stocks
+    mintStocksResource.addMethod("POST", stockMintingIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // GET /projects/{projectId}/mint-stocks/status
+    const mintStocksStatusResource = mintStocksResource.addResource("status");
+    mintStocksStatusResource.addMethod("GET", stockMintingStatusIntegration, {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });

@@ -55,6 +55,8 @@ export class SecurityConstruct extends Construct {
   public readonly userNotificationRole: iam.Role;
   public readonly kycProcessingRole: iam.Role;
   public readonly projectCreationRole: iam.Role;
+  public readonly stockMintingRole: iam.Role;
+  public readonly stockMintingStatusRole: iam.Role;
 
   private readonly table: dynamodb.Table;
   private readonly documentBucket: s3.Bucket;
@@ -76,6 +78,8 @@ export class SecurityConstruct extends Construct {
     this.userNotificationRole = this.createUserNotificationRole();
     this.kycProcessingRole = this.createKycProcessingRole();
     this.projectCreationRole = this.createProjectCreationRole();
+    this.stockMintingRole = this.createStockMintingRole();
+    this.stockMintingStatusRole = this.createStockMintingStatusRole();
 
     // Add resource-based policies
     this.addResourceBasedPolicies();
@@ -552,6 +556,139 @@ export class SecurityConstruct extends Construct {
     return role;
   }
 
+  private createStockMintingRole(): iam.Role {
+    const role = new iam.Role(this, "StockMintingLambdaRole", {
+      roleName: `sachain-stock-minting-lambda-role-${this.environment}`,
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      description: "Least-privilege role for Stock Minting Lambda",
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSLambdaBasicExecutionRole"
+        ),
+      ],
+    });
+
+    // DynamoDB permissions - read/write project data, stock NFTs, and transactions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "DynamoDBStockMintingOperations",
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:BatchWriteItem",
+        ],
+        resources: [this.table.tableArn, `${this.table.tableArn}/index/*`],
+        conditions: {
+          "ForAllValues:StringLike": {
+            "dynamodb:LeadingKeys": ["USER#*", "PROJECT#*"],
+          },
+        },
+      })
+    );
+
+    // EventBridge permissions for publishing stock minting events
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "EventBridgeStockMintingEvents",
+        effect: iam.Effect.ALLOW,
+        actions: ["events:PutEvents"],
+        resources: [
+          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
+        ],
+        conditions: {
+          StringEquals: {
+            "events:source": "sachain.stock-minting",
+          },
+        },
+      })
+    );
+
+    // CloudWatch metrics permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "CloudWatchStockMintingMetrics",
+        effect: iam.Effect.ALLOW,
+        actions: ["cloudwatch:PutMetricData"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: {
+            "cloudwatch:namespace": "Sachain/StockMinting",
+          },
+        },
+      })
+    );
+
+    // X-Ray tracing permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "XRayTracing",
+        effect: iam.Effect.ALLOW,
+        actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+        resources: ["*"],
+      })
+    );
+
+    return role;
+  }
+
+  private createStockMintingStatusRole(): iam.Role {
+    const role = new iam.Role(this, "StockMintingStatusLambdaRole", {
+      roleName: `sachain-stock-minting-status-lambda-role-${this.environment}`,
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      description: "Least-privilege role for Stock Minting Status Lambda",
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSLambdaBasicExecutionRole"
+        ),
+      ],
+    });
+
+    // DynamoDB permissions - read project data, stock NFTs, and transactions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "DynamoDBStockMintingStatusOperations",
+        effect: iam.Effect.ALLOW,
+        actions: ["dynamodb:GetItem", "dynamodb:Query"],
+        resources: [this.table.tableArn, `${this.table.tableArn}/index/*`],
+        conditions: {
+          "ForAllValues:StringLike": {
+            "dynamodb:LeadingKeys": ["USER#*", "PROJECT#*"],
+          },
+        },
+      })
+    );
+
+    // CloudWatch metrics permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "CloudWatchStockMintingStatusMetrics",
+        effect: iam.Effect.ALLOW,
+        actions: ["cloudwatch:PutMetricData"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: {
+            "cloudwatch:namespace": "Sachain/StockMintingStatus",
+          },
+        },
+      })
+    );
+
+    // X-Ray tracing permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "XRayTracing",
+        effect: iam.Effect.ALLOW,
+        actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+        resources: ["*"],
+      })
+    );
+
+    return role;
+  }
+
   private addResourceBasedPolicies(): void {
     // Note: Resource-based policies that reference IAM roles from this construct
     // would create circular dependencies between stacks. Instead, we rely on
@@ -587,6 +724,8 @@ export class SecurityConstruct extends Construct {
       this.userNotificationRole,
       this.kycProcessingRole,
       this.projectCreationRole,
+      this.stockMintingRole,
+      this.stockMintingStatusRole,
     ].forEach((role) => {
       role.addToPolicy(preventPrivilegeEscalation);
     });

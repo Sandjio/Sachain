@@ -28,6 +28,8 @@ export interface LambdaStackProps extends cdk.StackProps {
   userNotificationRole: iam.Role;
   kycProcessingRole: iam.Role;
   projectCreationRole: iam.Role;
+  stockMintingRole: iam.Role;
+  stockMintingStatusRole: iam.Role;
   // Admin emails for event notifications
   adminEmails?: string[];
 }
@@ -41,6 +43,9 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
   public readonly adminReviewLambda: lambda.Function;
   public readonly userNotificationLambda: lambda.Function;
   public readonly kycProcessingLambda: lambda.Function;
+  public readonly projectCreationLambda: lambda.Function;
+  public readonly stockMintingLambda: lambda.Function;
+  public readonly stockMintingStatusLambda: lambda.Function;
   public readonly complianceLambda?: lambda.Function;
   public readonly kycUploadLambdaArn: string;
   public readonly adminReviewLambdaArn: string;
@@ -86,6 +91,8 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
         userNotificationRole: props.userNotificationRole,
         kycProcessingRole: props.kycProcessingRole,
         projectCreationRole: props.projectCreationRole,
+        stockMintingRole: props.stockMintingRole,
+        stockMintingStatusRole: props.stockMintingStatusRole,
       },
     };
 
@@ -130,6 +137,22 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       "projectCreationRole"
     );
 
+    const stockMintingRole = iam.Role.fromRoleArn(
+      this,
+      "ImportedStockMintingRole",
+      cdk.Fn.importValue(
+        CrossStackExports.securityStack.stockMintingRoleArn(environment)
+      )
+    );
+
+    const stockMintingStatusRole = iam.Role.fromRoleArn(
+      this,
+      "ImportedStockMintingStatusRole",
+      cdk.Fn.importValue(
+        CrossStackExports.securityStack.stockMintingStatusRoleArn(environment)
+      )
+    );
+
     // Add environment tags
     cdk.Tags.of(this).add("Environment", props.environment);
     cdk.Tags.of(this).add("Project", "Sachain");
@@ -166,6 +189,8 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       userNotificationRole: props.userNotificationRole,
       kycProcessingRole: props.kycProcessingRole,
       projectCreationRole: props.projectCreationRole,
+      stockMintingRole: stockMintingRole,
+      stockMintingStatusRole: stockMintingStatusRole,
     };
 
     // Create Lambda construct with all dependencies (excluding post-auth lambda)
@@ -175,6 +200,8 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       encryptionKey: props.encryptionKey,
       environment: props.environment,
       securityConstruct: mockSecurityConstruct as any, // Type assertion for compatibility
+      stockMintingRole: stockMintingRole,
+      stockMintingStatusRole: stockMintingStatusRole,
       eventBus: this.eventBus,
       notificationTopic: this.notificationTopic,
     });
@@ -184,6 +211,10 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     this.adminReviewLambda = this.lambdaConstruct.adminReviewLambda;
     this.userNotificationLambda = this.lambdaConstruct.userNotificationLambda;
     this.kycProcessingLambda = this.lambdaConstruct.kycProcessingLambda;
+    this.projectCreationLambda = this.lambdaConstruct.projectCreationLambda;
+    this.stockMintingLambda = this.lambdaConstruct.stockMintingLambda;
+    this.stockMintingStatusLambda =
+      this.lambdaConstruct.stockMintingStatusLambda;
     this.api = this.lambdaConstruct.api;
 
     // Set ARNs and identifiers for interface compliance

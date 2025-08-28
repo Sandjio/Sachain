@@ -60,6 +60,8 @@ export interface SecurityStackOutputs {
   userNotificationRole: iam.Role;
   kycProcessingRole: iam.Role;
   projectCreationRole: iam.Role;
+  stockMintingRole: iam.Role;
+  stockMintingStatusRole: iam.Role;
   complianceRole?: iam.Role; // Optional for future compliance lambda
 
   // Role ARNs for cross-stack references
@@ -68,6 +70,8 @@ export interface SecurityStackOutputs {
   userNotificationRoleArn: string;
   kycProcessingRoleArn: string;
   projectCreationRoleArn: string;
+  stockMintingRoleArn: string;
+  stockMintingStatusRoleArn: string;
   complianceRoleArn?: string;
 }
 
@@ -193,6 +197,8 @@ export interface StackDependencies {
       | "userNotificationRole"
       | "kycProcessingRole"
       | "projectCreationRole"
+      | "stockMintingRole"
+      | "stockMintingStatusRole"
     >;
   };
 
@@ -234,6 +240,8 @@ export interface ExportNames {
   userNotificationRoleArn: (environment: string) => string;
   kycProcessingRoleArn: (environment: string) => string;
   projectCreationRoleArn: (environment: string) => string;
+  stockMintingRoleArn: (environment: string) => string;
+  stockMintingStatusRoleArn: (environment: string) => string;
 
   // Lambda Stack exports (including event resources)
   apiUrl: (environment: string) => string;
@@ -284,6 +292,10 @@ export const EXPORT_NAMES: ExportNames = {
     `${env}-sachain-security-kyc-processing-role-arn`,
   projectCreationRoleArn: (env) =>
     `${env}-sachain-security-project-creation-role-arn`,
+  stockMintingRoleArn: (env) =>
+    `${env}-sachain-security-stock-minting-role-arn`,
+  stockMintingStatusRoleArn: (env) =>
+    `${env}-sachain-security-stock-minting-status-role-arn`,
 
   // Lambda Stack exports (including event resources)
   apiUrl: (env) => `${env}-sachain-lambda-api-url`,

@@ -29,12 +29,16 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
   public readonly userNotificationRole: iam.Role;
   public readonly kycProcessingRole: iam.Role;
   public readonly projectCreationRole: iam.Role;
+  public readonly stockMintingRole: iam.Role;
+  public readonly stockMintingStatusRole: iam.Role;
   public readonly complianceRole?: iam.Role;
   public readonly kycUploadRoleArn: string;
   public readonly adminReviewRoleArn: string;
   public readonly userNotificationRoleArn: string;
   public readonly kycProcessingRoleArn: string;
   public readonly projectCreationRoleArn: string;
+  public readonly stockMintingRoleArn: string;
+  public readonly stockMintingStatusRoleArn: string;
   public readonly complianceRoleArn?: string;
 
   constructor(scope: Construct, id: string, props: SecurityStackProps) {
@@ -84,6 +88,8 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
     this.userNotificationRole = this.securityConstruct.userNotificationRole;
     this.kycProcessingRole = this.securityConstruct.kycProcessingRole;
     this.projectCreationRole = this.securityConstruct.projectCreationRole;
+    this.stockMintingRole = this.securityConstruct.stockMintingRole;
+    this.stockMintingStatusRole = this.securityConstruct.stockMintingStatusRole;
 
     // Set role ARNs for interface compliance
     this.kycUploadRoleArn = this.kycUploadRole.roleArn;
@@ -91,6 +97,8 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
     this.userNotificationRoleArn = this.userNotificationRole.roleArn;
     this.kycProcessingRoleArn = this.kycProcessingRole.roleArn;
     this.projectCreationRoleArn = this.projectCreationRole.roleArn;
+    this.stockMintingRoleArn = this.stockMintingRole.roleArn;
+    this.stockMintingStatusRoleArn = this.stockMintingStatusRole.roleArn;
 
     // Create stack outputs for cross-stack references
     this.createStackOutputs(props.environment);
@@ -126,6 +134,18 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
       value: this.projectCreationRole.roleArn,
       description: "Project Creation Lambda Role ARN",
       exportName: `${environment}-sachain-security-project-creation-role-arn`,
+    });
+
+    new cdk.CfnOutput(this, "StockMintingRoleArn", {
+      value: this.stockMintingRole.roleArn,
+      description: "Stock Minting Lambda Role ARN",
+      exportName: `${environment}-sachain-security-stock-minting-role-arn`,
+    });
+
+    new cdk.CfnOutput(this, "StockMintingStatusRoleArn", {
+      value: this.stockMintingStatusRole.roleArn,
+      description: "Stock Minting Status Lambda Role ARN",
+      exportName: `${environment}-sachain-security-stock-minting-status-role-arn`,
     });
   }
 

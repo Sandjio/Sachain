@@ -480,6 +480,286 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /projects/{projectId}/mint-stocks:
+    post:
+      tags:
+        - Stock Minting
+      summary: Mint stock NFTs for project
+      description: |
+        Initiate the minting of stock NFTs for a project using Hedera Token Service.
+        This is an asynchronous operation that creates a token and mints individual NFTs
+        for each stock. The operation includes progress tracking and comprehensive error handling.
+
+        Prerequisites:
+        - Project must be in 'draft' status
+        - Entrepreneur must own the project
+        - Wallet must have sufficient balance for gas fees
+
+        The minting process:
+        1. Validates project and wallet
+        2. Creates HTS token for the project
+        3. Mints NFTs in batches (50 per batch)
+        4. Stores metadata on IPFS
+        5. Updates project status to 'active'
+      operationId: mintStocks
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MintStocksRequest"
+            examples:
+              basic_minting:
+                summary: Basic stock minting request
+                value:
+                  walletAddress: "0.0.123456"
+              testnet_wallet:
+                summary: Testnet wallet example
+                value:
+                  walletAddress: "0.0.987654"
+      responses:
+        "200":
+          description: Stock minting completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MintStocksResponse"
+              examples:
+                successful_minting:
+                  summary: Successful minting completion
+                  value:
+                    message: "Stock minting completed successfully"
+                    tokenId: "0.0.123456"
+                    totalMinted: 10000
+                    mintingBatches: 200
+                    transactionIds:
+                      [
+                        "0.0.123456@1234567890.123456789",
+                        "0.0.123456@1234567891.123456789",
+                      ]
+                    progress:
+                      completed: 10000
+                      total: 10000
+                      percentage: 100
+                      status: "completed"
+        "400":
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                invalid_wallet:
+                  summary: Invalid wallet address
+                  value:
+                    message: "Invalid wallet address"
+                    code: "INVALID_WALLET_ADDRESS"
+                    details:
+                      walletAddress: "invalid-address"
+                    requestId: "req-123"
+                missing_project_id:
+                  summary: Missing project ID
+                  value:
+                    message: "Project ID is required"
+                    code: "INVALID_REQUEST"
+                    requestId: "req-456"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: Payment required - insufficient wallet balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                insufficient_balance:
+                  summary: Insufficient wallet balance
+                  value:
+                    message: "Insufficient wallet balance for minting operation"
+                    code: "INSUFFICIENT_BALANCE"
+                    details:
+                      walletAddress: "0.0.123456"
+                      currentBalance: "50.0"
+                      requiredAmount: "100.0"
+                      estimatedGasFee: "100.0"
+                    requestId: "req-789"
+        "403":
+          description: Forbidden - unauthorized access or KYC issues
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Not project owner
+                  value:
+                    message: "You are not authorized to mint stocks for this project"
+                    code: "UNAUTHORIZED_ACCESS"
+                    details:
+                      projectId: "proj-789"
+                      entrepreneurId: "user-123"
+                      projectOwner: "user-456"
+                    requestId: "req-101"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                project_not_found:
+                  summary: Project does not exist
+                  value:
+                    message: "Project not found"
+                    code: "PROJECT_NOT_FOUND"
+                    details:
+                      projectId: "proj-nonexistent"
+                    requestId: "req-404"
+        "422":
+          description: Unprocessable entity - business logic errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                invalid_project_status:
+                  summary: Project not in draft status
+                  value:
+                    message: "Cannot mint stocks for project in active status"
+                    code: "INVALID_PROJECT_STATUS"
+                    details:
+                      projectId: "proj-789"
+                      currentStatus: "active"
+                      requiredStatus: "draft"
+                    requestId: "req-422"
+                invalid_stock_supply:
+                  summary: Invalid stock supply
+                  value:
+                    message: "Project must have a positive stock supply"
+                    code: "INVALID_STOCK_SUPPLY"
+                    details:
+                      projectId: "proj-789"
+                      stockSupply: 0
+                    requestId: "req-422b"
+        "503":
+          description: Service unavailable - external service errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                hedera_service_error:
+                  summary: Hedera network unavailable
+                  value:
+                    message: "Failed to create project token on Hedera network"
+                    code: "TOKEN_CREATION_FAILED"
+                    details:
+                      projectId: "proj-789"
+                      error: "Network timeout"
+                    requestId: "req-503"
+                nft_minting_failed:
+                  summary: NFT minting failure
+                  value:
+                    message: "Failed to mint stock NFTs"
+                    code: "NFT_MINTING_FAILED"
+                    details:
+                      projectId: "proj-789"
+                      tokenId: "0.0.123456"
+                      totalMinted: 5000
+                      completedBatches: 100
+                      error: "Batch minting timeout"
+                    requestId: "req-503b"
+
+  /projects/{projectId}/mint-stocks/status:
+    get:
+      tags:
+        - Stock Minting
+      summary: Get stock minting status
+      description: |
+        Get the current status of stock minting for a project. This endpoint provides
+        real-time progress information for ongoing minting operations and final results
+        for completed operations.
+      operationId: getMintingStatus
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      responses:
+        "200":
+          description: Minting status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MintingStatusResponse"
+              examples:
+                in_progress:
+                  summary: Minting in progress
+                  value:
+                    projectId: "proj-789"
+                    status: "minting"
+                    progress:
+                      completed: 5000
+                      total: 10000
+                      percentage: 50
+                      status: "in_progress"
+                      currentBatch: 100
+                      totalBatches: 200
+                    tokenId: "0.0.123456"
+                    startedAt: "2024-01-15T14:30:00Z"
+                    estimatedCompletion: "2024-01-15T15:00:00Z"
+                completed:
+                  summary: Minting completed
+                  value:
+                    projectId: "proj-789"
+                    status: "active"
+                    progress:
+                      completed: 10000
+                      total: 10000
+                      percentage: 100
+                      status: "completed"
+                    tokenId: "0.0.123456"
+                    totalMinted: 10000
+                    mintingBatches: 200
+                    transactionIds: ["0.0.123456@1234567890.123456789"]
+                    startedAt: "2024-01-15T14:30:00Z"
+                    completedAt: "2024-01-15T15:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - not project owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found or no minting operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   securitySchemes:
     CognitoAuth:
@@ -495,6 +775,19 @@ components:
 
   schemas:
     # Request Schemas
+    MintStocksRequest:
+      type: object
+      required:
+        - walletAddress
+      properties:
+        walletAddress:
+          type: string
+          pattern: '^0\.0\.[0-9]+$'
+          description: Hedera wallet address in format 0.0.accountId
+          example: "0.0.123456"
+          minLength: 5
+          maxLength: 20
+
     CreateProjectRequest:
       type: object
       required:
@@ -652,6 +945,197 @@ components:
           example: "Document verified successfully"
 
     # Response Schemas
+    MintStocksResponse:
+      type: object
+      required:
+        - message
+        - tokenId
+        - totalMinted
+        - mintingBatches
+        - transactionIds
+        - progress
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: "Stock minting completed successfully"
+        tokenId:
+          type: string
+          description: Hedera token ID for the project
+          example: "0.0.123456"
+        totalMinted:
+          type: integer
+          minimum: 1
+          description: Total number of NFTs minted
+          example: 10000
+        mintingBatches:
+          type: integer
+          minimum: 1
+          description: Number of batches used for minting
+          example: 200
+        transactionIds:
+          type: array
+          items:
+            type: string
+          description: Array of Hedera transaction IDs
+          example:
+            [
+              "0.0.123456@1234567890.123456789",
+              "0.0.123456@1234567891.123456789",
+            ]
+        progress:
+          $ref: "#/components/schemas/MintingProgress"
+
+    MintingStatusResponse:
+      type: object
+      required:
+        - projectId
+        - status
+        - progress
+      properties:
+        projectId:
+          type: string
+          description: Unique project identifier
+          example: "proj-789"
+        status:
+          type: string
+          enum: [draft, minting, active, paused, completed]
+          description: Current project status
+          example: "minting"
+        progress:
+          $ref: "#/components/schemas/MintingProgress"
+        tokenId:
+          type: string
+          nullable: true
+          description: Hedera token ID (available after token creation)
+          example: "0.0.123456"
+        totalMinted:
+          type: integer
+          nullable: true
+          description: Total NFTs minted (available when completed)
+          example: 10000
+        mintingBatches:
+          type: integer
+          nullable: true
+          description: Number of batches used (available when completed)
+          example: 200
+        transactionIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Transaction IDs (available when completed)
+          example: ["0.0.123456@1234567890.123456789"]
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Minting start timestamp
+          example: "2024-01-15T14:30:00Z"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Minting completion timestamp
+          example: "2024-01-15T15:00:00Z"
+        estimatedCompletion:
+          type: string
+          format: date-time
+          nullable: true
+          description: Estimated completion time (for in-progress operations)
+          example: "2024-01-15T15:00:00Z"
+        error:
+          type: string
+          nullable: true
+          description: Error message (if minting failed)
+          example: "Network timeout during batch processing"
+
+    MintingProgress:
+      type: object
+      required:
+        - completed
+        - total
+        - percentage
+        - status
+      properties:
+        completed:
+          type: integer
+          minimum: 0
+          description: Number of NFTs minted so far
+          example: 5000
+        total:
+          type: integer
+          minimum: 1
+          description: Total number of NFTs to mint
+          example: 10000
+        percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Completion percentage
+          example: 50
+        status:
+          type: string
+          enum: [in_progress, completed, failed]
+          description: Current minting status
+          example: "in_progress"
+        currentBatch:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Current batch being processed
+          example: 100
+        totalBatches:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Total number of batches
+          example: 200
+
+    StockMintingErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Invalid wallet address"
+        code:
+          type: string
+          enum:
+            [
+              "AUTHENTICATION_FAILED",
+              "INVALID_REQUEST",
+              "PROJECT_NOT_FOUND",
+              "UNAUTHORIZED_ACCESS",
+              "INVALID_PROJECT_STATUS",
+              "INVALID_STOCK_SUPPLY",
+              "INVALID_WALLET_ADDRESS",
+              "INSUFFICIENT_BALANCE",
+              "TOKEN_CREATION_FAILED",
+              "NFT_MINTING_FAILED",
+              "METADATA_STORAGE_FAILED",
+              "DATABASE_ERROR",
+              "HEDERA_SERVICE_ERROR",
+              "IPFS_SERVICE_ERROR",
+              "PARTIAL_MINTING_FAILURE",
+              "MINTING_IN_PROGRESS",
+            ]
+          description: Error code for programmatic handling
+          example: "INVALID_WALLET_ADDRESS"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            walletAddress: "invalid-address"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-123"
+
     CreateProjectResponse:
       type: object
       required:
