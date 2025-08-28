@@ -30,6 +30,7 @@ export class LambdaConstruct extends Construct {
   public readonly kycProcessingLambda: lambda.Function;
   public readonly projectCreationLambda: lambda.Function;
   public readonly projectQueryLambda: lambda.Function;
+  public readonly projectManagementLambda: lambda.Function;
   public readonly stockMintingLambda: lambda.Function;
   public readonly stockMintingStatusLambda: lambda.Function;
   public readonly api: apigateway.RestApi;
@@ -256,6 +257,44 @@ export class LambdaConstruct extends Construct {
       tracing: lambda.Tracing.ACTIVE,
     });
 
+    // Project Management Lambda
+    this.projectManagementLambda = new NodejsFunction(
+      this,
+      "ProjectManagementLambda",
+      {
+        functionName: `sachain-project-management-${props.environment}`,
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "handler",
+        entry: path.join(
+          __dirname,
+          "../../..",
+          "backend/src/lambdas/project-management/index.ts"
+        ),
+        role: props.securityConstruct?.projectCreationRole, // Reuse project creation role for management operations
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          target: "node20",
+          externalModules: [
+            "aws-lambda",
+            "@aws-sdk/client-dynamodb",
+            "@aws-sdk/lib-dynamodb",
+            "@aws-sdk/client-eventbridge",
+            "@aws-sdk/client-cloudwatch",
+          ],
+        },
+        projectRoot: path.join(__dirname, "../../.."),
+        environment: {
+          TABLE_NAME: props.table.tableName,
+          EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
+          ENVIRONMENT: props.environment,
+        },
+        timeout: cdk.Duration.minutes(2),
+        memorySize: 512,
+        tracing: lambda.Tracing.ACTIVE,
+      }
+    );
+
     // Stock Minting Lambda
     this.stockMintingLambda = new NodejsFunction(this, "StockMintingLambda", {
       functionName: `sachain-stock-minting-${props.environment}`,
@@ -400,6 +439,12 @@ export class LambdaConstruct extends Construct {
       { proxy: true }
     );
 
+    // Project Management Integration
+    const projectManagementIntegration = new apigateway.LambdaIntegration(
+      this.projectManagementLambda,
+      { proxy: true }
+    );
+
     // Stock Minting Integration
     const stockMintingIntegration = new apigateway.LambdaIntegration(
       this.stockMintingLambda,
@@ -468,6 +513,25 @@ export class LambdaConstruct extends Construct {
 
     // GET /projects/{projectId} - Get single project
     projectIdResource.addMethod("GET", projectQueryIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // PUT /projects/{projectId} - Update project
+    projectIdResource.addMethod("PUT", projectManagementIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // DELETE /projects/{projectId} - Delete project
+    projectIdResource.addMethod("DELETE", projectManagementIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // PUT /projects/{projectId}/status - Update project status
+    const projectStatusResource = projectIdResource.addResource("status");
+    projectStatusResource.addMethod("PUT", projectManagementIntegration, {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });

@@ -870,6 +870,250 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+    put:
+      tags:
+        - Project Management
+      summary: Update project details
+      description: |
+        Update project details for draft projects only. Entrepreneurs can only update their own projects.
+        Once a project is minted or active, it cannot be updated through this endpoint.
+      operationId: updateProject
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectRequest"
+            examples:
+              partial_update:
+                summary: Update only specific fields
+                value:
+                  name: "EcoTech Solutions v2"
+                  description: "Updated revolutionary solar panel technology with 50% efficiency improvement"
+                  pricePerStock: 55
+      responses:
+        "200":
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateProjectResponse"
+              examples:
+                success:
+                  summary: Successful update
+                  value:
+                    projectId: "proj-789"
+                    message: "Project updated successfully"
+                    changes: ["name", "description", "pricePerStock"]
+        "400":
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - not project owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "422":
+          description: Unprocessable entity - invalid project status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+              examples:
+                invalid_status:
+                  summary: Cannot update non-draft project
+                  value:
+                    message: "Only draft projects can be updated"
+                    code: "INVALID_PROJECT_STATUS"
+                    details:
+                      projectId: "proj-789"
+                      currentStatus: "active"
+                      allowedStatus: "draft"
+                    requestId: "req-422"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Project Management
+      summary: Delete project
+      description: |
+        Delete a project and all associated data. Only draft projects can be deleted.
+        This operation performs cascade deletion of project statistics and transaction records.
+      operationId: deleteProject
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      responses:
+        "200":
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteProjectResponse"
+              examples:
+                success:
+                  summary: Successful deletion
+                  value:
+                    projectId: "proj-789"
+                    message: "Project deleted successfully"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - not project owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "422":
+          description: Unprocessable entity - invalid project status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+              examples:
+                invalid_status:
+                  summary: Cannot delete non-draft project
+                  value:
+                    message: "Only draft projects can be deleted"
+                    code: "INVALID_PROJECT_STATUS"
+                    details:
+                      projectId: "proj-789"
+                      currentStatus: "active"
+                      allowedStatus: "draft"
+                    requestId: "req-422"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects/{projectId}/status:
+    put:
+      tags:
+        - Project Management
+      summary: Update project status
+      description: |
+        Update the status of a project. Valid transitions depend on the current status:
+        - draft → minting, paused
+        - minting → active, paused, draft
+        - active → paused, completed
+        - paused → draft, minting, active
+        - completed → (no transitions allowed)
+      operationId: updateProjectStatus
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectStatusTransitionRequest"
+            examples:
+              pause_project:
+                summary: Pause an active project
+                value:
+                  newStatus: "paused"
+                  reason: "Temporary pause for maintenance"
+      responses:
+        "200":
+          description: Project status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectStatusTransitionResponse"
+              examples:
+                success:
+                  summary: Successful status transition
+                  value:
+                    projectId: "proj-789"
+                    message: "Project status updated successfully"
+                    previousStatus: "active"
+                    newStatus: "paused"
+        "400":
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - not project owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "422":
+          description: Unprocessable entity - invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+              examples:
+                invalid_transition:
+                  summary: Invalid status transition
+                  value:
+                    message: "Invalid status transition from 'completed' to 'active'"
+                    code: "INVALID_STATUS_TRANSITION"
+                    details:
+                      projectId: "proj-789"
+                      currentStatus: "completed"
+                      requestedStatus: "active"
+                      allowedTransitions: []
+                    requestId: "req-422"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /projects/{projectId}/mint-stocks:
     post:
       tags:
@@ -1165,6 +1409,79 @@ components:
 
   schemas:
     # Request Schemas
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9\s\-_.&()]+$'
+          description: Updated project name (3-100 characters)
+          example: "EcoTech Solutions v2"
+        description:
+          type: string
+          minLength: 50
+          maxLength: 2000
+          description: Updated project description (50-2000 characters)
+          example: "Updated revolutionary solar panel technology with 50% efficiency improvement"
+        category:
+          type: string
+          enum:
+            [
+              "Technology",
+              "Healthcare",
+              "FinTech",
+              "CleanTech",
+              "Education",
+              "E-commerce",
+              "Manufacturing",
+              "Agriculture",
+              "Real Estate",
+              "Entertainment",
+              "Food & Beverage",
+              "Transportation",
+              "Other",
+            ]
+          description: Updated project category
+          example: "CleanTech"
+        targetFundingGoal:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+          description: Updated target funding amount
+          example: 600000
+        pricePerStock:
+          type: number
+          minimum: 0
+          maximum: 99999999.99999999
+          multipleOf: 0.00000001
+          description: Updated price per stock
+          example: 55
+        coverImageUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          description: Updated cover image URL
+          example: "https://s3.amazonaws.com/bucket/project-images/updated-cover.jpg"
+
+    ProjectStatusTransitionRequest:
+      type: object
+      required:
+        - newStatus
+      properties:
+        newStatus:
+          type: string
+          enum: ["draft", "minting", "active", "paused", "completed"]
+          description: New status for the project
+          example: "paused"
+        reason:
+          type: string
+          maxLength: 500
+          description: Optional reason for the status change
+          example: "Temporary pause for maintenance"
+
     MintStocksRequest:
       type: object
       required:
@@ -1609,6 +1926,110 @@ components:
           example: "Document verified successfully"
 
     # Response Schemas
+    UpdateProjectResponse:
+      type: object
+      required:
+        - projectId
+        - message
+        - changes
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier of the updated project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project updated successfully"
+        changes:
+          type: array
+          items:
+            type: string
+          description: List of fields that were changed
+          example: ["name", "description", "pricePerStock"]
+
+    ProjectStatusTransitionResponse:
+      type: object
+      required:
+        - projectId
+        - message
+        - previousStatus
+        - newStatus
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier of the project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project status updated successfully"
+        previousStatus:
+          type: string
+          enum: ["draft", "minting", "active", "paused", "completed"]
+          description: Previous status of the project
+          example: "active"
+        newStatus:
+          type: string
+          enum: ["draft", "minting", "active", "paused", "completed"]
+          description: New status of the project
+          example: "paused"
+
+    DeleteProjectResponse:
+      type: object
+      required:
+        - projectId
+        - message
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier of the deleted project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project deleted successfully"
+
+    ProjectManagementErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Only draft projects can be updated"
+        code:
+          type: string
+          enum:
+            [
+              "AUTHENTICATION_FAILED",
+              "PROJECT_NOT_FOUND",
+              "UNAUTHORIZED_ACCESS",
+              "INVALID_PROJECT_STATUS",
+              "INVALID_STATUS_TRANSITION",
+              "INVALID_PROJECT_DATA",
+              "CASCADE_DELETION_FAILED",
+              "METHOD_NOT_ALLOWED",
+              "ROUTE_NOT_FOUND",
+              "DATABASE_ERROR",
+            ]
+          description: Error code for programmatic handling
+          example: "INVALID_PROJECT_STATUS"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            projectId: "proj-789"
+            currentStatus: "active"
+            allowedStatus: "draft"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-422"
+
     MintStocksResponse:
       type: object
       required:
@@ -2140,3 +2561,7 @@ tags:
     description: |
       Endpoints for creating and managing entrepreneurial projects.
       Enables entrepreneurs to tokenize their business shares using Hedera Token Service.
+  - name: Project Management
+    description: |
+      Endpoints for managing existing projects including updates, status transitions, and deletion.
+      Only project owners can perform management operations on their projects.

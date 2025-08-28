@@ -55,6 +55,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
   public readonly kycProcessingLambda: lambda.Function;
   public readonly projectCreationLambda: lambda.Function;
   public readonly projectQueryLambda: lambda.Function;
+  public readonly projectManagementLambda: lambda.Function;
   public readonly stockMintingLambda: lambda.Function;
   public readonly stockMintingStatusLambda: lambda.Function;
   public readonly complianceLambda?: lambda.Function;
@@ -226,6 +227,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     this.kycProcessingLambda = this.lambdaConstruct.kycProcessingLambda;
     this.projectCreationLambda = this.lambdaConstruct.projectCreationLambda;
     this.projectQueryLambda = this.lambdaConstruct.projectQueryLambda;
+    this.projectManagementLambda = this.lambdaConstruct.projectManagementLambda;
     this.stockMintingLambda = this.lambdaConstruct.stockMintingLambda;
     this.stockMintingStatusLambda =
       this.lambdaConstruct.stockMintingStatusLambda;
