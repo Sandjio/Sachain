@@ -422,3 +422,88 @@ export function transformProjectInputToEntity(
     GSI3SK: now,
   };
 }
+/**
+ * Comprehensive validation for project update input
+ */
+export function validateUpdateProjectInput(
+  input: any
+): ProjectValidationResult {
+  const errors: string[] = [];
+
+  // Validate project ID (required for updates)
+  if (!input.projectId || typeof input.projectId !== "string") {
+    errors.push("Project ID is required for updates");
+  }
+
+  // Validate entrepreneur ID (required for updates)
+  if (input.entrepreneurId) {
+    const entrepreneurIdValidation = validateEntrepreneurId(
+      input.entrepreneurId
+    );
+    if (!entrepreneurIdValidation.isValid) {
+      errors.push(entrepreneurIdValidation.error!);
+    }
+  }
+
+  // Validate project name (if provided)
+  if (input.name !== undefined) {
+    const nameValidation = validateProjectName(input.name);
+    if (!nameValidation.isValid) {
+      errors.push(nameValidation.error!);
+    }
+  }
+
+  // Validate project description (if provided)
+  if (input.description !== undefined) {
+    const descriptionValidation = validateProjectDescription(input.description);
+    if (!descriptionValidation.isValid) {
+      errors.push(descriptionValidation.error!);
+    }
+  }
+
+  // Validate project category (if provided)
+  if (input.category !== undefined) {
+    const categoryValidation = validateProjectCategory(input.category);
+    if (!categoryValidation.isValid) {
+      errors.push(categoryValidation.error!);
+    }
+  }
+
+  // Validate stock supply (if provided) - Note: stock supply should not be updatable after creation
+  if (input.stockSupply !== undefined) {
+    errors.push("Stock supply cannot be modified after project creation");
+  }
+
+  // Validate optional target funding goal (if provided)
+  if (input.targetFundingGoal !== undefined) {
+    const fundingGoalValidation = validateTargetFundingGoal(
+      input.targetFundingGoal
+    );
+    if (!fundingGoalValidation.isValid) {
+      errors.push(fundingGoalValidation.error!);
+    }
+  }
+
+  // Validate optional price per stock (if provided)
+  if (input.pricePerStock !== undefined) {
+    const priceValidation = validatePricePerStock(input.pricePerStock);
+    if (!priceValidation.isValid) {
+      errors.push(priceValidation.error!);
+    }
+  }
+
+  // Validate status (if provided)
+  if (input.status !== undefined) {
+    const validStatuses = ["draft", "minting", "active", "paused", "completed"];
+    if (!validStatuses.includes(input.status)) {
+      errors.push(
+        `Invalid status. Must be one of: ${validStatuses.join(", ")}`
+      );
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}

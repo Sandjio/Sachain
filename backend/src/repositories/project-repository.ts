@@ -413,4 +413,11 @@ export class ProjectRepository extends BaseRepository {
     const result = await this.getProjectHederaTransactions(projectId, options);
     return result.items;
   }
+
+  /**
+   * Delete a specific item by PK and SK (public method for cascade deletion)
+   */
+  async deleteItemByKey(pk: string, sk: string): Promise<void> {
+    await this.deleteItem(pk, sk);
+  }
 }
