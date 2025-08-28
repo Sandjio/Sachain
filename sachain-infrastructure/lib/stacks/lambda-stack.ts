@@ -13,6 +13,16 @@ import { LambdaConstruct, EventBridgeConstruct } from "../constructs";
 import { LambdaStackOutputs, StackDependencies } from "../interfaces";
 import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
+// Define CrossStackExports for compatibility
+const CrossStackExports = {
+  securityStack: {
+    stockMintingRoleArn: (env: string) =>
+      `${env}-sachain-security-stock-minting-role-arn`,
+    stockMintingStatusRoleArn: (env: string) =>
+      `${env}-sachain-security-stock-minting-status-role-arn`,
+  },
+};
+
 export interface LambdaStackProps extends cdk.StackProps {
   environment: string;
   // Core resources from CoreStack (now includes auth)
@@ -44,6 +54,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
   public readonly userNotificationLambda: lambda.Function;
   public readonly kycProcessingLambda: lambda.Function;
   public readonly projectCreationLambda: lambda.Function;
+  public readonly projectQueryLambda: lambda.Function;
   public readonly stockMintingLambda: lambda.Function;
   public readonly stockMintingStatusLambda: lambda.Function;
   public readonly complianceLambda?: lambda.Function;
@@ -141,7 +152,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       this,
       "ImportedStockMintingRole",
       cdk.Fn.importValue(
-        CrossStackExports.securityStack.stockMintingRoleArn(environment)
+        CrossStackExports.securityStack.stockMintingRoleArn(props.environment)
       )
     );
 
@@ -149,7 +160,9 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       this,
       "ImportedStockMintingStatusRole",
       cdk.Fn.importValue(
-        CrossStackExports.securityStack.stockMintingStatusRoleArn(environment)
+        CrossStackExports.securityStack.stockMintingStatusRoleArn(
+          props.environment
+        )
       )
     );
 
@@ -212,6 +225,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     this.userNotificationLambda = this.lambdaConstruct.userNotificationLambda;
     this.kycProcessingLambda = this.lambdaConstruct.kycProcessingLambda;
     this.projectCreationLambda = this.lambdaConstruct.projectCreationLambda;
+    this.projectQueryLambda = this.lambdaConstruct.projectQueryLambda;
     this.stockMintingLambda = this.lambdaConstruct.stockMintingLambda;
     this.stockMintingStatusLambda =
       this.lambdaConstruct.stockMintingStatusLambda;

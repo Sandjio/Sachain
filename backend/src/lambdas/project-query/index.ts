@@ -276,11 +276,23 @@ async function handleGetProject(
       project: projectWithStats,
     };
 
+    // Generate ETag for caching based on project data
+    const etag = `"${Buffer.from(
+      JSON.stringify({
+        id: project.projectId,
+        updated: project.updatedAt,
+        stats: projectWithStats.stats?.lastUpdated,
+      })
+    ).toString("base64")}"`;
+
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
+        ETag: etag,
+        "Last-Modified": new Date(project.updatedAt).toUTCString(),
       },
       body: JSON.stringify(response),
     };
@@ -401,11 +413,29 @@ async function handleGetProjects(
       aggregations,
     };
 
+    // Generate ETag for caching based on query parameters and results
+    const etag = `"${Buffer.from(
+      JSON.stringify({
+        params: queryParams,
+        count: queryResult.count,
+        lastUpdate: enrichedProjects[0]?.updatedAt || new Date().toISOString(),
+      })
+    ).toString("base64")}"`;
+
+    // Set cache headers based on query type and user type
+    const cacheMaxAge = queryParams.status === "active" ? 300 : 60; // Active projects cache longer
+    const staleWhileRevalidate = cacheMaxAge * 2;
+
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
+        "Cache-Control": `public, max-age=${cacheMaxAge}, stale-while-revalidate=${staleWhileRevalidate}`,
+        ETag: etag,
+        "X-Query-Type": queryResult.metrics.queryType,
+        "X-Index-Used": queryResult.metrics.indexUsed || "none",
+        "X-Cache-Hit": queryResult.metrics.cacheHit ? "true" : "false",
       },
       body: JSON.stringify(response),
     };

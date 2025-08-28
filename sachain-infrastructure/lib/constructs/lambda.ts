@@ -29,6 +29,7 @@ export class LambdaConstruct extends Construct {
   public readonly userNotificationLambda: lambda.Function;
   public readonly kycProcessingLambda: lambda.Function;
   public readonly projectCreationLambda: lambda.Function;
+  public readonly projectQueryLambda: lambda.Function;
   public readonly stockMintingLambda: lambda.Function;
   public readonly stockMintingStatusLambda: lambda.Function;
   public readonly api: apigateway.RestApi;
@@ -223,6 +224,38 @@ export class LambdaConstruct extends Construct {
       }
     );
 
+    // Project Query Lambda
+    this.projectQueryLambda = new NodejsFunction(this, "ProjectQueryLambda", {
+      functionName: `sachain-project-query-${props.environment}`,
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/project-query/index.ts"
+      ),
+      role: props.securityConstruct?.projectCreationRole, // Reuse project creation role for read operations
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: [
+          "aws-lambda",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/lib-dynamodb",
+          "@aws-sdk/client-cloudwatch",
+        ],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
+      environment: {
+        TABLE_NAME: props.table.tableName,
+        ENVIRONMENT: props.environment,
+      },
+      timeout: cdk.Duration.minutes(2),
+      memorySize: 512,
+      tracing: lambda.Tracing.ACTIVE,
+    });
+
     // Stock Minting Lambda
     this.stockMintingLambda = new NodejsFunction(this, "StockMintingLambda", {
       functionName: `sachain-stock-minting-${props.environment}`,
@@ -361,6 +394,12 @@ export class LambdaConstruct extends Construct {
       { proxy: true }
     );
 
+    // Project Query Integration
+    const projectQueryIntegration = new apigateway.LambdaIntegration(
+      this.projectQueryLambda,
+      { proxy: true }
+    );
+
     // Stock Minting Integration
     const stockMintingIntegration = new apigateway.LambdaIntegration(
       this.stockMintingLambda,
@@ -401,13 +440,39 @@ export class LambdaConstruct extends Construct {
 
     // Add project endpoints with authorization
     const projectsResource = this.api.root.addResource("projects");
+
+    // POST /projects - Create project
     projectsResource.addMethod("POST", projectCreationIntegration, {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
-    // Add stock minting endpoints
+    // GET /projects - List projects with query parameters
+    projectsResource.addMethod("GET", projectQueryIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+      requestParameters: {
+        "method.request.querystring.status": false,
+        "method.request.querystring.limit": false,
+        "method.request.querystring.sortBy": false,
+        "method.request.querystring.sortOrder": false,
+        "method.request.querystring.exclusiveStartKey": false,
+        "method.request.querystring.includeStats": false,
+        "method.request.querystring.entrepreneurId": false,
+        "method.request.querystring.category": false,
+      },
+    });
+
+    // Add project-specific endpoints
     const projectIdResource = projectsResource.addResource("{projectId}");
+
+    // GET /projects/{projectId} - Get single project
+    projectIdResource.addMethod("GET", projectQueryIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // Add stock minting endpoints
     const mintStocksResource = projectIdResource.addResource("mint-stocks");
 
     // POST /projects/{projectId}/mint-stocks

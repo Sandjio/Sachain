@@ -480,6 +480,396 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+    get:
+      tags:
+        - Project Query
+      summary: Get projects for entrepreneur
+      description: |
+        Retrieve projects for the authenticated user. Entrepreneurs can see their own projects,
+        while investors can only see active projects. Supports filtering, sorting, and pagination.
+
+        Query parameters allow for:
+        - Status filtering (draft, minting, active, paused, completed)
+        - Pagination with limit and cursor-based navigation
+        - Sorting by creation date, name, or status
+        - Optional statistics inclusion for performance optimization
+        - Category filtering for project discovery
+      operationId: getProjects
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter projects by status
+          required: false
+          schema:
+            type: string
+            enum: [draft, minting, active, paused, completed]
+          examples:
+            active:
+              summary: Active projects only
+              value: active
+            draft:
+              summary: Draft projects only
+              value: draft
+        - name: limit
+          in: query
+          description: Maximum number of projects to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          examples:
+            default:
+              summary: Default limit
+              value: 20
+            small:
+              summary: Small batch
+              value: 10
+        - name: sortBy
+          in: query
+          description: Field to sort projects by
+          required: false
+          schema:
+            type: string
+            enum: [createdAt, name, status]
+            default: createdAt
+          examples:
+            creation_date:
+              summary: Sort by creation date
+              value: createdAt
+            name:
+              summary: Sort by project name
+              value: name
+        - name: sortOrder
+          in: query
+          description: Sort order (ascending or descending)
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          examples:
+            newest_first:
+              summary: Newest projects first
+              value: desc
+            oldest_first:
+              summary: Oldest projects first
+              value: asc
+        - name: exclusiveStartKey
+          in: query
+          description: Pagination cursor for next page (URL-encoded JSON)
+          required: false
+          schema:
+            type: string
+          example: "%7B%22PK%22%3A%22PROJECT%23proj-123%22%7D"
+        - name: includeStats
+          in: query
+          description: Include project statistics in response
+          required: false
+          schema:
+            type: boolean
+            default: false
+          examples:
+            with_stats:
+              summary: Include statistics
+              value: true
+            without_stats:
+              summary: Exclude statistics
+              value: false
+        - name: entrepreneurId
+          in: query
+          description: Filter by entrepreneur ID (admin use only)
+          required: false
+          schema:
+            type: string
+          example: "user-123"
+        - name: category
+          in: query
+          description: Filter projects by category
+          required: false
+          schema:
+            type: string
+            enum:
+              [
+                Technology,
+                Healthcare,
+                FinTech,
+                CleanTech,
+                Education,
+                E-commerce,
+                Manufacturing,
+                Agriculture,
+                Real Estate,
+                Entertainment,
+                Food & Beverage,
+                Transportation,
+                Other,
+              ]
+          examples:
+            cleantech:
+              summary: CleanTech projects
+              value: CleanTech
+            healthcare:
+              summary: Healthcare projects
+              value: Healthcare
+      responses:
+        "200":
+          description: Projects retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "public, max-age=300, stale-while-revalidate=600"
+            ETag:
+              description: Entity tag for conditional requests
+              schema:
+                type: string
+                example: '"abc123def456"'
+            X-Query-Type:
+              description: Type of database query used (gsi, scan, query)
+              schema:
+                type: string
+                example: "gsi"
+            X-Index-Used:
+              description: Database index used for the query
+              schema:
+                type: string
+                example: "GSI3"
+            X-Cache-Hit:
+              description: Whether the response was served from cache
+              schema:
+                type: string
+                example: "false"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectsResponse"
+              examples:
+                entrepreneur_projects:
+                  summary: Entrepreneur's projects
+                  value:
+                    projects:
+                      - projectId: "proj-123"
+                        name: "EcoTech Solutions"
+                        description: "Revolutionary solar panel technology..."
+                        category: "CleanTech"
+                        status: "active"
+                        stockSupply: 10000
+                        targetFundingGoal: 500000
+                        pricePerStock: 50
+                        entrepreneurId: "user-123"
+                        createdAt: "2024-01-15T14:30:00Z"
+                        updatedAt: "2024-01-15T14:30:00Z"
+                        stats:
+                          totalStocks: 10000
+                          mintedStocks: 10000
+                          availableStocks: 8500
+                          soldStocks: 1500
+                          totalRaised: 75000
+                    pagination:
+                      limit: 20
+                      count: 1
+                      hasMore: false
+                    aggregations:
+                      totalProjects: 3
+                      projectsByStatus:
+                        active: 1
+                        draft: 2
+                      projectsByCategory:
+                        CleanTech: 1
+                        Healthcare: 2
+                investor_projects:
+                  summary: Investor view (active projects only)
+                  value:
+                    projects:
+                      - projectId: "proj-123"
+                        name: "EcoTech Solutions"
+                        description: "Revolutionary solar panel technology..."
+                        category: "CleanTech"
+                        status: "active"
+                        stockSupply: 10000
+                        pricePerStock: 50
+                        entrepreneurId: "user-456"
+                        createdAt: "2024-01-15T14:30:00Z"
+                        updatedAt: "2024-01-15T14:30:00Z"
+                    pagination:
+                      limit: 20
+                      count: 1
+                      hasMore: false
+                    aggregations:
+                      totalProjects: 15
+                      projectsByCategory:
+                        CleanTech: 5
+                        Healthcare: 4
+                        Technology: 6
+        "400":
+          description: Bad request - invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                invalid_parameters:
+                  summary: Invalid query parameters
+                  value:
+                    message: "Invalid query parameters"
+                    code: "INVALID_QUERY_PARAMETERS"
+                    details:
+                      errors:
+                        - "Limit must be a number between 1 and 100"
+                        - "Invalid status. Must be one of: draft, minting, active, paused, completed"
+                    requestId: "req-400"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects/{projectId}:
+    get:
+      tags:
+        - Project Query
+      summary: Get project details
+      description: |
+        Retrieve detailed information about a specific project. Access control applies:
+        - Entrepreneurs can access their own projects regardless of status
+        - Investors and other users can only access active projects
+
+        The response includes comprehensive project information and optional statistics.
+      operationId: getProject
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      responses:
+        "200":
+          description: Project details retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "public, max-age=300, stale-while-revalidate=600"
+            ETag:
+              description: Entity tag for conditional requests
+              schema:
+                type: string
+                example: '"xyz789abc123"'
+            Last-Modified:
+              description: Last modification date of the project
+              schema:
+                type: string
+                example: "Mon, 15 Jan 2024 14:30:00 GMT"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectResponse"
+              examples:
+                detailed_project:
+                  summary: Complete project details
+                  value:
+                    project:
+                      projectId: "proj-789"
+                      name: "EcoTech Solutions"
+                      description: "Revolutionary solar panel technology that increases efficiency by 40% while reducing manufacturing costs. Our patented nano-coating process enables better light absorption and weather resistance, making solar energy more accessible and cost-effective for residential and commercial applications."
+                      category: "CleanTech"
+                      status: "active"
+                      stockSupply: 10000
+                      targetFundingGoal: 500000
+                      pricePerStock: 50
+                      coverImageUrl: "https://s3.amazonaws.com/sachain-images/proj-789/cover.jpg"
+                      entrepreneurId: "user-123"
+                      createdAt: "2024-01-15T14:30:00Z"
+                      updatedAt: "2024-01-16T09:15:00Z"
+                      stats:
+                        totalStocks: 10000
+                        mintedStocks: 10000
+                        availableStocks: 8500
+                        soldStocks: 1500
+                        totalRaised: 75000
+                        lastUpdated: "2024-01-16T09:15:00Z"
+                      recentActivity:
+                        lastUpdatedAt: "2024-01-16T09:15:00Z"
+                draft_project:
+                  summary: Draft project (entrepreneur view)
+                  value:
+                    project:
+                      projectId: "proj-456"
+                      name: "AI Healthcare Platform"
+                      description: "AI-powered diagnostic platform that helps doctors identify diseases faster and more accurately using machine learning algorithms trained on millions of medical images."
+                      category: "Healthcare"
+                      status: "draft"
+                      stockSupply: 5000
+                      targetFundingGoal: 250000
+                      pricePerStock: 50
+                      entrepreneurId: "user-123"
+                      createdAt: "2024-01-16T10:00:00Z"
+                      updatedAt: "2024-01-16T10:00:00Z"
+                      recentActivity:
+                        lastUpdatedAt: "2024-01-16T10:00:00Z"
+        "400":
+          description: Bad request - invalid project ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                invalid_project_id:
+                  summary: Invalid project ID format
+                  value:
+                    message: "Invalid project ID format"
+                    code: "INVALID_PROJECT_ID"
+                    details:
+                      projectId: "invalid-id"
+                      expectedFormat: "proj-[alphanumeric]"
+                    requestId: "req-400"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - unauthorized access to project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Cannot access draft project of another entrepreneur
+                  value:
+                    message: "Unauthorized access to project"
+                    code: "UNAUTHORIZED_ACCESS"
+                    details:
+                      projectId: "proj-789"
+                      projectStatus: "draft"
+                      accessLevel: "investor"
+                    requestId: "req-403"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                project_not_found:
+                  summary: Project does not exist
+                  value:
+                    message: "Project not found"
+                    code: "PROJECT_NOT_FOUND"
+                    details:
+                      projectId: "proj-nonexistent"
+                    requestId: "req-404"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /projects/{projectId}/mint-stocks:
     post:
       tags:
@@ -849,6 +1239,280 @@ components:
           multipleOf: 0.00000001
           description: Optional price per stock (maximum 8 decimal places)
           example: 50
+
+    GetProjectsResponse:
+      type: object
+      required:
+        - projects
+        - pagination
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectWithStats"
+          description: List of projects matching the query criteria
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+        aggregations:
+          $ref: "#/components/schemas/ProjectAggregations"
+          description: Optional aggregated statistics (included on first page or when requested)
+
+    GetProjectResponse:
+      type: object
+      required:
+        - project
+      properties:
+        project:
+          $ref: "#/components/schemas/ProjectWithStats"
+          description: Detailed project information with optional statistics
+
+    ProjectWithStats:
+      allOf:
+        - $ref: "#/components/schemas/Project"
+        - type: object
+          properties:
+            stats:
+              $ref: "#/components/schemas/ProjectStats"
+              description: Optional project statistics (performance metrics)
+            recentActivity:
+              type: object
+              properties:
+                lastUpdatedAt:
+                  type: string
+                  format: date-time
+                  description: Timestamp of last project update
+                  example: "2024-01-16T09:15:00Z"
+
+    Project:
+      type: object
+      required:
+        - projectId
+        - name
+        - description
+        - category
+        - status
+        - stockSupply
+        - entrepreneurId
+        - createdAt
+        - updatedAt
+      properties:
+        projectId:
+          type: string
+          pattern: "^proj-[a-zA-Z0-9]+$"
+          description: Unique project identifier
+          example: "proj-789"
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Project name
+          example: "EcoTech Solutions"
+        description:
+          type: string
+          minLength: 50
+          maxLength: 2000
+          description: Detailed project description
+          example: "Revolutionary solar panel technology that increases efficiency by 40%"
+        category:
+          type: string
+          enum: [Technology, Healthcare, FinTech, CleanTech, Education, E-commerce, Manufacturing, Agriculture, Real Estate, Entertainment, Food & Beverage, Transportation, Other]
+          description: Project category/industry
+          example: "CleanTech"
+        status:
+          type: string
+          enum: [draft, minting, active, paused, completed]
+          description: Current project status
+          example: "active"
+        stockSupply:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          description: Total number of stock-NFTs to issue
+          example: 10000
+        targetFundingGoal:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+          description: Optional target funding amount
+          example: 500000
+        pricePerStock:
+          type: number
+          minimum: 0
+          maximum: 99999999.99999999
+          multipleOf: 0.00000001
+          description: Optional price per stock
+          example: 50
+        coverImageUrl:
+          type: string
+          format: uri
+          description: URL to project cover image
+          example: "https://s3.amazonaws.com/sachain-images/proj-789/cover.jpg"
+        entrepreneurId:
+          type: string
+          description: ID of the entrepreneur who created the project
+          example: "user-123"
+        createdAt:
+          type: string
+          format: date-time
+          description: Project creation timestamp
+          example: "2024-01-15T14:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-16T09:15:00Z"
+
+    ProjectStats:
+      type: object
+      required:
+        - totalStocks
+        - mintedStocks
+        - availableStocks
+        - soldStocks
+        - totalRaised
+        - lastUpdated
+      properties:
+        totalStocks:
+          type: integer
+          minimum: 0
+          description: Total number of stocks defined for the project
+          example: 10000
+        mintedStocks:
+          type: integer
+          minimum: 0
+          description: Number of stocks that have been minted as NFTs
+          example: 10000
+        availableStocks:
+          type: integer
+          minimum: 0
+          description: Number of stocks available for purchase
+          example: 8500
+        soldStocks:
+          type: integer
+          minimum: 0
+          description: Number of stocks that have been sold to investors
+          example: 1500
+        totalRaised:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          description: Total amount raised from stock sales
+          example: 75000
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Timestamp when statistics were last calculated
+          example: "2024-01-16T09:15:00Z"
+
+    ProjectAggregations:
+      type: object
+      required:
+        - totalProjects
+        - projectsByStatus
+        - projectsByCategory
+      properties:
+        totalProjects:
+          type: integer
+          minimum: 0
+          description: Total number of projects accessible to the user
+          example: 15
+        projectsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          description: Count of projects grouped by status
+          example:
+            active: 8
+            draft: 5
+            minting: 1
+            paused: 1
+        projectsByCategory:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          description: Count of projects grouped by category
+          example:
+            CleanTech: 5
+            Healthcare: 4
+            Technology: 6
+
+    PaginationInfo:
+      type: object
+      required:
+        - limit
+        - count
+        - hasMore
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Maximum number of items requested
+          example: 20
+        count:
+          type: integer
+          minimum: 0
+          description: Actual number of items returned in this response
+          example: 15
+        lastEvaluatedKey:
+          type: object
+          description: Cursor for pagination (opaque to client)
+          example:
+            PK: "PROJECT#proj-123"
+            SK: "METADATA"
+        hasMore:
+          type: boolean
+          description: Whether there are more items available
+          example: true
+
+    CreateProjectResponse:
+      type: object
+      required:
+        - projectId
+        - message
+        - project
+      properties:
+        projectId:
+          type: string
+          pattern: "^proj-[a-zA-Z0-9]+$"
+          description: Unique identifier of the created project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project created successfully"
+        project:
+          $ref: "#/components/schemas/Project"
+          description: The created project details
+
+    ProjectErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Project validation failed"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "INVALID_PROJECT_DATA"
+        details:
+          type: object
+          description: Additional error details and context
+          example:
+            errors:
+              - "Project name must be between 3-100 characters"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-123"
         coverImageUrl:
           type: string
           format: uri
