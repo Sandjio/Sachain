@@ -5,6 +5,9 @@ import { v4 as uuidv4 } from "uuid";
 
 import { createProjectLogger } from "../../utils/structured-logger";
 import { ErrorClassifier } from "../../utils/error-handler";
+import { ProjectErrorClassifier, withErrorHandling } from "../../utils/enhanced-error-handler";
+import { ErrorResponseFormatter, withErrorFormatting } from "../../utils/error-response-formatter";
+import { ProjectRecoveryManager, ProjectRollbackOperations } from "../../utils/error-recovery";
 import { EventPublisher } from "../../utils/event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { UserRepository } from "../../repositories/user-repository";
@@ -48,7 +51,7 @@ const projectRepository = new ProjectRepository({
   region: AWS_REGION,
 });
 
-export const handler: APIGatewayProxyHandler = async (event) => {
+export const handler: APIGatewayProxyHandler = withErrorFormatting()(async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
 
@@ -61,7 +64,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   });
 
   try {
-    const result = await handleProjectCreation(event);
+    const result = await handleProjectCreationWithRecovery(event);
 
     const duration = Date.now() - startTime;
     logger.info("Project Creation Lambda completed successfully", {
@@ -74,7 +77,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return result;
   } catch (error) {
     const duration = Date.now() - startTime;
-    const errorDetails = ErrorClassifier.classify(error as Error, {
+    const projectError = ProjectErrorClassifier.classify(error as Error, {
       operation: "LambdaInvocation",
       requestId,
       duration,
@@ -86,25 +89,50 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         operation: "LambdaInvocation",
         requestId,
         duration,
-        errorCategory: errorDetails.category,
-        errorCode: errorDetails.errorCode,
+        errorCategory: projectError.category,
+        errorCode: projectError.errorCode,
       },
-      error as Error
+      projectError
     );
 
-    return {
-      statusCode: errorDetails.httpStatusCode || 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        message: errorDetails.userMessage,
-        requestId,
-      }),
-    };
+    throw projectError;
   }
-};
+});
+
+async function handleProjectCreationWithRecovery(
+  event: APIGatewayProxyEvent
+): Promise<any> {
+  const requestId = event.requestContext.requestId;
+  
+  // Initialize recovery context
+  const recoveryContext = ProjectRecoveryManager.initializeRecovery(
+    requestId,
+    'ProjectCreation'
+  );
+
+  try {
+    const result = await handleProjectCreation(event);
+    
+    // Clean up recovery context on success
+    ProjectRecoveryManager.cleanupRecovery(requestId);
+    
+    return result;
+  } catch (error) {
+    const projectError = ProjectErrorClassifier.classify(error as Error, {
+      operation: 'ProjectCreation',
+      requestId
+    });
+
+    // Execute rollback if required
+    if (projectError.rollbackRequired !== false) {
+      await ProjectRecoveryManager.executeRollback(requestId, projectError);
+    } else {
+      ProjectRecoveryManager.cleanupRecovery(requestId);
+    }
+
+    throw projectError;
+  }
+}
 
 async function handleProjectCreation(
   event: APIGatewayProxyEvent
@@ -208,6 +236,13 @@ async function handleProjectCreation(
 
     // Create project in database
     const project = await projectRepository.createProject(sanitizedInput);
+    
+    // Add rollback operation for project deletion if subsequent operations fail
+    const rollbackOperations = new ProjectRollbackOperations(projectRepository);
+    ProjectRecoveryManager.addRollbackOperation(
+      requestId,
+      rollbackOperations.createProjectDeletionRollback(project.projectId, requestId)
+    );
 
     logger.info("Project created successfully", {
       operation: "ProjectCreation",
@@ -245,14 +280,11 @@ async function handleProjectCreation(
       },
     };
 
-    return {
-      statusCode: 201,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify(response),
-    };
+    return ErrorResponseFormatter.formatSuccessResponse(
+      response,
+      201,
+      "Project created successfully"
+    );
   } catch (error) {
     const duration = Date.now() - startTime;
 
@@ -264,19 +296,12 @@ async function handleProjectCreation(
         duration,
       });
 
-      return {
-        statusCode: error.statusCode,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          requestId,
-        }),
-      };
+      const projectError = ProjectErrorClassifier.classify(error, {
+        operation: "ProjectCreation",
+        requestId
+      });
+      
+      throw projectError;
     }
 
     // Re-throw unexpected errors to be handled by main handler

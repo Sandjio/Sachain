@@ -1394,6 +1394,355 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /projects/{projectId}/stocks:
+    get:
+      tags:
+        - Stock Query
+      summary: Get stocks for project
+      description: |
+        Retrieve stocks for a specific project with filtering and pagination support.
+        Access control applies:
+        - Entrepreneurs can access stocks of their own projects regardless of status
+        - Investors can only access stocks of active projects
+        
+        Supports filtering by stock status and includes optional metadata enrichment.
+      operationId: getProjectStocks
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+        - name: status
+          in: query
+          description: Filter stocks by status
+          required: false
+          schema:
+            type: string
+            enum: [minted, listed, sold, transferred]
+          examples:
+            minted:
+              summary: Minted stocks only
+              value: minted
+            sold:
+              summary: Sold stocks only
+              value: sold
+        - name: limit
+          in: query
+          description: Maximum number of stocks to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 50
+        - name: exclusiveStartKey
+          in: query
+          description: Pagination cursor for next page (URL-encoded JSON)
+          required: false
+          schema:
+            type: string
+          example: "%7B%22PK%22%3A%22PROJECT%23proj-123%22%7D"
+        - name: includeMetadata
+          in: query
+          description: Include project metadata in stock response
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: true
+      responses:
+        "200":
+          description: Project stocks retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "public, max-age=60"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetStocksResponse"
+              examples:
+                project_stocks:
+                  summary: Project stocks with metadata
+                  value:
+                    stocks:
+                      - PK: "PROJECT#proj-789"
+                        SK: "STOCK#1"
+                        projectId: "proj-789"
+                        stockNumber: 1
+                        tokenId: "0.0.123456"
+                        serialNumber: 1
+                        ownerWalletAddress: "0.0.987654"
+                        mintedAt: "2024-01-15T15:00:00Z"
+                        metadataUri: "ipfs://QmHash123"
+                        status: "minted"
+                        GSI4PK: "OWNER#0.0.987654"
+                        GSI4SK: "2024-01-15T15:00:00Z"
+                        project:
+                          name: "EcoTech Solutions"
+                          category: "CleanTech"
+                          status: "active"
+                    pagination:
+                      limit: 20
+                      count: 1
+                      hasMore: false
+        "400":
+          description: Bad request - invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                invalid_parameters:
+                  summary: Invalid query parameters
+                  value:
+                    message: "Invalid query parameters"
+                    code: "INVALID_QUERY_PARAMETERS"
+                    details:
+                      errors:
+                        - "Limit must be a number between 1 and 100"
+                        - "Invalid status. Must be one of: minted, listed, sold, transferred"
+                    requestId: "req-400"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - unauthorized access to project stocks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Cannot access draft project stocks
+                  value:
+                    message: "Can only view stocks of active projects"
+                    code: "UNAUTHORIZED_ACCESS"
+                    details:
+                      projectId: "proj-789"
+                    requestId: "req-403"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                project_not_found:
+                  summary: Project does not exist
+                  value:
+                    message: "Project not found"
+                    code: "PROJECT_NOT_FOUND"
+                    details:
+                      projectId: "proj-nonexistent"
+                    requestId: "req-404"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects/{projectId}/stocks/{stockNumber}:
+    get:
+      tags:
+        - Stock Query
+      summary: Get specific stock details
+      description: |
+        Retrieve detailed information about a specific stock NFT.
+        Access control applies:
+        - Stock owners can always access their stocks
+        - Entrepreneurs can access stocks of their own projects
+        - Investors can access stocks of active projects
+      operationId: getStock
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+        - name: stockNumber
+          in: path
+          required: true
+          description: Stock number within the project
+          schema:
+            type: integer
+            minimum: 1
+          example: 42
+      responses:
+        "200":
+          description: Stock details retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "public, max-age=300"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetStockResponse"
+              examples:
+                stock_details:
+                  summary: Complete stock details
+                  value:
+                    stock:
+                      PK: "PROJECT#proj-789"
+                      SK: "STOCK#42"
+                      projectId: "proj-789"
+                      stockNumber: 42
+                      tokenId: "0.0.123456"
+                      serialNumber: 42
+                      ownerWalletAddress: "0.0.987654"
+                      mintedAt: "2024-01-15T15:00:00Z"
+                      metadataUri: "ipfs://QmHash123"
+                      status: "minted"
+                      GSI4PK: "OWNER#0.0.987654"
+                      GSI4SK: "2024-01-15T15:00:00Z"
+                      project:
+                        name: "EcoTech Solutions"
+                        category: "CleanTech"
+                        status: "active"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - unauthorized access to stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Cannot access stock
+                  value:
+                    message: "Unauthorized access to stock"
+                    code: "UNAUTHORIZED_ACCESS"
+                    details:
+                      projectId: "proj-789"
+                      stockNumber: 42
+                    requestId: "req-403"
+        "404":
+          description: Stock not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                stock_not_found:
+                  summary: Stock does not exist
+                  value:
+                    message: "Stock not found"
+                    code: "STOCK_NOT_FOUND"
+                    details:
+                      projectId: "proj-789"
+                      stockNumber: 42
+                    requestId: "req-404"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /stocks/portfolio:
+    get:
+      tags:
+        - Stock Query
+      summary: Get investor stock portfolio
+      description: |
+        Retrieve stock portfolio for an investor, showing all stocks owned by a specific wallet address.
+        Includes portfolio aggregations and statistics.
+        
+        Only investors and entrepreneurs can access portfolio data.
+      operationId: getStockPortfolio
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: walletAddress
+          in: query
+          required: true
+          description: Hedera wallet address to get portfolio for
+          schema:
+            type: string
+            pattern: '^0\.0\.[0-9]+$'
+          example: "0.0.987654"
+      responses:
+        "200":
+          description: Portfolio retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "private, max-age=60"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPortfolioResponse"
+              examples:
+                investor_portfolio:
+                  summary: Investor portfolio
+                  value:
+                    portfolio:
+                      walletAddress: "0.0.987654"
+                      totalStocks: 150
+                      stocksByProject:
+                        "proj-789": 50
+                        "proj-456": 75
+                        "proj-123": 25
+                      stocksByStatus:
+                        minted: 120
+                        listed: 20
+                        sold: 10
+                      stocks:
+                        - PK: "PROJECT#proj-789"
+                          SK: "STOCK#1"
+                          projectId: "proj-789"
+                          stockNumber: 1
+                          tokenId: "0.0.123456"
+                          serialNumber: 1
+                          ownerWalletAddress: "0.0.987654"
+                          mintedAt: "2024-01-15T15:00:00Z"
+                          metadataUri: "ipfs://QmHash123"
+                          status: "minted"
+                          GSI4PK: "OWNER#0.0.987654"
+                          GSI4SK: "2024-01-15T15:00:00Z"
+        "400":
+          description: Bad request - missing or invalid wallet address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                missing_wallet:
+                  summary: Missing wallet address
+                  value:
+                    message: "Wallet address is required for portfolio query"
+                    code: "INVALID_QUERY_PARAMETERS"
+                    requestId: "req-400"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - unauthorized access to portfolio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Not authorized to view portfolios
+                  value:
+                    message: "Unauthorized access to portfolio"
+                    code: "UNAUTHORIZED_ACCESS"
+                    requestId: "req-403"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   securitySchemes:
     CognitoAuth:
@@ -2221,6 +2570,214 @@ components:
           description: Unique request identifier for debugging
           example: "req-123"
 
+    GetStocksResponse:
+      type: object
+      required:
+        - stocks
+        - pagination
+      properties:
+        stocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockWithMetadata"
+          description: List of stocks matching the query criteria
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+          description: Pagination information for the query
+
+    GetStockResponse:
+      type: object
+      required:
+        - stock
+      properties:
+        stock:
+          $ref: "#/components/schemas/StockWithMetadata"
+          description: Detailed stock information with optional project metadata
+
+    GetPortfolioResponse:
+      type: object
+      required:
+        - portfolio
+      properties:
+        portfolio:
+          $ref: "#/components/schemas/StockPortfolio"
+          description: Complete portfolio information for the wallet address
+
+    StockWithMetadata:
+      allOf:
+        - $ref: "#/components/schemas/StockNFT"
+        - type: object
+          properties:
+            project:
+              type: object
+              nullable: true
+              description: Optional project metadata
+              properties:
+                name:
+                  type: string
+                  description: Project name
+                  example: "EcoTech Solutions"
+                category:
+                  type: string
+                  description: Project category
+                  example: "CleanTech"
+                status:
+                  type: string
+                  description: Project status
+                  example: "active"
+
+    StockNFT:
+      type: object
+      required:
+        - PK
+        - SK
+        - projectId
+        - stockNumber
+        - tokenId
+        - serialNumber
+        - ownerWalletAddress
+        - mintedAt
+        - metadataUri
+        - status
+        - GSI4PK
+        - GSI4SK
+      properties:
+        PK:
+          type: string
+          description: DynamoDB partition key
+          example: "PROJECT#proj-789"
+        SK:
+          type: string
+          description: DynamoDB sort key
+          example: "STOCK#42"
+        projectId:
+          type: string
+          description: Unique identifier of the project
+          example: "proj-789"
+        stockNumber:
+          type: integer
+          minimum: 1
+          description: Stock number within the project
+          example: 42
+        tokenId:
+          type: string
+          description: Hedera token ID
+          example: "0.0.123456"
+        serialNumber:
+          type: integer
+          minimum: 1
+          description: Hedera NFT serial number
+          example: 42
+        ownerWalletAddress:
+          type: string
+          pattern: '^0\.0\.[0-9]+$'
+          description: Current owner's Hedera wallet address
+          example: "0.0.987654"
+        mintedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the stock was minted
+          example: "2024-01-15T15:00:00Z"
+        metadataUri:
+          type: string
+          format: uri
+          description: IPFS URI containing stock metadata
+          example: "ipfs://QmHash123"
+        status:
+          type: string
+          enum: [minted, listed, sold, transferred]
+          description: Current status of the stock
+          example: "minted"
+        GSI4PK:
+          type: string
+          description: GSI4 partition key for owner queries
+          example: "OWNER#0.0.987654"
+        GSI4SK:
+          type: string
+          format: date-time
+          description: GSI4 sort key for owner queries
+          example: "2024-01-15T15:00:00Z"
+
+    StockPortfolio:
+      type: object
+      required:
+        - walletAddress
+        - totalStocks
+        - stocksByProject
+        - stocksByStatus
+        - stocks
+      properties:
+        walletAddress:
+          type: string
+          pattern: '^0\.0\.[0-9]+$'
+          description: Hedera wallet address
+          example: "0.0.987654"
+        totalStocks:
+          type: integer
+          minimum: 0
+          description: Total number of stocks owned
+          example: 150
+        stocksByProject:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          description: Number of stocks owned per project
+          example:
+            "proj-789": 50
+            "proj-456": 75
+            "proj-123": 25
+        stocksByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          description: Number of stocks by status
+          example:
+            minted: 120
+            listed: 20
+            sold: 10
+        stocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockNFT"
+          description: List of all stocks owned by the wallet
+
+    StockQueryErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Stock not found"
+        code:
+          type: string
+          enum:
+            [
+              "AUTHENTICATION_FAILED",
+              "STOCK_NOT_FOUND",
+              "PROJECT_NOT_FOUND",
+              "INVALID_QUERY_PARAMETERS",
+              "UNAUTHORIZED_ACCESS",
+              "DATABASE_ERROR",
+            ]
+          description: Error code for programmatic handling
+          example: "STOCK_NOT_FOUND"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            projectId: "proj-789"
+            stockNumber: 42
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-404"
+
     CreateProjectResponse:
       type: object
       required:
@@ -2565,3 +3122,7 @@ tags:
     description: |
       Endpoints for managing existing projects including updates, status transitions, and deletion.
       Only project owners can perform management operations on their projects.
+  - name: Stock Query
+    description: |
+      Endpoints for querying and retrieving stock NFT information.
+      Supports project-specific stock queries, individual stock details, and investor portfolio views.

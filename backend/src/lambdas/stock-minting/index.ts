@@ -4,6 +4,9 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
 import { createProjectLogger } from "../../utils/structured-logger";
 import { ErrorClassifier } from "../../utils/error-handler";
+import { ProjectErrorClassifier, withErrorHandling } from "../../utils/enhanced-error-handler";
+import { ErrorResponseFormatter, withErrorFormatting } from "../../utils/error-response-formatter";
+import { ProjectRecoveryManager, ProjectRollbackOperations } from "../../utils/error-recovery";
 import { EventPublisher } from "../../utils/event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { ProjectRepository } from "../../repositories/project-repository";
@@ -49,7 +52,7 @@ const projectRepository = new ProjectRepository({
 const hederaService = createHederaService();
 const ipfsService = defaultIPFSService;
 
-export const handler: APIGatewayProxyHandler = async (event) => {
+export const handler: APIGatewayProxyHandler = withErrorFormatting()(async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
 
@@ -62,7 +65,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   });
 
   try {
-    const result = await handleStockMinting(event);
+    const result = await handleStockMintingWithRecovery(event);
 
     const duration = Date.now() - startTime;
     logger.info("Stock Minting Lambda completed successfully", {
@@ -75,7 +78,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return result;
   } catch (error) {
     const duration = Date.now() - startTime;
-    const errorDetails = ErrorClassifier.classify(error as Error, {
+    const projectError = ProjectErrorClassifier.classify(error as Error, {
       operation: "LambdaInvocation",
       requestId,
       duration,
@@ -87,25 +90,51 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         operation: "LambdaInvocation",
         requestId,
         duration,
-        errorCategory: errorDetails.category,
-        errorCode: errorDetails.errorCode,
+        errorCategory: projectError.category,
+        errorCode: projectError.errorCode,
       },
-      error as Error
+      projectError
     );
 
-    return {
-      statusCode: errorDetails.httpStatusCode || 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify({
-        message: errorDetails.userMessage,
-        requestId,
-      }),
-    };
+    throw projectError;
   }
-};
+});
+
+async function handleStockMintingWithRecovery(event: APIGatewayProxyEvent): Promise<any> {
+  const requestId = event.requestContext.requestId;
+  const projectId = event.pathParameters?.projectId;
+  
+  // Initialize recovery context
+  const recoveryContext = ProjectRecoveryManager.initializeRecovery(
+    requestId,
+    'StockMinting',
+    projectId
+  );
+
+  try {
+    const result = await handleStockMinting(event);
+    
+    // Clean up recovery context on success
+    ProjectRecoveryManager.cleanupRecovery(requestId);
+    
+    return result;
+  } catch (error) {
+    const projectError = ProjectErrorClassifier.classify(error as Error, {
+      operation: 'StockMinting',
+      requestId,
+      projectId
+    });
+
+    // Execute rollback if required
+    if (projectError.rollbackRequired !== false) {
+      await ProjectRecoveryManager.executeRollback(requestId, projectError);
+    } else {
+      ProjectRecoveryManager.cleanupRecovery(requestId);
+    }
+
+    throw projectError;
+  }
+}
 
 async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
@@ -182,6 +211,13 @@ async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
 
     // Update project status to minting
     await updateProjectStatus(projectId, "minting", requestId);
+    
+    // Add rollback operation to restore project status if minting fails
+    const rollbackOperations = new ProjectRollbackOperations(projectRepository);
+    ProjectRecoveryManager.addRollbackOperation(
+      requestId,
+      rollbackOperations.createProjectStatusRollback(projectId, project.status, requestId)
+    );
 
     // Create Hedera token for the project
     const tokenCreationResult = await createProjectToken(project, requestId);
@@ -228,14 +264,11 @@ async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
       },
     };
 
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify(response),
-    };
+    return ErrorResponseFormatter.formatSuccessResponse(
+      response,
+      200,
+      "Stock minting completed successfully"
+    );
   } catch (error) {
     const duration = Date.now() - startTime;
 
@@ -247,39 +280,13 @@ async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
         duration,
       });
 
-      // Attempt to rollback project status if it was changed
-      if (event.pathParameters?.projectId) {
-        try {
-          await rollbackProjectStatus(
-            event.pathParameters.projectId,
-            requestId
-          );
-        } catch (rollbackError) {
-          logger.error(
-            "Failed to rollback project status",
-            {
-              operation: "StockMinting",
-              requestId,
-              projectId: event.pathParameters.projectId,
-            },
-            rollbackError as Error
-          );
-        }
-      }
-
-      return {
-        statusCode: error.statusCode,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          requestId,
-        }),
-      };
+      const projectError = ProjectErrorClassifier.classify(error, {
+        operation: "StockMinting",
+        requestId,
+        projectId: event.pathParameters?.projectId
+      });
+      
+      throw projectError;
     }
 
     // Re-throw unexpected errors to be handled by main handler
