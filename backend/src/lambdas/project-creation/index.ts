@@ -6,9 +6,9 @@ import { v4 as uuidv4 } from "uuid";
 import { createProjectLogger } from "../../utils/structured-logger";
 import { ErrorClassifier } from "../../utils/error-handler";
 import { ProjectErrorClassifier, withErrorHandling } from "../../utils/enhanced-error-handler";
-import { ErrorResponseFormatter, withErrorFormatting } from "../../utils/error-response-formatter";
+import { ErrorResponseFormatter } from "../../utils/error-response-formatter";
 import { ProjectRecoveryManager, ProjectRollbackOperations } from "../../utils/error-recovery";
-import { EventPublisher } from "../../utils/event-publisher";
+import { ProjectEventPublisher, createProjectEventPublisher } from "../../utils/project-event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { UserRepository } from "../../repositories/user-repository";
 import { ProjectRepository } from "../../repositories/project-repository";
@@ -36,7 +36,7 @@ const AWS_REGION = process.env.AWS_REGION || "us-east-1";
 
 // Initialize services
 const logger = createProjectLogger();
-const eventPublisher = new EventPublisher({
+const projectEventPublisher = createProjectEventPublisher({
   eventBusName: EVENT_BUS_NAME,
   region: AWS_REGION,
 });
@@ -51,7 +51,7 @@ const projectRepository = new ProjectRepository({
   region: AWS_REGION,
 });
 
-export const handler: APIGatewayProxyHandler = withErrorFormatting()(async (event) => {
+export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
 
@@ -80,7 +80,6 @@ export const handler: APIGatewayProxyHandler = withErrorFormatting()(async (even
     const projectError = ProjectErrorClassifier.classify(error as Error, {
       operation: "LambdaInvocation",
       requestId,
-      duration,
     });
 
     logger.error(
@@ -95,9 +94,20 @@ export const handler: APIGatewayProxyHandler = withErrorFormatting()(async (even
       projectError
     );
 
-    throw projectError;
+    return {
+      statusCode: projectError.httpStatusCode || 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({
+        message: projectError.userMessage || "An error occurred",
+        code: projectError.errorCode,
+        requestId,
+      }),
+    };
   }
-});
+};
 
 async function handleProjectCreationWithRecovery(
   event: APIGatewayProxyEvent
@@ -280,11 +290,14 @@ async function handleProjectCreation(
       },
     };
 
-    return ErrorResponseFormatter.formatSuccessResponse(
-      response,
-      201,
-      "Project created successfully"
-    );
+    return {
+      statusCode: 201,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify(response),
+    };
   } catch (error) {
     const duration = Date.now() - startTime;
 
@@ -512,18 +525,17 @@ async function publishProjectCreationEvent(
   const eventPublishStartTime = Date.now();
 
   try {
-    const eventDetail = {
-      eventType: "PROJECT_CREATED",
+    await projectEventPublisher.publishProjectCreatedEvent({
       projectId: project.projectId,
       entrepreneurId: project.entrepreneurId,
       projectName: project.name,
       category: project.category,
       stockSupply: project.stockSupply,
+      targetFundingGoal: project.targetFundingGoal,
+      pricePerStock: project.pricePerStock,
       status: project.status,
       createdAt: project.createdAt,
-    };
-
-    await eventPublisher.publishProjectCreatedEvent(eventDetail);
+    });
 
     const eventPublishDuration = Date.now() - eventPublishStartTime;
 
@@ -531,7 +543,6 @@ async function publishProjectCreationEvent(
       operation: "ProjectCreation",
       requestId,
       projectId: project.projectId,
-      eventDetail,
       eventPublishDuration,
     });
   } catch (eventError) {

@@ -4,7 +4,7 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
 import { createProjectLogger } from "../../utils/structured-logger";
 import { ErrorClassifier } from "../../utils/error-handler";
-import { EventPublisher } from "../../utils/event-publisher";
+import { ProjectEventPublisher, createProjectEventPublisher } from "../../utils/project-event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { ProjectRepository } from "../../repositories/project-repository";
 import {
@@ -33,22 +33,22 @@ const AWS_REGION = process.env.AWS_REGION || "us-east-1";
 
 // Initialize services
 const logger = createProjectLogger();
-// Event publisher will be injected for testing or created here for production
-let eventPublisher: EventPublisher;
+// Project event publisher will be injected for testing or created here for production
+let projectEventPublisher: ProjectEventPublisher;
 
-function getEventPublisher(): EventPublisher {
-  if (!eventPublisher) {
-    eventPublisher = new EventPublisher({
+function getProjectEventPublisher(): ProjectEventPublisher {
+  if (!projectEventPublisher) {
+    projectEventPublisher = createProjectEventPublisher({
       eventBusName: EVENT_BUS_NAME,
       region: AWS_REGION,
     });
   }
-  return eventPublisher;
+  return projectEventPublisher;
 }
 
 // Export for testing
-export function setEventPublisher(publisher: EventPublisher) {
-  eventPublisher = publisher;
+export function setProjectEventPublisher(publisher: ProjectEventPublisher) {
+  projectEventPublisher = publisher;
 }
 
 // Repository will be injected for testing or created here for production
@@ -832,7 +832,7 @@ async function publishProjectUpdatedEvent(
   requestId: string
 ): Promise<void> {
   try {
-    await getEventPublisher().publishProjectUpdatedEvent({
+    await getProjectEventPublisher().publishProjectUpdatedEvent({
       projectId,
       entrepreneurId,
       changes,
@@ -867,7 +867,7 @@ async function publishProjectStatusChangedEvent(
   requestId: string
 ): Promise<void> {
   try {
-    await getEventPublisher().publishProjectStatusChangedEvent({
+    await getProjectEventPublisher().publishProjectStatusChangedEvent({
       projectId,
       entrepreneurId,
       previousStatus,
@@ -903,18 +903,12 @@ async function publishProjectDeletedEvent(
   requestId: string
 ): Promise<void> {
   try {
-    await getEventPublisher().publishEvent(
-      "sachain.projects",
-      {
-        eventType: "PROJECT_DELETED",
-        projectId,
-        entrepreneurId,
-        projectName,
-        deletedAt: new Date().toISOString(),
-      },
-      "Project Deleted",
-      "PROJECT_DELETED"
-    );
+    await getProjectEventPublisher().publishProjectDeletedEvent({
+      projectId,
+      entrepreneurId,
+      projectName,
+      deletedAt: new Date().toISOString(),
+    });
 
     logger.info("Project deleted event published successfully", {
       operation: "ProjectDeletion",

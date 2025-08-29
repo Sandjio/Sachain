@@ -173,10 +173,9 @@ export class ProjectErrorClassifier {
     ];
     
     return validationPatterns.some(pattern => 
-      pattern.test(error.message) || 
-      pattern.test(error.name) ||
-      error.name === 'ValidationException'
-    );
+      (error.message && pattern.test(error.message)) || 
+      (error.name && pattern.test(error.name))
+    ) || error.name === 'ValidationException';
   }
 
   private static isAuthenticationError(error: any): boolean {
@@ -189,8 +188,8 @@ export class ProjectErrorClassifier {
     ];
     
     return authPatterns.some(pattern => 
-      pattern.test(error.message) || 
-      pattern.test(error.name)
+      (error.message && pattern.test(error.message)) || 
+      (error.name && pattern.test(error.name))
     ) || error.name === 'UnauthorizedException';
   }
 
@@ -204,8 +203,8 @@ export class ProjectErrorClassifier {
     ];
     
     return authzPatterns.some(pattern => 
-      pattern.test(error.message) || 
-      pattern.test(error.name)
+      (error.message && pattern.test(error.message)) || 
+      (error.name && pattern.test(error.name))
     ) || error.name === 'AccessDeniedException';
   }
 
@@ -220,8 +219,8 @@ export class ProjectErrorClassifier {
     ];
     
     return businessPatterns.some(pattern => 
-      pattern.test(error.message) || 
-      pattern.test(error.name)
+      (error.message && pattern.test(error.message)) || 
+      (error.name && pattern.test(error.name))
     );
   }
 
@@ -236,8 +235,8 @@ export class ProjectErrorClassifier {
     ];
     
     return hederaPatterns.some(pattern => 
-      pattern.test(error.message) || 
-      pattern.test(error.name)
+      (error.message && pattern.test(error.message)) || 
+      (error.name && pattern.test(error.name))
     );
   }
 
@@ -250,8 +249,8 @@ export class ProjectErrorClassifier {
     ];
     
     return ipfsPatterns.some(pattern => 
-      pattern.test(error.message) || 
-      pattern.test(error.name)
+      (error.message && pattern.test(error.message)) || 
+      (error.name && pattern.test(error.name))
     );
   }
 
@@ -291,8 +290,8 @@ export class ProjectErrorClassifier {
     ];
     
     return networkPatterns.some(pattern => 
-      pattern.test(error.message) || 
-      pattern.test(error.name)
+      (error.message && pattern.test(error.message)) || 
+      (error.name && pattern.test(error.name))
     );
   }
 
@@ -305,8 +304,8 @@ export class ProjectErrorClassifier {
     ];
     
     return timeoutPatterns.some(pattern => 
-      pattern.test(error.message) || 
-      pattern.test(error.name)
+      (error.message && pattern.test(error.message)) || 
+      (error.name && pattern.test(error.name))
     );
   }
 

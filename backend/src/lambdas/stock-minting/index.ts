@@ -7,7 +7,7 @@ import { ErrorClassifier } from "../../utils/error-handler";
 import { ProjectErrorClassifier, withErrorHandling } from "../../utils/enhanced-error-handler";
 import { ErrorResponseFormatter, withErrorFormatting } from "../../utils/error-response-formatter";
 import { ProjectRecoveryManager, ProjectRollbackOperations } from "../../utils/error-recovery";
-import { EventPublisher } from "../../utils/event-publisher";
+import { ProjectEventPublisher, createProjectEventPublisher } from "../../utils/project-event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { ProjectRepository } from "../../repositories/project-repository";
 import { createHederaService } from "../../utils/hedera-service";
@@ -39,7 +39,7 @@ const BATCH_SIZE = 50;
 
 // Initialize services
 const logger = createProjectLogger();
-const eventPublisher = new EventPublisher({
+const projectEventPublisher = createProjectEventPublisher({
   eventBusName: EVENT_BUS_NAME,
   region: AWS_REGION,
 });
@@ -206,6 +206,13 @@ async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
     await validateWalletForMinting(
       request.walletAddress,
       project.stockSupply,
+      requestId
+    );
+
+    // Publish stock minting started event
+    await publishStockMintingStartedEvent(
+      project,
+      request.walletAddress,
       requestId
     );
 
@@ -787,6 +794,7 @@ async function mintStockNFTsInBatches(
       // Publish progress event
       await publishMintingProgressEvent(
         project.projectId,
+        project.entrepreneurId,
         {
           completed: totalMinted,
           total: totalStocks,
@@ -854,6 +862,18 @@ async function mintStockNFTsInBatches(
         );
       }
     }
+
+    // Publish stock minting failed event
+    await publishStockMintingFailedEvent(
+      project,
+      (error as Error).message,
+      totalMinted > 0 ? {
+        completed: totalMinted,
+        total: project.stockSupply,
+        transactionIds,
+      } : undefined,
+      requestId
+    );
 
     throw new StockMintingError(
       "Failed to mint stock NFTs",
@@ -952,6 +972,38 @@ async function updateProjectStatistics(
   }
 }
 
+async function publishStockMintingStartedEvent(
+  project: any,
+  walletAddress: string,
+  requestId: string
+): Promise<void> {
+  try {
+    await projectEventPublisher.publishStockMintingStartedEvent({
+      projectId: project.projectId,
+      entrepreneurId: project.entrepreneurId,
+      stockSupply: project.stockSupply,
+      walletAddress,
+      startedAt: new Date().toISOString(),
+    });
+
+    logger.info("Stock minting started event published successfully", {
+      operation: "StockMinting",
+      requestId,
+      projectId: project.projectId,
+    });
+  } catch (eventError) {
+    logger.error(
+      "Failed to publish stock minting started event",
+      {
+        operation: "StockMinting",
+        requestId,
+        projectId: project.projectId,
+      },
+      eventError as Error
+    );
+  }
+}
+
 async function publishStockMintingEvents(
   project: any,
   mintingResult: BatchMintingResult,
@@ -960,24 +1012,18 @@ async function publishStockMintingEvents(
   const eventPublishStartTime = Date.now();
 
   try {
-    // Publish stock minting completed event
-    const eventDetail = {
-      eventType: "STOCK_MINTING_COMPLETED",
+    // Get the actual token ID from the first batch
+    const tokenId = mintingResult.batches[0]?.transactionId || "";
+    
+    await projectEventPublisher.publishStockMintingCompletedEvent({
       projectId: project.projectId,
       entrepreneurId: project.entrepreneurId,
-      projectName: project.name,
-      tokenId: mintingResult.batches[0]?.transactionId || "", // Use first transaction ID as reference
+      tokenId,
       totalMinted: mintingResult.totalMinted,
       totalBatches: mintingResult.batches.length,
       transactionIds: mintingResult.transactionIds,
       completedAt: new Date().toISOString(),
-    };
-
-    await eventPublisher.publishEvent(
-      "sachain.stock-minting",
-      eventDetail,
-      "Stock Minting Completed"
-    );
+    });
 
     const eventPublishDuration = Date.now() - eventPublishStartTime;
 
@@ -985,7 +1031,6 @@ async function publishStockMintingEvents(
       operation: "StockMinting",
       requestId,
       projectId: project.projectId,
-      eventDetail,
       eventPublishDuration,
     });
   } catch (eventError) {
@@ -1009,22 +1054,23 @@ async function publishStockMintingEvents(
 
 async function publishMintingProgressEvent(
   projectId: string,
+  entrepreneurId: string,
   progress: MintingProgress,
   requestId: string
 ): Promise<void> {
   try {
-    const eventDetail = {
-      eventType: "STOCK_MINTING_PROGRESS",
+    await projectEventPublisher.publishStockMintingProgressEvent({
       projectId,
-      progress,
-      timestamp: new Date().toISOString(),
-    };
-
-    await eventPublisher.publishEvent(
-      "sachain.stock-minting",
-      eventDetail,
-      "Stock Minting Progress"
-    );
+      entrepreneurId,
+      progress: {
+        completed: progress.completed,
+        total: progress.total,
+        percentage: progress.percentage,
+        status: progress.status === "completed" ? "completed" : "in_progress",
+        currentBatch: progress.currentBatch,
+        totalBatches: progress.totalBatches,
+      },
+    });
 
     logger.info("Minting progress event published", {
       operation: "StockMinting",
@@ -1041,6 +1087,45 @@ async function publishMintingProgressEvent(
         requestId,
         projectId,
         progress,
+      },
+      eventError as Error
+    );
+  }
+}
+
+async function publishStockMintingFailedEvent(
+  project: any,
+  error: string,
+  partialMinting: {
+    completed: number;
+    total: number;
+    transactionIds: string[];
+  } | undefined,
+  requestId: string
+): Promise<void> {
+  try {
+    await projectEventPublisher.publishStockMintingFailedEvent({
+      projectId: project.projectId,
+      entrepreneurId: project.entrepreneurId,
+      error,
+      partialMinting,
+      failedAt: new Date().toISOString(),
+    });
+
+    logger.info("Stock minting failed event published successfully", {
+      operation: "StockMinting",
+      requestId,
+      projectId: project.projectId,
+      error,
+      partialMinting,
+    });
+  } catch (eventError) {
+    logger.error(
+      "Failed to publish stock minting failed event",
+      {
+        operation: "StockMinting",
+        requestId,
+        projectId: project.projectId,
       },
       eventError as Error
     );
