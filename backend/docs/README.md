@@ -1,14 +1,24 @@
 # Sachain Backend API Documentation
 
-Welcome to the Sachain API documentation. This comprehensive guide provides everything you need to integrate with the Sachain platform for KYC verification and document management.
+Welcome to the Sachain API documentation. This comprehensive guide provides everything you need to integrate with the Sachain platform for KYC verification, project creation, and tokenized fundraising.
 
 ## 📚 Documentation Overview
 
 This documentation package includes:
 
+### Core Documentation
 - **[OpenAPI Specification](./openapi.yaml)** - Complete API specification in OpenAPI 3.0 format
-- **[Integration Guide](./integration-guide.md)** - Comprehensive examples and patterns
+- **[API Changelog](./api-changelog.md)** - Version history, breaking changes, and migration guides
 - **[Error Codes Reference](./error-codes.md)** - Detailed error handling guide
+- **[Project Error Codes](./project-error-codes.md)** - Project-specific error codes and troubleshooting
+
+### Integration Guides
+- **[Integration Guide](./integration-guide.md)** - Comprehensive examples and patterns for KYC workflows
+- **[Project API Examples](./project-api-examples.md)** - Project creation and stock minting examples
+- **[Hedera Integration Guide](./hedera-integration-guide.md)** - Hedera Token Service integration documentation
+- **[SDK Integration Examples](./sdk-integration-examples.md)** - SDK usage examples for various frameworks
+
+### SDK & Tools
 - **[Frontend SDK](../sachain-frontend/src/sdk/)** - TypeScript SDK for frontend integration
 
 ## 🚀 Quick Start
@@ -38,7 +48,36 @@ curl -X POST https://api.sachain.com/v1/kyc/upload \
   }'
 ```
 
-### 3. Admin Review
+### 3. Create Project
+
+```bash
+# Create a new project
+curl -X POST https://api.sachain.com/v1/projects \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "EcoTech Solutions",
+    "description": "Revolutionary solar panel technology that increases efficiency by 40%",
+    "category": "CleanTech",
+    "stockSupply": 10000,
+    "targetFundingGoal": 500000,
+    "pricePerStock": 50
+  }'
+```
+
+### 4. Mint Stocks
+
+```bash
+# Mint stock NFTs for a project
+curl -X POST https://api.sachain.com/v1/projects/proj-123/mint-stocks \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "walletAddress": "0.0.123456"
+  }'
+```
+
+### 5. Admin Review
 
 ```bash
 # Approve document
@@ -70,33 +109,93 @@ curl -X POST https://api.sachain.com/v1/admin/approve \
 | POST | `/admin/reject` | Reject KYC document |
 | GET | `/admin/documents` | Get documents for review |
 
+### Project Creation Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/projects` | Create new project |
+| GET | `/projects` | Get projects with filtering |
+| GET | `/projects/{id}` | Get project details |
+| PUT | `/projects/{id}` | Update project (draft only) |
+| DELETE | `/projects/{id}` | Delete project (draft only) |
+| PUT | `/projects/{id}/status` | Update project status |
+
+### Stock Minting Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/projects/{id}/mint-stocks` | Mint stock NFTs for project |
+| GET | `/projects/{id}/mint-stocks/status` | Get minting progress |
+| GET | `/projects/{id}/stocks` | Get project stocks |
+| GET | `/projects/{id}/stocks/{number}` | Get specific stock details |
+| GET | `/stocks/portfolio` | Get investor portfolio |
+
 ## 🔧 SDK Usage
 
 ### TypeScript/JavaScript
 
 ```typescript
-import { SachainApiClient } from '@sachain/sdk';
+import { SachainSDK } from '@sachain/sdk';
 
-const client = new SachainApiClient({
-  baseUrl: 'https://api.sachain.com/v1'
+const sdk = new SachainSDK({
+  baseUrl: 'https://api.sachain.com/v1',
+  cognitoConfig: {
+    userPoolId: 'us-east-1_xxxxxxxxx',
+    clientId: 'xxxxxxxxxxxxxxxxxxxxxxxxxx',
+    region: 'us-east-1'
+  }
 });
 
-// Set user session
-client.setSession(userSession);
+// Authenticate user
+await sdk.auth.signIn('user@example.com', 'password');
 
-// Upload document
-const result = await client.uploadDocument(file, 'national_id', {
+// Create project
+const project = await sdk.projects.create({
+  name: 'My Startup',
+  description: 'Innovative solution for...',
+  category: 'Technology',
+  stockSupply: 5000
+});
+
+// Mint stocks
+const result = await sdk.projects.mintStocks(project.projectId, {
+  walletAddress: '0.0.123456',
+  onProgress: (progress) => console.log(`${progress.percentage}%`)
+});
+
+// Upload KYC document
+const uploadResult = await sdk.kyc.uploadDocument(file, 'national_id', {
   onProgress: (progress) => console.log(`${progress}%`)
 });
 ```
 
-### React Hook
+### React Hooks
 
 ```typescript
-import { useKycUpload } from '@sachain/sdk';
+import { useProjectCreation, useStockMinting, useKycUpload } from '@sachain/sdk';
 
-function UploadComponent() {
-  const { uploadDocument, uploading, progress, error } = useKycUpload(client);
+function ProjectComponent() {
+  const { createProject, creating, error: createError } = useProjectCreation();
+  const { mintStocks, minting, progress, error: mintError } = useStockMinting();
+  const { uploadDocument, uploading, error: uploadError } = useKycUpload();
+  
+  const handleCreateProject = async (projectData) => {
+    try {
+      const project = await createProject(projectData);
+      console.log('Project created:', project.projectId);
+    } catch (err) {
+      console.error('Project creation failed:', err);
+    }
+  };
+
+  const handleMintStocks = async (projectId, walletAddress) => {
+    try {
+      await mintStocks(projectId, walletAddress);
+      console.log('Stocks minted successfully!');
+    } catch (err) {
+      console.error('Minting failed:', err);
+    }
+  };
   
   const handleUpload = async (file: File) => {
     try {
@@ -109,8 +208,12 @@ function UploadComponent() {
   
   return (
     <div>
-      {uploading && <div>Progress: {progress}%</div>}
-      {error && <div>Error: {error}</div>}
+      {creating && <div>Creating project...</div>}
+      {minting && <div>Minting progress: {progress}%</div>}
+      {uploading && <div>Uploading document...</div>}
+      {(createError || mintError || uploadError) && (
+        <div>Error: {createError || mintError || uploadError}</div>
+      )}
     </div>
   );
 }
@@ -254,17 +357,35 @@ X-Mock-Response: true
 ## 🔮 Roadmap
 
 ### Upcoming Features
+- [ ] Secondary market trading
+- [ ] Dividend distribution automation
+- [ ] Governance voting mechanisms
 - [ ] Bulk document processing
 - [ ] Webhook notifications
 - [ ] GraphQL API
 - [ ] Mobile SDK (React Native)
 - [ ] Advanced document validation (OCR)
 - [ ] Multi-language support
+- [ ] Cross-chain bridge integration
+- [ ] Advanced analytics dashboard
 
 ### API Versioning
 - Current version: v1
 - Backward compatibility guaranteed for major versions
 - Deprecation notices provided 6 months in advance
+
+## 📚 Additional Resources
+
+### Specialized Guides
+- **[Project Creation Workflow](./project-api-examples.md#complete-project-workflow-example)** - End-to-end project setup
+- **[Hedera Token Service](./hedera-integration-guide.md)** - Blockchain integration details
+- **[Error Troubleshooting](./project-error-codes.md#troubleshooting-guide)** - Common issues and solutions
+- **[SDK Framework Examples](./sdk-integration-examples.md)** - React, Vue, Node.js integration
+
+### API Reference
+- **[All Endpoints](./openapi.yaml)** - Complete OpenAPI specification
+- **[Version History](./api-changelog.md)** - Changes and migration guides
+- **[Error Codes](./error-codes.md)** - Comprehensive error reference
 
 ## 📄 License
 
@@ -272,4 +393,8 @@ This API documentation is licensed under [MIT License](../LICENSE).
 
 ---
 
-**Need help?** Check our [Integration Guide](./integration-guide.md) for detailed examples or contact our support team.
+**Need help?** Check our documentation guides above or contact our support team:
+- **General Support**: support@sachain.com
+- **Integration Help**: integration@sachain.com
+- **Project Issues**: projects@sachain.com
+- **Hedera Integration**: hedera@sachain.com
