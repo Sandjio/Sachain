@@ -28,6 +28,7 @@ import {
   ErrorCategory,
   AWSServiceError,
 } from "./error-handler";
+import { projectMetrics } from "./project-metrics";
 
 export interface HederaConfig {
   operatorId: string;
@@ -248,6 +249,8 @@ export class HederaService {
     walletAccountId: string,
     estimatedGasFee?: number
   ): Promise<WalletValidationResult> {
+    const startTime = Date.now();
+    
     try {
       const result = await this.retry.execute(async () => {
         // Validate account ID format
@@ -285,8 +288,18 @@ export class HederaService {
         };
       }, "validateWallet");
 
+      const duration = Date.now() - startTime;
+      
+      // Record Hedera network health metrics
+      await projectMetrics.recordHederaNetworkHealth(true, duration, "validateWallet");
+      
       return result.result;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      // Record Hedera network health failure
+      await projectMetrics.recordHederaNetworkHealth(false, duration, "validateWallet");
+      
       if (error instanceof RetryError) {
         throw new HederaServiceError(
           "Failed to validate wallet after multiple attempts",
@@ -345,6 +358,8 @@ export class HederaService {
    * Create a new token for the project
    */
   async createToken(params: TokenCreationParams): Promise<TokenCreationResult> {
+    const startTime = Date.now();
+    
     try {
       this.validateTokenCreationParams(params);
 
@@ -396,6 +411,17 @@ export class HederaService {
         };
       }, "createToken");
 
+      const duration = Date.now() - startTime;
+      
+      // Record successful token creation metrics
+      await projectMetrics.recordHederaTokenCreation(
+        true,
+        duration,
+        parseFloat(result.result.totalCost)
+      );
+      
+      await projectMetrics.recordHederaNetworkHealth(true, duration, "createToken");
+      
       console.log(`Token created successfully: ${result.result.tokenId}`, {
         projectId: params.projectId,
         tokenName: params.tokenName,
@@ -405,6 +431,13 @@ export class HederaService {
 
       return result.result;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      // Record failed token creation metrics
+      const errorType = error instanceof HederaServiceError ? error.code : "UNKNOWN_ERROR";
+      await projectMetrics.recordHederaTokenCreation(false, duration, undefined, errorType);
+      await projectMetrics.recordHederaNetworkHealth(false, duration, "createToken");
+      
       if (error instanceof RetryError) {
         throw new HederaServiceError(
           "Failed to create token after multiple attempts",
@@ -423,6 +456,8 @@ export class HederaService {
    * Mint NFTs for stocks
    */
   async mintNFTs(params: NFTMintingParams): Promise<NFTMintingResult> {
+    const startTime = Date.now();
+    
     try {
       this.validateNFTMintingParams(params);
 
@@ -473,6 +508,18 @@ export class HederaService {
         };
       }, "mintNFTs");
 
+      const duration = Date.now() - startTime;
+      
+      // Record successful NFT minting metrics
+      await projectMetrics.recordHederaNFTMinting(
+        true,
+        duration,
+        result.result.serialNumbers.length,
+        parseFloat(result.result.totalCost)
+      );
+      
+      await projectMetrics.recordHederaNetworkHealth(true, duration, "mintNFTs");
+      
       console.log(
         `NFTs minted successfully: ${result.result.serialNumbers.length} tokens`,
         {
@@ -484,6 +531,13 @@ export class HederaService {
 
       return result.result;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      // Record failed NFT minting metrics
+      const errorType = error instanceof HederaServiceError ? error.code : "UNKNOWN_ERROR";
+      await projectMetrics.recordHederaNFTMinting(false, duration, 0, undefined, errorType);
+      await projectMetrics.recordHederaNetworkHealth(false, duration, "mintNFTs");
+      
       if (error instanceof RetryError) {
         throw new HederaServiceError(
           "Failed to mint NFTs after multiple attempts",
@@ -502,6 +556,8 @@ export class HederaService {
    * Get token information
    */
   async getTokenInfo(tokenId: string): Promise<TokenInfo> {
+    const startTime = Date.now();
+    
     try {
       const result = await this.retry.execute(async () => {
         const tokenInfoQuery = new TokenInfoQuery().setTokenId(tokenId);
@@ -509,8 +565,14 @@ export class HederaService {
         return await tokenInfoQuery.execute(this.client);
       }, "getTokenInfo");
 
+      const duration = Date.now() - startTime;
+      await projectMetrics.recordHederaNetworkHealth(true, duration, "getTokenInfo");
+
       return result.result;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      await projectMetrics.recordHederaNetworkHealth(false, duration, "getTokenInfo");
+      
       if (error instanceof RetryError) {
         throw new HederaServiceError(
           "Failed to get token info after multiple attempts",

@@ -5,6 +5,7 @@
 
 import { ExponentialBackoff } from "./retry";
 import { StructuredLogger } from "./structured-logger";
+import { projectMetrics } from "./project-metrics";
 
 export interface ProjectMetadata {
   name: string;
@@ -103,6 +104,8 @@ export class IPFSService {
     metadata: ProjectMetadata
   ): Promise<IPFSUploadResult> {
     const operation = "storeProjectMetadata";
+    const startTime = Date.now();
+    
     this.logger.logOperationStart(operation, { projectName: metadata.name });
 
     try {
@@ -115,6 +118,18 @@ export class IPFSService {
         operation
       );
 
+      const duration = Date.now() - startTime;
+      
+      // Record IPFS upload success metrics
+      await projectMetrics.recordIPFSUpload(
+        true,
+        duration,
+        "project",
+        result.result.size
+      );
+      
+      await projectMetrics.recordIPFSNetworkHealth(true, duration, operation);
+
       this.logger.logOperationSuccess(operation, 0, {
         projectName: metadata.name,
         hash: result.result.hash,
@@ -123,6 +138,13 @@ export class IPFSService {
 
       return result.result;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      // Record IPFS upload failure metrics
+      const errorType = error instanceof IPFSServiceError ? error.code : "UNKNOWN_ERROR";
+      await projectMetrics.recordIPFSUpload(false, duration, "project", undefined, errorType);
+      await projectMetrics.recordIPFSNetworkHealth(false, duration, operation);
+      
       this.logger.logOperationError(operation, error as Error, {
         projectName: metadata.name,
       });
@@ -135,6 +157,8 @@ export class IPFSService {
    */
   async storeStockMetadata(metadata: StockMetadata): Promise<IPFSUploadResult> {
     const operation = "storeStockMetadata";
+    const startTime = Date.now();
+    
     this.logger.logOperationStart(operation, {
       projectId: metadata.project_id,
       stockNumber: metadata.stock_number,
@@ -150,6 +174,18 @@ export class IPFSService {
         operation
       );
 
+      const duration = Date.now() - startTime;
+      
+      // Record IPFS upload success metrics
+      await projectMetrics.recordIPFSUpload(
+        true,
+        duration,
+        "stock",
+        result.result.size
+      );
+      
+      await projectMetrics.recordIPFSNetworkHealth(true, duration, operation);
+
       this.logger.logOperationSuccess(operation, 0, {
         projectId: metadata.project_id,
         stockNumber: metadata.stock_number,
@@ -159,6 +195,13 @@ export class IPFSService {
 
       return result.result;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      // Record IPFS upload failure metrics
+      const errorType = error instanceof IPFSServiceError ? error.code : "UNKNOWN_ERROR";
+      await projectMetrics.recordIPFSUpload(false, duration, "stock", undefined, errorType);
+      await projectMetrics.recordIPFSNetworkHealth(false, duration, operation);
+      
       this.logger.logOperationError(operation, error as Error, {
         projectId: metadata.project_id,
         stockNumber: metadata.stock_number,
@@ -172,6 +215,8 @@ export class IPFSService {
    */
   async getMetadata(uri: string): Promise<any> {
     const operation = "getMetadata";
+    const startTime = Date.now();
+    
     this.logger.logOperationStart(operation, { uri });
 
     try {
@@ -184,6 +229,9 @@ export class IPFSService {
         operation
       );
 
+      const duration = Date.now() - startTime;
+      await projectMetrics.recordIPFSNetworkHealth(true, duration, operation);
+
       this.logger.logOperationSuccess(operation, 0, {
         uri,
         hash,
@@ -192,6 +240,9 @@ export class IPFSService {
 
       return result.result;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      await projectMetrics.recordIPFSNetworkHealth(false, duration, operation);
+      
       this.logger.logOperationError(operation, error as Error, { uri });
       throw this.handleError(error as Error, operation);
     }

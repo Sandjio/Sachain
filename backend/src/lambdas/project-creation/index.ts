@@ -10,6 +10,7 @@ import { ErrorResponseFormatter } from "../../utils/error-response-formatter";
 import { ProjectRecoveryManager, ProjectRollbackOperations } from "../../utils/error-recovery";
 import { ProjectEventPublisher, createProjectEventPublisher } from "../../utils/project-event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
+import { projectMetrics } from "../../utils/project-metrics";
 import { UserRepository } from "../../repositories/user-repository";
 import { ProjectRepository } from "../../repositories/project-repository";
 import { AuditLogRepository } from "../../repositories/audit-log-repository";
@@ -86,6 +87,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const result = await handleProjectCreationWithRecovery(event);
 
     const duration = Date.now() - startTime;
+    
+    // Record API metrics
+    await projectMetrics.recordAPILatency(
+      event.path || "/projects",
+      event.httpMethod || "POST",
+      duration,
+      result.statusCode
+    );
+
     logger.info("Project Creation Lambda completed successfully", {
       operation: "LambdaInvocation",
       requestId,
@@ -100,6 +110,14 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       operation: "LambdaInvocation",
       requestId,
     });
+
+    // Record API error metrics
+    await projectMetrics.recordAPILatency(
+      event.path || "/projects",
+      event.httpMethod || "POST",
+      duration,
+      projectError.httpStatusCode || 500
+    );
 
     logger.error(
       "Project Creation Lambda failed",
@@ -266,7 +284,12 @@ async function handleProjectCreation(
     );
 
     // Create project in database
+    const dbStartTime = Date.now();
     const project = await projectRepository.createProject(sanitizedInput);
+    const dbDuration = Date.now() - dbStartTime;
+    
+    // Record database latency
+    await projectMetrics.recordDatabaseLatency("create", "project", dbDuration);
     
     // Add rollback operation for project deletion if subsequent operations fail
     const rollbackOperations = new ProjectRollbackOperations(projectRepository);
@@ -306,6 +329,16 @@ async function handleProjectCreation(
     await publishProjectCreationEvent(project, requestId);
 
     const duration = Date.now() - startTime;
+    
+    // Record project creation success metrics
+    await projectMetrics.recordProjectCreation(
+      true,
+      duration,
+      project.category,
+      undefined,
+      project.stockSupply
+    );
+    
     logger.info("Project creation completed successfully", {
       operation: "ProjectCreation",
       requestId,
@@ -340,6 +373,30 @@ async function handleProjectCreation(
     };
   } catch (error) {
     const duration = Date.now() - startTime;
+
+    // Record project creation failure metrics
+    if (error instanceof ProjectCreationError) {
+      await projectMetrics.recordProjectCreation(
+        false,
+        duration,
+        request?.category,
+        error.code
+      );
+      
+      await projectMetrics.recordProjectError(
+        "creation",
+        error.code,
+        "validation",
+        undefined
+      );
+    } else {
+      await projectMetrics.recordProjectError(
+        "creation",
+        "UNEXPECTED_ERROR",
+        "system",
+        undefined
+      );
+    }
 
     // Log failed project creation for audit
     if (entrepreneurId) {

@@ -22,3 +22,4 @@ export * from "./s3-direct-upload";
 export * from "./s3-upload";
 export * from "./structured-logger";
 export * from "./xray-tracing";
+export * from "./project-metrics";

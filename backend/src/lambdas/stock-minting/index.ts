@@ -9,6 +9,7 @@ import { ErrorResponseFormatter, withErrorFormatting } from "../../utils/error-r
 import { ProjectRecoveryManager, ProjectRollbackOperations } from "../../utils/error-recovery";
 import { ProjectEventPublisher, createProjectEventPublisher } from "../../utils/project-event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
+import { projectMetrics } from "../../utils/project-metrics";
 import { ProjectRepository } from "../../repositories/project-repository";
 import { createHederaService } from "../../utils/hedera-service";
 import { defaultIPFSService } from "../../utils/ipfs-service";
@@ -68,6 +69,15 @@ export const handler: APIGatewayProxyHandler = withErrorFormatting()(async (even
     const result = await handleStockMintingWithRecovery(event);
 
     const duration = Date.now() - startTime;
+    
+    // Record API metrics
+    await projectMetrics.recordAPILatency(
+      event.path || "/projects/{id}/mint-stocks",
+      event.httpMethod || "POST",
+      duration,
+      result.statusCode
+    );
+
     logger.info("Stock Minting Lambda completed successfully", {
       operation: "LambdaInvocation",
       requestId,
@@ -83,6 +93,14 @@ export const handler: APIGatewayProxyHandler = withErrorFormatting()(async (even
       requestId,
       duration,
     });
+
+    // Record API error metrics
+    await projectMetrics.recordAPILatency(
+      event.path || "/projects/{id}/mint-stocks",
+      event.httpMethod || "POST",
+      duration,
+      projectError.httpStatusCode || 500
+    );
 
     logger.error(
       "Stock Minting Lambda failed",
@@ -247,6 +265,20 @@ async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
     await publishStockMintingEvents(project, mintingResult, requestId);
 
     const duration = Date.now() - startTime;
+    
+    // Record stock minting success metrics
+    const totalGasCost = mintingResult.transactionIds.length > 0 ? 
+      parseFloat(tokenCreationResult.transactionId) || 0 : 0; // Simplified for demo
+    
+    await projectMetrics.recordStockMinting(
+      true,
+      duration,
+      mintingResult.totalMinted,
+      mintingResult.batches.length,
+      undefined,
+      totalGasCost
+    );
+    
     logger.info("Stock minting completed successfully", {
       operation: "StockMinting",
       requestId,
@@ -279,7 +311,23 @@ async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
   } catch (error) {
     const duration = Date.now() - startTime;
 
+    // Record stock minting failure metrics
     if (error instanceof StockMintingError) {
+      await projectMetrics.recordStockMinting(
+        false,
+        duration,
+        0,
+        undefined,
+        error.code
+      );
+      
+      await projectMetrics.recordProjectError(
+        "minting",
+        error.code,
+        "validation",
+        event.pathParameters?.projectId
+      );
+      
       logger.warn("Stock minting business logic error", {
         operation: "StockMinting",
         requestId,
@@ -294,6 +342,13 @@ async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
       });
       
       throw projectError;
+    } else {
+      await projectMetrics.recordProjectError(
+        "minting",
+        "UNEXPECTED_ERROR",
+        "system",
+        event.pathParameters?.projectId
+      );
     }
 
     // Re-throw unexpected errors to be handled by main handler
@@ -580,6 +635,7 @@ async function createProjectToken(
         .toUpperCase() + "STK";
 
     // Create Hedera token
+    const tokenStartTime = Date.now();
     const tokenResult = await hederaService.createToken({
       projectId: project.projectId,
       tokenName: `${project.name} Stock`,
@@ -587,6 +643,14 @@ async function createProjectToken(
       totalSupply: project.stockSupply,
       metadata: projectMetadata,
     });
+    const tokenDuration = Date.now() - tokenStartTime;
+    
+    // Record Hedera token creation metrics
+    await projectMetrics.recordHederaTokenCreation(
+      true,
+      tokenDuration,
+      parseFloat(tokenResult.totalCost)
+    );
 
     // Record transaction in database
     await projectRepository.createHederaTransaction({
@@ -723,17 +787,37 @@ async function mintStockNFTsInBatches(
       }
 
       // Store batch metadata on IPFS
+      const ipfsStartTime = Date.now();
       const ipfsPromises = batchMetadata.map((metadata) =>
         ipfsService.storeStockMetadata(metadata)
       );
       const ipfsResults = await Promise.all(ipfsPromises);
+      const ipfsDuration = Date.now() - ipfsStartTime;
+      
+      // Record IPFS upload metrics
+      await projectMetrics.recordIPFSUpload(
+        true,
+        ipfsDuration,
+        "stock",
+        JSON.stringify(batchMetadata).length
+      );
 
       // Mint NFTs for this batch
+      const nftMintStartTime = Date.now();
       const mintResult = await hederaService.mintNFTs({
         tokenId,
         quantity: batchSize,
         metadata: batchMetadata,
       });
+      const nftMintDuration = Date.now() - nftMintStartTime;
+      
+      // Record Hedera NFT minting metrics
+      await projectMetrics.recordHederaNFTMinting(
+        true,
+        nftMintDuration,
+        batchSize,
+        parseFloat(mintResult.totalCost)
+      );
 
       // Record transaction in database
       await projectRepository.createHederaTransaction({
