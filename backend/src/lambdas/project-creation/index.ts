@@ -20,6 +20,9 @@ import {
   validateCreateProjectInput,
   sanitizeProjectInput,
 } from "../../utils/project-validation";
+import { SecurityMiddleware, AbusePreventionService } from "../../utils/security-hardening";
+import { APISecurityValidator, SecurityConfigs } from "../../utils/api-security-validator";
+import { CORSMiddleware } from "../../utils/cors-security";
 import {
   CreateProjectRequest,
   CreateProjectResponse,
@@ -71,7 +74,21 @@ const projectAuditService = new ProjectAuditService(
   logger
 );
 
-export const handler: APIGatewayProxyHandler = async (event) => {
+// Apply security middleware with CORS support
+const secureHandler = SecurityMiddleware.secureHandler(
+  CORSMiddleware.withCORS(handleProjectCreationWithSecurity),
+  {
+    rateLimitConfig: {
+      windowMs: 60 * 1000, // 1 minute
+      maxRequests: 10, // 10 project creations per minute per user
+    },
+    requireAuth: true,
+  }
+);
+
+export const handler: APIGatewayProxyHandler = secureHandler;
+
+async function handleProjectCreationWithSecurity(event: APIGatewayProxyEvent) {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
 
@@ -83,7 +100,59 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     userAgent: event.headers["User-Agent"],
   });
 
+  // Check for suspicious activity
+  if (AbusePreventionService.detectSuspiciousActivity(event)) {
+    logger.warn("Suspicious activity detected", {
+      operation: "LambdaInvocation",
+      requestId,
+      sourceIp: event.requestContext.identity.sourceIp,
+      userAgent: event.headers["User-Agent"],
+    });
+    
+    return {
+      statusCode: 429,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "Too many requests detected",
+        requestId,
+      }),
+    };
+  }
+
+  // Validate request security
+  const securityValidation = await APISecurityValidator.validateRequest(
+    event,
+    SecurityConfigs.PROJECT_CREATION
+  );
+
+  if (!securityValidation.isValid) {
+    logger.warn("Security validation failed", {
+      operation: "LambdaInvocation",
+      requestId,
+      errors: securityValidation.errors,
+    });
+
+    return {
+      statusCode: 400,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "Security validation failed",
+        errors: securityValidation.errors,
+        requestId,
+      }),
+    };
+  }
+
   try {
+    // Replace event body with sanitized version
+    if (securityValidation.sanitizedBody) {
+      event.body = JSON.stringify(securityValidation.sanitizedBody);
+    }
+
     const result = await handleProjectCreationWithRecovery(event);
 
     const duration = Date.now() - startTime;
@@ -135,7 +204,6 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       statusCode: projectError.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify({
         message: projectError.userMessage || "An error occurred",
@@ -144,7 +212,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }),
     };
   }
-};
+}
 
 async function handleProjectCreationWithRecovery(
   event: APIGatewayProxyEvent
@@ -367,7 +435,6 @@ async function handleProjectCreation(
       statusCode: 201,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
       },
       body: JSON.stringify(response),
     };
