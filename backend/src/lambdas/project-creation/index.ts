@@ -12,6 +12,9 @@ import { ProjectEventPublisher, createProjectEventPublisher } from "../../utils/
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { UserRepository } from "../../repositories/user-repository";
 import { ProjectRepository } from "../../repositories/project-repository";
+import { AuditLogRepository } from "../../repositories/audit-log-repository";
+import { ComplianceRepository } from "../../repositories/compliance-repository";
+import { ProjectAuditService } from "../../utils/project-audit-service";
 import {
   validateCreateProjectInput,
   sanitizeProjectInput,
@@ -50,6 +53,22 @@ const projectRepository = new ProjectRepository({
   tableName: TABLE_NAME,
   region: AWS_REGION,
 });
+
+const auditRepository = new AuditLogRepository({
+  client: dynamoClient,
+  tableName: TABLE_NAME,
+});
+
+const complianceRepository = new ComplianceRepository({
+  client: dynamoClient,
+  tableName: TABLE_NAME,
+});
+
+const projectAuditService = new ProjectAuditService(
+  auditRepository,
+  complianceRepository,
+  logger
+);
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
@@ -149,6 +168,8 @@ async function handleProjectCreation(
 ): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  let entrepreneurId: string | undefined;
+  let request: CreateProjectRequest | undefined;
 
   logger.info("Project creation started", {
     operation: "ProjectCreation",
@@ -254,6 +275,25 @@ async function handleProjectCreation(
       rollbackOperations.createProjectDeletionRollback(project.projectId, requestId)
     );
 
+    // Log project creation for audit and compliance
+    await projectAuditService.logProjectCreation(
+      {
+        userId: entrepreneurId,
+        projectId: project.projectId,
+        ipAddress: event.requestContext.identity.sourceIp,
+        userAgent: event.headers["User-Agent"],
+        sessionId: event.requestContext.requestId,
+        requestId,
+      },
+      {
+        name: project.name,
+        category: project.category,
+        stockSupply: project.stockSupply,
+        targetFundingGoal: project.targetFundingGoal,
+      },
+      "success"
+    );
+
     logger.info("Project created successfully", {
       operation: "ProjectCreation",
       requestId,
@@ -300,6 +340,28 @@ async function handleProjectCreation(
     };
   } catch (error) {
     const duration = Date.now() - startTime;
+
+    // Log failed project creation for audit
+    if (entrepreneurId) {
+      await projectAuditService.logProjectCreation(
+        {
+          userId: entrepreneurId,
+          projectId: undefined,
+          ipAddress: event.requestContext.identity.sourceIp,
+          userAgent: event.headers["User-Agent"],
+          sessionId: event.requestContext.requestId,
+          requestId,
+        },
+        {
+          name: request?.name || "unknown",
+          category: request?.category || "unknown",
+          stockSupply: request?.stockSupply || 0,
+          targetFundingGoal: request?.targetFundingGoal,
+        },
+        "failure",
+        (error as Error).message
+      );
+    }
 
     if (error instanceof ProjectCreationError) {
       logger.warn("Project creation business logic error", {
