@@ -103,6 +103,7 @@ try {
   const securityDependencies = {
     table: coreStack.table,
     documentBucket: coreStack.documentBucket,
+    projectImagesBucket: coreStack.projectImagesBucket,
     encryptionKey: coreStack.encryptionKey,
     userPool: coreStack.userPool,
   };
@@ -149,6 +150,7 @@ try {
     // Core resources (now includes auth)
     table: coreStack.table,
     documentBucket: coreStack.documentBucket,
+    projectImagesBucket: coreStack.projectImagesBucket,
     encryptionKey: coreStack.encryptionKey,
     userPool: coreStack.userPool,
     userPoolClient: coreStack.userPoolClient,
@@ -158,6 +160,9 @@ try {
     adminReviewRole: securityStack.adminReviewRole,
     userNotificationRole: securityStack.userNotificationRole,
     kycProcessingRole: securityStack.kycProcessingRole,
+    projectCreationRole: securityStack.projectCreationRole,
+    stockMintingRole: securityStack.stockMintingRole,
+    stockMintingStatusRole: securityStack.stockMintingStatusRole,
   };
 
   // CrossStackValidator.validateStackDeployment(

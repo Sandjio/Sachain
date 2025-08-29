@@ -57,9 +57,27 @@ export class DynamoDBConstruct extends Construct {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    // GSI3: For querying projects by status and creation date
+    // Access pattern: Get all projects with specific status, ordered by creation date
+    this.table.addGlobalSecondaryIndex({
+      indexName: "GSI3",
+      partitionKey: { name: "GSI3PK", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "GSI3SK", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // GSI4: For querying stocks by owner wallet address
+    // Access pattern: Get all stocks owned by specific wallet address
+    this.table.addGlobalSecondaryIndex({
+      indexName: "GSI4",
+      partitionKey: { name: "GSI4PK", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "GSI4SK", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // Add tags for resource management
     cdk.Tags.of(this.table).add("Component", "DynamoDB");
-    cdk.Tags.of(this.table).add("Purpose", "KYC-UserData");
+    cdk.Tags.of(this.table).add("Purpose", "KYC-UserData-Projects");
     cdk.Tags.of(this.table).add("Environment", props.environment);
   }
 }

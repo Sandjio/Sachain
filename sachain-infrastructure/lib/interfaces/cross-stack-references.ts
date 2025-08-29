@@ -28,8 +28,11 @@ export interface CoreStackOutputs {
 
   // S3 resources
   documentBucket: s3.Bucket;
+  projectImagesBucket: s3.Bucket;
   bucketName: string;
   bucketArn: string;
+  projectImagesBucketName: string;
+  projectImagesBucketArn: string;
 
   // KMS resources
   encryptionKey: kms.Key;
@@ -175,7 +178,7 @@ export interface StackDependencies {
     // SecurityStack depends on CoreStack (which now includes auth resources)
     coreOutputs: Pick<
       CoreStackOutputs,
-      "table" | "documentBucket" | "encryptionKey" | "userPool"
+      "table" | "documentBucket" | "projectImagesBucket" | "encryptionKey" | "userPool"
     >;
   };
 
@@ -185,6 +188,7 @@ export interface StackDependencies {
       CoreStackOutputs,
       | "table"
       | "documentBucket"
+      | "projectImagesBucket"
       | "encryptionKey"
       | "userPool"
       | "userPoolClient"
@@ -226,6 +230,8 @@ export interface ExportNames {
   tableArn: (environment: string) => string;
   bucketName: (environment: string) => string;
   bucketArn: (environment: string) => string;
+  projectImagesBucketName: (environment: string) => string;
+  projectImagesBucketArn: (environment: string) => string;
   kmsKeyArn: (environment: string) => string;
   kmsKeyId: (environment: string) => string;
   userPoolId: (environment: string) => string;
@@ -275,6 +281,8 @@ export const EXPORT_NAMES: ExportNames = {
   tableArn: (env) => `${env}-sachain-core-table-arn`,
   bucketName: (env) => `${env}-sachain-core-bucket-name`,
   bucketArn: (env) => `${env}-sachain-core-bucket-arn`,
+  projectImagesBucketName: (env) => `${env}-sachain-core-project-images-bucket-name`,
+  projectImagesBucketArn: (env) => `${env}-sachain-core-project-images-bucket-arn`,
   kmsKeyArn: (env) => `${env}-sachain-core-kms-key-arn`,
   kmsKeyId: (env) => `${env}-sachain-core-kms-key-id`,
   userPoolId: (env) => `${env}-sachain-core-user-pool-id`,

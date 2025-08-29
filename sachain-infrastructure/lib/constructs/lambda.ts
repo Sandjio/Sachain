@@ -14,6 +14,7 @@ import * as path from "path";
 export interface LambdaConstructProps {
   table: dynamodb.Table;
   documentBucket?: s3.Bucket;
+  projectImagesBucket?: s3.Bucket;
   encryptionKey?: import("aws-cdk-lib/aws-kms").Key;
   notificationTopic?: sns.Topic;
   eventBus?: events.EventBus;
@@ -71,6 +72,7 @@ export class LambdaConstruct extends Construct {
       environment: {
         TABLE_NAME: props.table.tableName,
         BUCKET_NAME: props.documentBucket?.bucketName || "",
+        PROJECT_IMAGES_BUCKET_NAME: props.projectImagesBucket?.bucketName || "",
         EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
         ENVIRONMENT: props.environment,
         KMS_KEY_ID: props.encryptionKey?.keyId || "",
@@ -140,6 +142,7 @@ export class LambdaConstruct extends Construct {
       projectRoot: path.join(__dirname, "../../.."),
       environment: {
         TABLE_NAME: props.table.tableName,
+        PROJECT_IMAGES_BUCKET_NAME: props.projectImagesBucket?.bucketName || "",
         EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
         ENVIRONMENT: props.environment,
       },

@@ -28,6 +28,7 @@ export interface LambdaStackProps extends cdk.StackProps {
   // Core resources from CoreStack (now includes auth)
   table: dynamodb.Table;
   documentBucket: s3.Bucket;
+  projectImagesBucket: s3.Bucket;
   encryptionKey: kms.Key;
   userPool: cognito.UserPool;
   userPoolClient: cognito.UserPoolClient;
@@ -92,6 +93,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       coreOutputs: {
         table: props.table,
         documentBucket: props.documentBucket,
+        projectImagesBucket: props.projectImagesBucket,
         encryptionKey: props.encryptionKey,
         userPool: props.userPool,
         userPoolClient: props.userPoolClient,
@@ -120,6 +122,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     // Record cross-stack references for tracking
     ResourceReferenceTracker.recordReference(id, "CoreStack", "table");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "documentBucket");
+    ResourceReferenceTracker.recordReference(id, "CoreStack", "projectImagesBucket");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "userPool");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "userPoolClient");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "postAuthLambda");
@@ -211,6 +214,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     this.lambdaConstruct = new LambdaConstruct(this, "Lambda", {
       table: props.table,
       documentBucket: props.documentBucket,
+      projectImagesBucket: props.projectImagesBucket,
       encryptionKey: props.encryptionKey,
       environment: props.environment,
       securityConstruct: mockSecurityConstruct as any, // Type assertion for compatibility

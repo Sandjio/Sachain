@@ -26,8 +26,11 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
   public readonly tableName: string;
   public readonly tableArn: string;
   public readonly documentBucket: cdk.aws_s3.Bucket;
+  public readonly projectImagesBucket: cdk.aws_s3.Bucket;
   public readonly bucketName: string;
   public readonly bucketArn: string;
+  public readonly projectImagesBucketName: string;
+  public readonly projectImagesBucketArn: string;
   public readonly encryptionKey: cdk.aws_kms.Key;
   public readonly kmsKeyArn: string;
   public readonly kmsKeyId: string;
@@ -101,8 +104,11 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
     this.tableName = this.table.tableName;
     this.tableArn = this.table.tableArn;
     this.documentBucket = this.s3Construct.documentBucket;
+    this.projectImagesBucket = this.s3Construct.projectImagesBucket;
     this.bucketName = this.documentBucket.bucketName;
     this.bucketArn = this.documentBucket.bucketArn;
+    this.projectImagesBucketName = this.projectImagesBucket.bucketName;
+    this.projectImagesBucketArn = this.projectImagesBucket.bucketArn;
     this.encryptionKey = this.s3Construct.encryptionKey;
     this.kmsKeyArn = this.encryptionKey.keyArn;
     this.kmsKeyId = this.encryptionKey.keyId;
@@ -140,6 +146,18 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
       value: this.documentBucket.bucketArn,
       description: "S3 Document Bucket ARN",
       exportName: `${props.environment}-sachain-core-bucket-arn`,
+    });
+
+    new cdk.CfnOutput(this, "ProjectImagesBucketName", {
+      value: this.projectImagesBucket.bucketName,
+      description: "S3 Project Images Bucket Name",
+      exportName: `${props.environment}-sachain-core-project-images-bucket-name`,
+    });
+
+    new cdk.CfnOutput(this, "ProjectImagesBucketArn", {
+      value: this.projectImagesBucket.bucketArn,
+      description: "S3 Project Images Bucket ARN",
+      exportName: `${props.environment}-sachain-core-project-images-bucket-arn`,
     });
 
     new cdk.CfnOutput(this, "KmsKeyArn", {

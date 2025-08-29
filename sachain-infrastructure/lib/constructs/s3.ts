@@ -11,6 +11,7 @@ export interface S3ConstructProps {
 
 export class S3Construct extends Construct {
   public readonly documentBucket: s3.Bucket;
+  public readonly projectImagesBucket: s3.Bucket;
   public readonly encryptionKey: kms.Key;
 
   constructor(scope: Construct, id: string, props: S3ConstructProps) {
@@ -117,13 +118,64 @@ export class S3Construct extends Construct {
       // serverAccessLogsPrefix: "access-logs/",
     });
 
+    // S3 bucket for project images with public read access
+    this.projectImagesBucket = new s3.Bucket(this, "ProjectImagesBucket", {
+      bucketName: `sachain-project-images-${props.environment}-${cdk.Aws.ACCOUNT_ID}`,
+      encryption: s3.BucketEncryption.KMS,
+      encryptionKey: this.encryptionKey,
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: false,
+        blockPublicPolicy: false,
+        ignorePublicAcls: false,
+        restrictPublicBuckets: false,
+      }),
+      versioned: false, // No versioning needed for project images
+      removalPolicy:
+        props.environment === "prod"
+          ? cdk.RemovalPolicy.RETAIN
+          : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: props.environment !== "prod",
+      enforceSSL: true,
+
+      // Lifecycle configuration for cost optimization
+      lifecycleRules: [
+        {
+          id: "ProjectImageLifecycle",
+          enabled: true,
+          transitions: [
+            {
+              storageClass: s3.StorageClass.INFREQUENT_ACCESS,
+              transitionAfter: cdk.Duration.days(90),
+            },
+          ],
+        },
+      ],
+
+      // CORS configuration for web uploads and access
+      cors: [
+        {
+          allowedMethods: [
+            s3.HttpMethods.GET,
+            s3.HttpMethods.PUT,
+            s3.HttpMethods.POST,
+          ],
+          allowedOrigins: ["*"],
+          allowedHeaders: ["*"],
+          maxAge: 3000,
+        },
+      ],
+    });
+
     // Add bucket policy to restrict access to Lambda functions only
     this.addBucketPolicy();
+    this.addProjectImagesBucketPolicy();
 
     // Add tags for compliance and cost tracking
     cdk.Tags.of(this.documentBucket).add("DataClassification", "Sensitive");
     cdk.Tags.of(this.documentBucket).add("Purpose", "KYC-Documents");
     cdk.Tags.of(this.documentBucket).add("Compliance", "KYC-AML");
+    cdk.Tags.of(this.projectImagesBucket).add("DataClassification", "Public");
+    cdk.Tags.of(this.projectImagesBucket).add("Purpose", "Project-Images");
     cdk.Tags.of(this.encryptionKey).add("Purpose", "KYC-Encryption");
   }
 
@@ -148,12 +200,47 @@ export class S3Construct extends Construct {
     );
   }
 
+  private addProjectImagesBucketPolicy(): void {
+    // Allow public read access for project images
+    this.projectImagesBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: "AllowPublicRead",
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.AnyPrincipal()],
+        actions: ["s3:GetObject"],
+        resources: [this.projectImagesBucket.arnForObjects("*")],
+      })
+    );
+
+    // Deny insecure connections
+    this.projectImagesBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: "DenyInsecureConnections",
+        effect: iam.Effect.DENY,
+        principals: [new iam.AnyPrincipal()],
+        actions: ["s3:*"],
+        resources: [
+          this.projectImagesBucket.bucketArn,
+          this.projectImagesBucket.arnForObjects("*"),
+        ],
+        conditions: {
+          Bool: {
+            "aws:SecureTransport": "false",
+          },
+        },
+      })
+    );
+  }
+
   /**
-   * Grant Lambda function permissions to access the bucket
+   * Grant Lambda function permissions to access the buckets
    */
   public grantLambdaAccess(lambdaRole: iam.IRole): void {
-    // Grant S3 permissions
+    // Grant S3 permissions for document bucket
     this.documentBucket.grantReadWrite(lambdaRole);
+
+    // Grant S3 permissions for project images bucket
+    this.projectImagesBucket.grantReadWrite(lambdaRole);
 
     // Grant KMS permissions
     this.encryptionKey.grantEncryptDecrypt(lambdaRole);
