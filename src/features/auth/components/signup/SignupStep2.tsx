@@ -15,9 +15,10 @@ type SignupStep2Data = z.infer<typeof signupStep2Schema>;
 interface SignupStep2Props {
   onVerify: (data: SignupStep2Data) => void;
   onBack: () => void;
+  loading?: boolean;
 }
 
-export default function SignupStep2({ onVerify, onBack }: SignupStep2Props) {
+export default function SignupStep2({ onVerify, onBack, loading }: SignupStep2Props) {
   const translate = useTranslate("getStartedModal");
   const { register, handleSubmit, formState: { errors } } = useForm<SignupStep2Data>({
     resolver: zodResolver(signupStep2Schema),

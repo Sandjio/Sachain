@@ -87,7 +87,9 @@
       "email": "Email",
       "password": "Password",
       "confirmPassword": "Confirm Password",
-      "verifyCode": "Please enter the verification code sent to your email"
+      "verifyCode": "Please enter the verification code sent to your email",
+      "firstName": "First Name",
+      "lastName": "Last Name"
     },
     "actions": {
       "loginAs": "Login as",

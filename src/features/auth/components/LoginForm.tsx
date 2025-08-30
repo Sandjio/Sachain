@@ -39,3 +39,4 @@ export default function LoginForm({ role }: LoginFormProps) {
     </form>
   );
 }
+
