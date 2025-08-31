@@ -96,12 +96,18 @@ export class CognitoConstruct extends Construct {
       },
 
       // Lambda triggers - conditionally configured to avoid circular dependencies
-      ...(props.postAuthLambda && {
-        lambdaTriggers: {
-          postAuthentication: props.postAuthLambda,
-          postConfirmation: props.postAddUserToGroupLambda,
-        },
-      }),
+      ...(props.postAuthLambda || props.postAddUserToGroupLambda
+        ? {
+            lambdaTriggers: {
+              ...(props.postAuthLambda && {
+                postAuthentication: props.postAuthLambda,
+              }),
+              ...(props.postAddUserToGroupLambda && {
+                postConfirmation: props.postAddUserToGroupLambda,
+              }),
+            },
+          }
+        : {}),
 
       // Deletion protection
       removalPolicy:

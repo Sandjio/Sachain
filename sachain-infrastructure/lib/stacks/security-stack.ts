@@ -51,6 +51,7 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
         documentBucket: props.documentBucket,
         encryptionKey: props.encryptionKey,
         userPool: props.userPool,
+        projectImagesBucket: props.documentBucket,
       },
     };
 

@@ -122,7 +122,11 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     // Record cross-stack references for tracking
     ResourceReferenceTracker.recordReference(id, "CoreStack", "table");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "documentBucket");
-    ResourceReferenceTracker.recordReference(id, "CoreStack", "projectImagesBucket");
+    ResourceReferenceTracker.recordReference(
+      id,
+      "CoreStack",
+      "projectImagesBucket"
+    );
     ResourceReferenceTracker.recordReference(id, "CoreStack", "userPool");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "userPoolClient");
     ResourceReferenceTracker.recordReference(id, "CoreStack", "postAuthLambda");
@@ -218,8 +222,8 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
       encryptionKey: props.encryptionKey,
       environment: props.environment,
       securityConstruct: mockSecurityConstruct as any, // Type assertion for compatibility
-      stockMintingRole: stockMintingRole,
-      stockMintingStatusRole: stockMintingStatusRole,
+      stockMintingRole: stockMintingRole as unknown as iam.Role,
+      stockMintingStatusRole: stockMintingStatusRole as unknown as iam.Role,
       eventBus: this.eventBus,
       notificationTopic: this.notificationTopic,
     });

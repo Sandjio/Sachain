@@ -8,7 +8,7 @@ import * as path from "path";
 export interface PostConfirmLambdaConstructProps {
   environment: string;
   postAddUserToGroupRole?: iam.Role;
-  userPool: cdk.aws_cognito.UserPool;
+  userPool?: cdk.aws_cognito.UserPool;
 }
 
 /**
@@ -39,18 +39,20 @@ export class PostConfirmLambdaConstruct extends Construct {
         ],
       });
 
-    // Add IAM permissions to manage Cognito User Pool groups
-    this.postAddUserToGroupRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: "CognitoUserPoolGroups",
-        effect: iam.Effect.ALLOW,
-        actions: [
-          "cognito-idp:AdminAddUserToGroup",
-          "cognito-idp:AdminListGroupsForUser",
-        ],
-        resources: [props.userPool.userPoolArn],
-      })
-    );
+    // Add IAM permissions to manage Cognito User Pool groups (if userPool is provided)
+    if (props.userPool) {
+      this.postAddUserToGroupRole.addToPolicy(
+        new iam.PolicyStatement({
+          sid: "CognitoUserPoolGroups",
+          effect: iam.Effect.ALLOW,
+          actions: [
+            "cognito-idp:AdminAddUserToGroup",
+            "cognito-idp:AdminListGroupsForUser",
+          ],
+          resources: [props.userPool.userPoolArn],
+        })
+      );
+    }
 
     // Add CloudWatch metrics permissions
     this.postAddUserToGroupRole.addToPolicy(
@@ -105,6 +107,23 @@ export class PostConfirmLambdaConstruct extends Construct {
         memorySize: 256,
         tracing: lambda.Tracing.ACTIVE,
       }
+    );
+  }
+
+  /**
+   * Grant permissions to access Cognito User Pools (using wildcard to avoid circular dependency)
+   */
+  public grantUserPoolAccess(): void {
+    this.postAddUserToGroupRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "CognitoUserPoolGroups",
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminListGroupsForUser",
+        ],
+        resources: [`arn:aws:cognito-idp:*:*:userpool/*`],
+      })
     );
   }
 }

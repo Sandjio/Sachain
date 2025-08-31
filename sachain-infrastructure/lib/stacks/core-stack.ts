@@ -76,21 +76,20 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
       }
     );
 
-    // Create Cognito User Pool with post-auth lambda trigger (consolidated from AuthStack)
+    // Create Cognito User Pool first with only post-auth lambda
     this.cognitoConstruct = new CognitoConstruct(this, "Cognito", {
       postAuthLambda: this.postAuthLambdaConstruct.postAuthLambda,
-      postAddUserToGroupLambda:
-        this.postConfirmLambdaConstruct.postAddUserToGroupLambda,
+      // postAddUserToGroupLambda will be added after creation
       environment: props.environment,
     });
 
-    // Create post-authentication lambda
+    // Create post-confirmation lambda without user pool dependency
     this.postConfirmLambdaConstruct = new PostConfirmLambdaConstruct(
       this,
       "PostConfirmLambda",
       {
         environment: props.environment,
-        userPool: this.cognitoConstruct.userPool,
+        // userPool will be granted access later to avoid circular dependency
       }
     );
 
@@ -98,6 +97,15 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
     this.postAuthLambdaConstruct.grantInvokeToUserPool(
       this.cognitoConstruct.userPool.userPoolArn
     );
+
+    // Add post-confirmation lambda trigger to the user pool using CDK method
+    this.cognitoConstruct.userPool.addTrigger(
+      cdk.aws_cognito.UserPoolOperation.POST_CONFIRMATION,
+      this.postConfirmLambdaConstruct.postAddUserToGroupLambda
+    );
+
+    // Grant user pool access to the post-confirmation lambda (using wildcard to avoid circular dependency)
+    this.postConfirmLambdaConstruct.grantUserPoolAccess();
 
     // Expose resources for cross-stack references
     this.table = this.dynamoDBConstruct.table;
@@ -121,6 +129,8 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
     this.userPoolClientId = this.userPoolClient.userPoolClientId;
     this.userPoolDomain = `sachain-${props.environment}.auth.${this.region}.amazoncognito.com`;
     this.postAuthLambda = this.postAuthLambdaConstruct.postAuthLambda;
+    this.postAddUserToGroupLambda =
+      this.postConfirmLambdaConstruct.postAddUserToGroupLambda;
     this.postAuthLambdaArn = this.postAuthLambda.functionArn;
 
     // Create stack outputs for cross-stack references
@@ -201,6 +211,12 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
       value: this.postAuthLambda.functionArn,
       description: "Post-Authentication Lambda Function ARN",
       exportName: `${props.environment}-sachain-core-post-auth-lambda-arn`,
+    });
+
+    new cdk.CfnOutput(this, "PostAddUserToGroupLambdaArn", {
+      value: this.postAddUserToGroupLambda.functionArn,
+      description: "Post-Confirmation Lambda Function ARN",
+      exportName: `${props.environment}-sachain-core-post-add-user-to-group-lambda-arn`,
     });
   }
 }
