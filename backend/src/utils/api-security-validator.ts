@@ -67,7 +67,10 @@ export class APISecurityValidator {
 
       // 2. Authorization validation
       if (authContext && config.requiredKycStatus) {
-        const authzResult = await this.validateAuthorization(authContext, config);
+        const authzResult = await this.validateAuthorization(
+          authContext,
+          config
+        );
         if (!authzResult.isValid) {
           errors.push(...authzResult.errors);
         }
@@ -133,7 +136,10 @@ export class APISecurityValidator {
       }
 
       // Check issuer format
-      if (!tokenResult.payload.iss || !tokenResult.payload.iss.includes("cognito")) {
+      if (
+        !tokenResult.payload.iss ||
+        !tokenResult.payload.iss.includes("cognito")
+      ) {
         errors.push("Invalid token issuer");
       }
 
@@ -159,21 +165,53 @@ export class APISecurityValidator {
   ): Promise<ValidationResult> {
     const errors: string[] = [];
 
-    // Check KYC status requirement
-    if (config.requiredKycStatus && authContext.kycStatus !== config.requiredKycStatus) {
-      errors.push(
-        `KYC status '${config.requiredKycStatus}' required. Current status: '${authContext.kycStatus || "unknown"}'`
-      );
+    // Check KYC status requirement - fetch from database if needed
+    if (config.requiredKycStatus) {
+      let kycStatus = authContext.kycStatus;
+
+      // If KYC status is not in the token, fetch it from the database
+      if (!kycStatus) {
+        try {
+          const { UserRepository } = await import(
+            "../repositories/user-repository"
+          );
+          const userRepository = new UserRepository({
+            tableName: process.env.TABLE_NAME!,
+            region: process.env.AWS_REGION || "us-east-1",
+          });
+
+          const userProfile = await userRepository.getUserProfile(
+            authContext.userId
+          );
+          kycStatus = userProfile?.kycStatus;
+        } catch (error) {
+          console.error("Failed to fetch KYC status from database:", error);
+          errors.push("Unable to verify KYC status");
+          return { isValid: false, errors };
+        }
+      }
+
+      if (kycStatus !== config.requiredKycStatus) {
+        errors.push(
+          `KYC status '${
+            config.requiredKycStatus
+          }' required. Current status: '${kycStatus || "unknown"}'`
+        );
+      }
     }
 
     // Check role requirements
     if (config.allowedRoles && config.allowedRoles.length > 0) {
       const userRoles = authContext.roles || [];
-      const hasRequiredRole = config.allowedRoles.some(role => userRoles.includes(role));
-      
+      const hasRequiredRole = config.allowedRoles.some((role) =>
+        userRoles.includes(role)
+      );
+
       if (!hasRequiredRole) {
         errors.push(
-          `Required role not found. Required: [${config.allowedRoles.join(", ")}], User has: [${userRoles.join(", ")}]`
+          `Required role not found. Required: [${config.allowedRoles.join(
+            ", "
+          )}], User has: [${userRoles.join(", ")}]`
         );
       }
     }
@@ -200,17 +238,34 @@ export class APISecurityValidator {
 
     // Validate content type
     if (event.body && inputConfig.allowedContentTypes) {
-      const contentType = event.headers["Content-Type"] || event.headers["content-type"];
-      if (!contentType || !inputConfig.allowedContentTypes.includes(contentType)) {
+      const contentType =
+        event.headers["Content-Type"] || event.headers["content-type"];
+      if (
+        !contentType ||
+        !inputConfig.allowedContentTypes.includes(contentType)
+      ) {
         errors.push(
-          `Invalid content type. Allowed: [${inputConfig.allowedContentTypes.join(", ")}]`
+          `Invalid content type. Allowed: [${inputConfig.allowedContentTypes.join(
+            ", "
+          )}]`
         );
       }
     }
 
-    // Validate body size
-    if (event.body && inputConfig.maxBodySize) {
-      const bodySize = Buffer.byteLength(event.body, "utf8");
+    // Get the actual body content, decoding base64 if necessary
+    let bodyContent = event.body;
+    if (event.body && event.isBase64Encoded) {
+      try {
+        bodyContent = Buffer.from(event.body, "base64").toString("utf-8");
+      } catch (decodeError) {
+        errors.push("Failed to decode base64 request body");
+        return { isValid: false, errors };
+      }
+    }
+
+    // Validate body size (use decoded content for accurate size)
+    if (bodyContent && inputConfig.maxBodySize) {
+      const bodySize = Buffer.byteLength(bodyContent, "utf8");
       if (bodySize > inputConfig.maxBodySize) {
         errors.push(
           `Request body too large. Maximum: ${inputConfig.maxBodySize} bytes, Actual: ${bodySize} bytes`
@@ -220,9 +275,9 @@ export class APISecurityValidator {
 
     // Parse and validate JSON body
     let parsedBody: any;
-    if (event.body) {
+    if (bodyContent) {
       try {
-        parsedBody = JSON.parse(event.body);
+        parsedBody = JSON.parse(bodyContent);
       } catch (error) {
         errors.push("Invalid JSON format in request body");
         return { isValid: false, errors };
@@ -231,7 +286,11 @@ export class APISecurityValidator {
       // Validate required fields
       if (inputConfig.requiredFields) {
         for (const field of inputConfig.requiredFields) {
-          if (!(field in parsedBody) || parsedBody[field] === null || parsedBody[field] === undefined) {
+          if (
+            !(field in parsedBody) ||
+            parsedBody[field] === null ||
+            parsedBody[field] === undefined
+          ) {
             errors.push(`Required field missing: ${field}`);
           }
         }
@@ -260,7 +319,11 @@ export class APISecurityValidator {
           sanitizedData: sanitizedBody,
         };
       } catch (error) {
-        errors.push(`Input sanitization failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+        errors.push(
+          `Input sanitization failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
       }
     }
 
@@ -284,7 +347,7 @@ export class APISecurityValidator {
     const cleanAuthUserId = authContext.userId.startsWith("USER#")
       ? authContext.userId.substring(5)
       : authContext.userId;
-    
+
     const cleanProjectUserId = projectEntrepreneurId.startsWith("USER#")
       ? projectEntrepreneurId.substring(5)
       : projectEntrepreneurId;
@@ -312,7 +375,9 @@ export class APISecurityValidator {
 
     if (!allowedStatuses.includes(currentStatus)) {
       errors.push(
-        `Cannot ${operation} project in '${currentStatus}' status. Allowed statuses: [${allowedStatuses.join(", ")}]`
+        `Cannot ${operation} project in '${currentStatus}' status. Allowed statuses: [${allowedStatuses.join(
+          ", "
+        )}]`
       );
     }
 
@@ -330,9 +395,11 @@ export class APISecurityValidator {
 
     // Hedera account ID format: 0.0.accountId
     const hederaPattern = /^0\.0\.[0-9]+$/;
-    
+
     if (!hederaPattern.test(walletAddress)) {
-      errors.push("Invalid Hedera wallet address format. Expected: 0.0.accountId");
+      errors.push(
+        "Invalid Hedera wallet address format. Expected: 0.0.accountId"
+      );
     }
 
     // Additional validation for reasonable account ID range
@@ -360,23 +427,33 @@ export class APISecurityValidator {
 
     // Validate file size
     if (fileSize > maxSize) {
-      errors.push(`File too large. Maximum: ${maxSize} bytes, Actual: ${fileSize} bytes`);
+      errors.push(
+        `File too large. Maximum: ${maxSize} bytes, Actual: ${fileSize} bytes`
+      );
     }
 
     // Validate file name
     const fileNamePattern = /^[a-zA-Z0-9._-]+\.(jpg|jpeg|png|pdf)$/i;
     if (!fileNamePattern.test(fileName)) {
-      errors.push("Invalid file name. Only alphanumeric characters, dots, underscores, hyphens allowed with jpg, jpeg, png, or pdf extensions");
+      errors.push(
+        "Invalid file name. Only alphanumeric characters, dots, underscores, hyphens allowed with jpg, jpeg, png, or pdf extensions"
+      );
     }
 
     // Validate content type
     const allowedContentTypes = ["image/jpeg", "image/png", "application/pdf"];
     if (!allowedContentTypes.includes(contentType)) {
-      errors.push(`Invalid content type. Allowed: [${allowedContentTypes.join(", ")}]`);
+      errors.push(
+        `Invalid content type. Allowed: [${allowedContentTypes.join(", ")}]`
+      );
     }
 
     // Check for path traversal attempts
-    if (fileName.includes("..") || fileName.includes("/") || fileName.includes("\\")) {
+    if (
+      fileName.includes("..") ||
+      fileName.includes("/") ||
+      fileName.includes("\\")
+    ) {
       errors.push("File name contains invalid path characters");
     }
 
@@ -414,7 +491,15 @@ export class SecurityConfigs {
     inputValidation: {
       maxBodySize: 50 * 1024, // 50KB
       allowedContentTypes: ["application/json"],
-      optionalFields: ["name", "description", "category", "targetFundingGoal", "pricePerStock", "coverImageUrl", "status"],
+      optionalFields: [
+        "name",
+        "description",
+        "category",
+        "targetFundingGoal",
+        "pricePerStock",
+        "coverImageUrl",
+        "status",
+      ],
     },
   };
 
@@ -452,7 +537,12 @@ export class SecurityConfigs {
     inputValidation: {
       maxBodySize: 10 * 1024 * 1024, // 10MB
       allowedContentTypes: ["application/json"],
-      requiredFields: ["documentType", "fileName", "contentType", "fileContent"],
+      requiredFields: [
+        "documentType",
+        "fileName",
+        "contentType",
+        "fileContent",
+      ],
     },
   };
 

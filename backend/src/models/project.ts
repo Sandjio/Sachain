@@ -155,6 +155,7 @@ export const PROJECT_CATEGORIES = [
   "manufacturing",
   "agriculture",
   "energy",
+  "cleantech",
   "real_estate",
   "entertainment",
   "transportation",

@@ -237,9 +237,10 @@ export function validateEntrepreneurId(entrepreneurId: string): {
     return { isValid: false, error: "Entrepreneur ID cannot be empty" };
   }
 
-  // Basic UUID format validation (assuming UUIDs are used)
+  // More flexible UUID format validation to support Cognito UUIDs
+  // Cognito UUIDs can have different formats including mixed case and different versions
   const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidPattern.test(trimmedId)) {
     return {
       isValid: false,

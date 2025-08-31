@@ -1,14 +1,13 @@
 import { APIGatewayProxyHandler, APIGatewayProxyEvent } from "aws-lambda";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-import { v4 as uuidv4 } from "uuid";
 
 import { createProjectLogger } from "../../utils/structured-logger";
 import { ErrorClassifier } from "../../utils/error-handler";
-import { ProjectErrorClassifier, withErrorHandling } from "../../utils/enhanced-error-handler";
-import { ErrorResponseFormatter } from "../../utils/error-response-formatter";
-import { ProjectRecoveryManager, ProjectRollbackOperations } from "../../utils/error-recovery";
-import { ProjectEventPublisher, createProjectEventPublisher } from "../../utils/project-event-publisher";
+import { ProjectErrorClassifier } from "../../utils/enhanced-error-handler";
+import {
+  ProjectRecoveryManager,
+  ProjectRollbackOperations,
+} from "../../utils/error-recovery";
+import { createProjectEventPublisher } from "../../utils/project-event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { projectMetrics } from "../../utils/project-metrics";
 import { UserRepository } from "../../repositories/user-repository";
@@ -20,8 +19,14 @@ import {
   validateCreateProjectInput,
   sanitizeProjectInput,
 } from "../../utils/project-validation";
-import { SecurityMiddleware, AbusePreventionService } from "../../utils/security-hardening";
-import { APISecurityValidator, SecurityConfigs } from "../../utils/api-security-validator";
+import {
+  SecurityMiddleware,
+  AbusePreventionService,
+} from "../../utils/security-hardening";
+import {
+  APISecurityValidator,
+  SecurityConfigs,
+} from "../../utils/api-security-validator";
 import { CORSMiddleware } from "../../utils/cors-security";
 import {
   CreateProjectRequest,
@@ -31,15 +36,22 @@ import {
   KYCValidationResult,
   BusinessRuleValidationResult,
 } from "./types";
-import { CreateProjectInput } from "../../models/project";
 
-const dynamoClient = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
-
-const TABLE_NAME = process.env.TABLE_NAME!;
+// Validate required environment variables
+const TABLE_NAME = process.env.TABLE_NAME;
 const EVENT_BUS_NAME = process.env.EVENT_BUS_NAME || "default";
-const ENVIRONMENT = process.env.ENVIRONMENT!;
+const ENVIRONMENT = process.env.ENVIRONMENT;
 const AWS_REGION = process.env.AWS_REGION || "us-east-1";
+
+if (!TABLE_NAME) {
+  console.error("Missing required environment variable: TABLE_NAME");
+  throw new Error("Missing required environment variable: TABLE_NAME");
+}
+
+if (!ENVIRONMENT) {
+  console.error("Missing required environment variable: ENVIRONMENT");
+  throw new Error("Missing required environment variable: ENVIRONMENT");
+}
 
 // Initialize services
 const logger = createProjectLogger();
@@ -59,12 +71,12 @@ const projectRepository = new ProjectRepository({
 });
 
 const auditRepository = new AuditLogRepository({
-  client: dynamoClient,
+  region: AWS_REGION,
   tableName: TABLE_NAME,
 });
 
 const complianceRepository = new ComplianceRepository({
-  client: dynamoClient,
+  region: AWS_REGION,
   tableName: TABLE_NAME,
 });
 
@@ -86,7 +98,72 @@ const secureHandler = SecurityMiddleware.secureHandler(
   }
 );
 
-export const handler: APIGatewayProxyHandler = secureHandler;
+// Add basic logging wrapper to catch early failures
+export const handler: APIGatewayProxyHandler = async (event, context) => {
+  try {
+    // Decode base64 body before any processing
+    if (event.isBase64Encoded && event.body) {
+      try {
+        event.body = Buffer.from(event.body, "base64").toString("utf-8");
+        event.isBase64Encoded = false;
+        console.log("Decoded base64 body before security validation", {
+          requestId: context.awsRequestId,
+          bodyLength: event.body.length,
+        });
+      } catch (decodeError) {
+        console.error("Failed to decode base64 body", {
+          requestId: context.awsRequestId,
+          error:
+            decodeError instanceof Error
+              ? decodeError.message
+              : String(decodeError),
+        });
+        return {
+          statusCode: 400,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: "Invalid request encoding",
+            requestId: context.awsRequestId,
+          }),
+        };
+      }
+    }
+
+    console.log("Calling secureHandler...", {
+      requestId: context.awsRequestId,
+    });
+
+    const result = await secureHandler(event);
+
+    console.log("Handler completed successfully", {
+      requestId: context.awsRequestId,
+      statusCode: result.statusCode,
+      body: result.body?.substring(0, 200), // First 200 chars of response
+    });
+    return result;
+  } catch (error) {
+    console.error("Handler failed with error", {
+      requestId: context.awsRequestId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    // Return a basic error response
+    return {
+      statusCode: 500,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "Internal server error",
+        requestId: context.awsRequestId,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    };
+  }
+};
 
 async function handleProjectCreationWithSecurity(event: APIGatewayProxyEvent) {
   const startTime = Date.now();
@@ -108,7 +185,7 @@ async function handleProjectCreationWithSecurity(event: APIGatewayProxyEvent) {
       sourceIp: event.requestContext.identity.sourceIp,
       userAgent: event.headers["User-Agent"],
     });
-    
+
     return {
       statusCode: 429,
       headers: {
@@ -156,7 +233,7 @@ async function handleProjectCreationWithSecurity(event: APIGatewayProxyEvent) {
     const result = await handleProjectCreationWithRecovery(event);
 
     const duration = Date.now() - startTime;
-    
+
     // Record API metrics
     await projectMetrics.recordAPILatency(
       event.path || "/projects",
@@ -218,24 +295,21 @@ async function handleProjectCreationWithRecovery(
   event: APIGatewayProxyEvent
 ): Promise<any> {
   const requestId = event.requestContext.requestId;
-  
+
   // Initialize recovery context
-  const recoveryContext = ProjectRecoveryManager.initializeRecovery(
-    requestId,
-    'ProjectCreation'
-  );
+  ProjectRecoveryManager.initializeRecovery(requestId, "ProjectCreation");
 
   try {
     const result = await handleProjectCreation(event);
-    
+
     // Clean up recovery context on success
     ProjectRecoveryManager.cleanupRecovery(requestId);
-    
+
     return result;
   } catch (error) {
     const projectError = ProjectErrorClassifier.classify(error as Error, {
-      operation: 'ProjectCreation',
-      requestId
+      operation: "ProjectCreation",
+      requestId,
     });
 
     // Execute rollback if required
@@ -294,7 +368,41 @@ async function handleProjectCreation(
     // Clean up line breaks that might break JSON parsing
     bodyString = bodyString.replace(/\n/g, "").replace(/\r/g, "");
 
-    const request: CreateProjectRequest = JSON.parse(bodyString);
+    // Debug logging for request body
+    logger.info("Raw request body debug", {
+      operation: "ProjectCreation",
+      requestId,
+      rawBody: event.body,
+      isBase64Encoded: event.isBase64Encoded,
+      processedBodyString: bodyString,
+      bodyLength: bodyString.length,
+    });
+
+    let request: CreateProjectRequest;
+    try {
+      request = JSON.parse(bodyString);
+    } catch (parseError) {
+      const duration = Date.now() - startTime;
+
+      logger.error("JSON parsing failed", {
+        operation: "ProjectCreation",
+        requestId,
+        bodyString,
+        bodyLength: bodyString.length,
+        parseError: (parseError as Error).message,
+        duration,
+      });
+
+      throw new ProjectCreationError(
+        "Invalid JSON format",
+        ErrorCodes.INVALID_REQUEST_FORMAT,
+        400,
+        {
+          parseError: (parseError as Error).message,
+          receivedBody: bodyString.substring(0, 200), // First 200 chars for debugging
+        }
+      );
+    }
 
     logger.info("Processing project creation request", {
       operation: "ProjectCreation",
@@ -355,15 +463,18 @@ async function handleProjectCreation(
     const dbStartTime = Date.now();
     const project = await projectRepository.createProject(sanitizedInput);
     const dbDuration = Date.now() - dbStartTime;
-    
+
     // Record database latency
     await projectMetrics.recordDatabaseLatency("create", "project", dbDuration);
-    
+
     // Add rollback operation for project deletion if subsequent operations fail
     const rollbackOperations = new ProjectRollbackOperations(projectRepository);
     ProjectRecoveryManager.addRollbackOperation(
       requestId,
-      rollbackOperations.createProjectDeletionRollback(project.projectId, requestId)
+      rollbackOperations.createProjectDeletionRollback(
+        project.projectId,
+        requestId
+      )
     );
 
     // Log project creation for audit and compliance
@@ -397,7 +508,7 @@ async function handleProjectCreation(
     await publishProjectCreationEvent(project, requestId);
 
     const duration = Date.now() - startTime;
-    
+
     // Record project creation success metrics
     await projectMetrics.recordProjectCreation(
       true,
@@ -406,7 +517,7 @@ async function handleProjectCreation(
       undefined,
       project.stockSupply
     );
-    
+
     logger.info("Project creation completed successfully", {
       operation: "ProjectCreation",
       requestId,
@@ -449,7 +560,7 @@ async function handleProjectCreation(
         request?.category,
         error.code
       );
-      
+
       await projectMetrics.recordProjectError(
         "creation",
         error.code,
@@ -497,9 +608,9 @@ async function handleProjectCreation(
 
       const projectError = ProjectErrorClassifier.classify(error, {
         operation: "ProjectCreation",
-        requestId
+        requestId,
       });
-      
+
       throw projectError;
     }
 

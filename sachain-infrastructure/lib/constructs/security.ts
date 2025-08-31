@@ -490,7 +490,7 @@ export class SecurityConstruct extends Construct {
       ],
     });
 
-    // DynamoDB permissions - read user profiles, write project data
+    // DynamoDB permissions - read user profiles, write project data, audit logs, compliance logs
     role.addToPolicy(
       new iam.PolicyStatement({
         sid: "DynamoDBProjectOperations",
@@ -500,11 +500,17 @@ export class SecurityConstruct extends Construct {
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
           "dynamodb:Query",
+          "dynamodb:Scan",
         ],
         resources: [this.table.tableArn, `${this.table.tableArn}/index/*`],
         conditions: {
           "ForAllValues:StringLike": {
-            "dynamodb:LeadingKeys": ["USER#*", "PROJECT#*"],
+            "dynamodb:LeadingKeys": [
+              "USER#*",
+              "PROJECT#*",
+              "AUDIT#*",
+              "COMPLIANCE#*",
+            ],
           },
         },
       })
@@ -522,7 +528,7 @@ export class SecurityConstruct extends Construct {
         ],
         conditions: {
           StringEquals: {
-            "events:source": "sachain.project",
+            "events:source": "sachain.projects",
           },
         },
       })
@@ -537,7 +543,7 @@ export class SecurityConstruct extends Construct {
         resources: ["*"],
         conditions: {
           StringEquals: {
-            "cloudwatch:namespace": "Sachain/ProjectCreation",
+            "cloudwatch:namespace": "Sachain/Projects",
           },
         },
       })
