@@ -4,7 +4,10 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
 import { createProjectLogger } from "../../utils/structured-logger";
 import { ErrorClassifier } from "../../utils/error-handler";
-import { ProjectEventPublisher, createProjectEventPublisher } from "../../utils/project-event-publisher";
+import {
+  ProjectEventPublisher,
+  createProjectEventPublisher,
+} from "../../utils/project-event-publisher";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { ProjectRepository } from "../../repositories/project-repository";
 import {
@@ -761,7 +764,10 @@ async function performCascadeDeletion(
     // Delete project statistics
     const stats = await getProjectRepository().getProjectStats(projectId);
     if (stats) {
-      await getProjectRepository().deleteItemByKey(`PROJECT#${projectId}`, "STATS");
+      await getProjectRepository().deleteItemByKey(
+        `PROJECT#${projectId}`,
+        "STATS"
+      );
       logger.info("Project statistics deleted", {
         operation: "CascadeDeletion",
         requestId,
@@ -771,9 +777,8 @@ async function performCascadeDeletion(
     }
 
     // Delete Hedera transactions
-    const transactions = await getProjectRepository().getProjectHederaTransactions(
-      projectId
-    );
+    const transactions =
+      await getProjectRepository().getProjectHederaTransactions(projectId);
     for (const transaction of transactions.items) {
       await getProjectRepository().deleteItemByKey(
         `PROJECT#${projectId}`,
