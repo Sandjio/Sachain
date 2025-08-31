@@ -12,7 +12,18 @@
     "test:e2e": "jest --config=src/__tests__/e2e/jest.e2e.config.js",
     "test:e2e:watch": "jest --config=src/__tests__/e2e/jest.e2e.config.js --watch",
     "test:e2e:coverage": "jest --config=src/__tests__/e2e/jest.e2e.config.js --coverage",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts"
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "health-check": "ts-node scripts/health-check.ts",
+    "deploy": "scripts/deploy-with-validation.sh",
+    "deploy:dev": "scripts/deploy-with-validation.sh dev",
+    "deploy:staging": "scripts/deploy-with-validation.sh staging",
+    "deploy:prod": "scripts/deploy-with-validation.sh prod --auto-rollback",
+    "validate-deployment": "ts-node scripts/deployment-validation.ts",
+    "rollback": "ts-node scripts/rollback-procedures.ts",
+    "rollback:emergency": "ts-node scripts/rollback-procedures.ts emergency",
+    "rollback:auto": "ts-node scripts/rollback-procedures.ts auto",
+    "system-diagnostics": "ts-node scripts/system-diagnostics.ts",
+    "performance-check": "ts-node scripts/performance-check.ts"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",
