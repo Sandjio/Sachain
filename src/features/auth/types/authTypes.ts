@@ -21,10 +21,16 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
 // Representation of a logged in user (from Cognito attributes)
 export interface AuthUser {
   email: string;
-  givenName: string;
-  familyName: string;
+  givenName?: string;
+  familyName?: string;
   role: "startup" | "investor";
 }
