@@ -58,6 +58,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     userAgent: event.headers["User-Agent"],
   });
 
+  // Handle CORS preflight requests
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+        "Access-Control-Max-Age": "86400",
+      },
+      body: "",
+    };
+  }
+
   try {
     const path = event.path;
     let result;
@@ -77,6 +92,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({ message: "Endpoint not found" }),
       };
@@ -129,6 +147,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: errorDetails.userMessage,
@@ -177,6 +198,9 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({
           message: "Authentication failed",
@@ -229,6 +253,9 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({
           message: validation.errors.join("; "),
@@ -279,6 +306,9 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({
           message: uploadResult.error || "File upload failed",
@@ -423,6 +453,9 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify(response),
     };
@@ -463,6 +496,9 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: errorDetails.userMessage,
