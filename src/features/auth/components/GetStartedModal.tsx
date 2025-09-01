@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useTranslate } from "@/hooks/useTranslate";
 import LoginForm from "./LoginForm";
-import SignupForm from "./SignupForm";
-import SignupStep1 from "./signup/SignupStep1";
-import SignupStep2 from "./signup/SignupStep2"; 
 import SignupFormWizard from "@/features/auth/components/signup/SignupFormWizard";
 
 interface GetStartedModalProps {
@@ -59,3 +56,4 @@ export default function GetStartedModal({ open, onOpenChange }: GetStartedModalP
     </Dialog>
   );
 }
+
