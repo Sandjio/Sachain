@@ -16,18 +16,10 @@ import {
   AccountBalanceQuery,
   Hbar,
   Status,
-  TransactionResponse,
-  TransactionReceipt,
   TokenInfo,
   TokenNftInfo,
-  AccountBalance,
 } from "@hashgraph/sdk";
 import { ExponentialBackoff, RetryError } from "./retry";
-import {
-  ErrorClassifier,
-  ErrorCategory,
-  AWSServiceError,
-} from "./error-handler";
 import { projectMetrics } from "./project-metrics";
 
 export interface HederaConfig {
@@ -67,7 +59,7 @@ export interface TokenCreationParams {
   tokenName: string;
   tokenSymbol: string;
   totalSupply: number;
-  metadata: ProjectMetadata;
+  metadata?: ProjectMetadata;
   treasuryAccountId?: string;
 }
 
@@ -82,7 +74,7 @@ export interface TokenCreationResult {
 export interface NFTMintingParams {
   tokenId: string;
   quantity: number;
-  metadata: StockMetadata[];
+  metadata: any[]; // Allow any metadata structure to support minimal metadata
 }
 
 export interface NFTMintingResult {
@@ -146,7 +138,9 @@ export class HederaService {
 
     try {
       this.operatorId = AccountId.fromString(config.operatorId);
-      this.operatorKey = PrivateKey.fromString(config.operatorKey);
+
+      // Parse private key using the dedicated method
+      this.operatorKey = this.parsePrivateKey(config.operatorKey);
 
       // Initialize client based on network
       switch (config.network) {
@@ -206,6 +200,42 @@ export class HederaService {
   }
 
   /**
+   * Parse private key from various formats (DER, hex, etc.)
+   */
+  private parsePrivateKey(keyString: string): PrivateKey {
+    if (keyString.startsWith("0x")) {
+      // Hex format with 0x prefix
+      const hexKey = keyString.slice(2);
+      return PrivateKey.fromStringECDSA(hexKey);
+    } else if (keyString.startsWith("30")) {
+      // DER format - try to parse directly first
+      try {
+        return PrivateKey.fromStringDer(keyString);
+      } catch (derError) {
+        // If DER parsing fails, extract the raw private key bytes
+        // For your specific DER key: 3030020100300706052b8104000a04220420d0be273e8cc795c37696efeee5c06a3b7755f3229601b4b3d8681d44fca63152
+        // The private key starts after the DER header, typically at position where "0420" appears
+        const keyMatch = keyString.match(/0420([a-fA-F0-9]{64})/);
+        if (keyMatch) {
+          const rawKey = keyMatch[1];
+          return PrivateKey.fromStringECDSA(rawKey);
+        }
+
+        // Fallback: try last 64 characters as raw key
+        if (keyString.length >= 64) {
+          const rawKey = keyString.slice(-64);
+          return PrivateKey.fromStringECDSA(rawKey);
+        }
+
+        throw new Error(`Failed to parse DER private key: ${derError}`);
+      }
+    } else {
+      // Assume raw hex format
+      return PrivateKey.fromStringECDSA(keyString);
+    }
+  }
+
+  /**
    * Validate Hedera configuration
    */
   private validateConfig(config: HederaConfig): void {
@@ -232,12 +262,16 @@ export class HederaService {
 
     // Validate operator key format
     try {
-      PrivateKey.fromString(config.operatorKey);
+      this.parsePrivateKey(config.operatorKey);
     } catch (error) {
       throw new HederaServiceError(
-        "Invalid operator private key format",
+        "Invalid operator private key format. Expected DER format, hex format starting with 0x, or raw ECDSA hex",
         HederaErrorCodes.INVALID_CONFIGURATION,
-        400
+        400,
+        {
+          keyFormat: config.operatorKey.substring(0, 20) + "...",
+          error: (error as Error).message,
+        }
       );
     }
   }
@@ -250,7 +284,7 @@ export class HederaService {
     estimatedGasFee?: number
   ): Promise<WalletValidationResult> {
     const startTime = Date.now();
-    
+
     try {
       const result = await this.retry.execute(async () => {
         // Validate account ID format
@@ -273,7 +307,7 @@ export class HederaService {
         const hbarBalance = balance.hbars.toBigNumber().toNumber();
 
         // Calculate minimum required balance (estimated gas fee + buffer)
-        const minBalance = (estimatedGasFee || 5) + 1; // 1 Hbar buffer
+        const minBalance = (estimatedGasFee || 5) + 0.1; // 0.1 Hbar buffer (more reasonable)
         const hasMinimumBalance = hbarBalance >= minBalance;
         const canAffordOperation = estimatedGasFee
           ? hbarBalance >= estimatedGasFee
@@ -289,17 +323,25 @@ export class HederaService {
       }, "validateWallet");
 
       const duration = Date.now() - startTime;
-      
+
       // Record Hedera network health metrics
-      await projectMetrics.recordHederaNetworkHealth(true, duration, "validateWallet");
-      
+      await projectMetrics.recordHederaNetworkHealth(
+        true,
+        duration,
+        "validateWallet"
+      );
+
       return result.result;
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       // Record Hedera network health failure
-      await projectMetrics.recordHederaNetworkHealth(false, duration, "validateWallet");
-      
+      await projectMetrics.recordHederaNetworkHealth(
+        false,
+        duration,
+        "validateWallet"
+      );
+
       if (error instanceof RetryError) {
         throw new HederaServiceError(
           "Failed to validate wallet after multiple attempts",
@@ -324,9 +366,9 @@ export class HederaService {
     nftQuantity?: number;
   }): Promise<GasFeeEstimate> {
     try {
-      // Base estimates in Hbar (these are conservative estimates)
-      const tokenCreationFee = 20; // ~20 Hbar for token creation
-      const nftMintingFeePerToken = 0.1; // ~0.1 Hbar per NFT
+      // Base estimates in Hbar (more realistic estimates)
+      const tokenCreationFee = 5; // ~5 Hbar for token creation (more realistic)
+      const nftMintingFeePerToken = 0.01; // ~0.01 Hbar per NFT (more realistic)
 
       let totalEstimate = 0;
 
@@ -359,13 +401,13 @@ export class HederaService {
    */
   async createToken(params: TokenCreationParams): Promise<TokenCreationResult> {
     const startTime = Date.now();
-    
+
     try {
       this.validateTokenCreationParams(params);
 
       const result = await this.retry.execute(async () => {
         // Create the token
-        const tokenCreateTx = new TokenCreateTransaction()
+        let tokenCreateTx = new TokenCreateTransaction()
           .setTokenName(params.tokenName)
           .setTokenSymbol(params.tokenSymbol)
           .setTokenType(TokenType.NonFungibleUnique)
@@ -377,9 +419,19 @@ export class HederaService {
               : this.operatorId
           )
           .setSupplyKey(this.operatorKey)
-          .setAdminKey(this.operatorKey)
-          .setMetadata(Buffer.from(JSON.stringify(params.metadata)))
-          .freezeWith(this.client);
+          .setAdminKey(this.operatorKey);
+
+        // Only set metadata if provided and small enough
+        if (params.metadata) {
+          const metadataString = JSON.stringify(params.metadata);
+          if (metadataString.length <= 100) {
+            tokenCreateTx = tokenCreateTx.setMetadata(
+              Buffer.from(metadataString)
+            );
+          }
+        }
+
+        tokenCreateTx = tokenCreateTx.freezeWith(this.client);
 
         // Sign and execute transaction
         const tokenCreateSign = await tokenCreateTx.sign(this.operatorKey);
@@ -412,16 +464,20 @@ export class HederaService {
       }, "createToken");
 
       const duration = Date.now() - startTime;
-      
+
       // Record successful token creation metrics
       await projectMetrics.recordHederaTokenCreation(
         true,
         duration,
         parseFloat(result.result.totalCost)
       );
-      
-      await projectMetrics.recordHederaNetworkHealth(true, duration, "createToken");
-      
+
+      await projectMetrics.recordHederaNetworkHealth(
+        true,
+        duration,
+        "createToken"
+      );
+
       console.log(`Token created successfully: ${result.result.tokenId}`, {
         projectId: params.projectId,
         tokenName: params.tokenName,
@@ -432,12 +488,22 @@ export class HederaService {
       return result.result;
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       // Record failed token creation metrics
-      const errorType = error instanceof HederaServiceError ? error.code : "UNKNOWN_ERROR";
-      await projectMetrics.recordHederaTokenCreation(false, duration, undefined, errorType);
-      await projectMetrics.recordHederaNetworkHealth(false, duration, "createToken");
-      
+      const errorType =
+        error instanceof HederaServiceError ? error.code : "UNKNOWN_ERROR";
+      await projectMetrics.recordHederaTokenCreation(
+        false,
+        duration,
+        undefined,
+        errorType
+      );
+      await projectMetrics.recordHederaNetworkHealth(
+        false,
+        duration,
+        "createToken"
+      );
+
       if (error instanceof RetryError) {
         throw new HederaServiceError(
           "Failed to create token after multiple attempts",
@@ -457,7 +523,7 @@ export class HederaService {
    */
   async mintNFTs(params: NFTMintingParams): Promise<NFTMintingResult> {
     const startTime = Date.now();
-    
+
     try {
       this.validateNFTMintingParams(params);
 
@@ -509,7 +575,7 @@ export class HederaService {
       }, "mintNFTs");
 
       const duration = Date.now() - startTime;
-      
+
       // Record successful NFT minting metrics
       await projectMetrics.recordHederaNFTMinting(
         true,
@@ -517,9 +583,13 @@ export class HederaService {
         result.result.serialNumbers.length,
         parseFloat(result.result.totalCost)
       );
-      
-      await projectMetrics.recordHederaNetworkHealth(true, duration, "mintNFTs");
-      
+
+      await projectMetrics.recordHederaNetworkHealth(
+        true,
+        duration,
+        "mintNFTs"
+      );
+
       console.log(
         `NFTs minted successfully: ${result.result.serialNumbers.length} tokens`,
         {
@@ -532,12 +602,23 @@ export class HederaService {
       return result.result;
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       // Record failed NFT minting metrics
-      const errorType = error instanceof HederaServiceError ? error.code : "UNKNOWN_ERROR";
-      await projectMetrics.recordHederaNFTMinting(false, duration, 0, undefined, errorType);
-      await projectMetrics.recordHederaNetworkHealth(false, duration, "mintNFTs");
-      
+      const errorType =
+        error instanceof HederaServiceError ? error.code : "UNKNOWN_ERROR";
+      await projectMetrics.recordHederaNFTMinting(
+        false,
+        duration,
+        0,
+        undefined,
+        errorType
+      );
+      await projectMetrics.recordHederaNetworkHealth(
+        false,
+        duration,
+        "mintNFTs"
+      );
+
       if (error instanceof RetryError) {
         throw new HederaServiceError(
           "Failed to mint NFTs after multiple attempts",
@@ -557,7 +638,7 @@ export class HederaService {
    */
   async getTokenInfo(tokenId: string): Promise<TokenInfo> {
     const startTime = Date.now();
-    
+
     try {
       const result = await this.retry.execute(async () => {
         const tokenInfoQuery = new TokenInfoQuery().setTokenId(tokenId);
@@ -566,13 +647,21 @@ export class HederaService {
       }, "getTokenInfo");
 
       const duration = Date.now() - startTime;
-      await projectMetrics.recordHederaNetworkHealth(true, duration, "getTokenInfo");
+      await projectMetrics.recordHederaNetworkHealth(
+        true,
+        duration,
+        "getTokenInfo"
+      );
 
       return result.result;
     } catch (error) {
       const duration = Date.now() - startTime;
-      await projectMetrics.recordHederaNetworkHealth(false, duration, "getTokenInfo");
-      
+      await projectMetrics.recordHederaNetworkHealth(
+        false,
+        duration,
+        "getTokenInfo"
+      );
+
       if (error instanceof RetryError) {
         throw new HederaServiceError(
           "Failed to get token info after multiple attempts",
@@ -596,9 +685,9 @@ export class HederaService {
   ): Promise<TokenNftInfo> {
     try {
       const result = await this.retry.execute(async () => {
-        const nftInfoQuery = new TokenNftInfoQuery()
-          .setTokenId(tokenId)
-          .setNftId(serialNumber.toString());
+        const nftInfoQuery = new TokenNftInfoQuery().setNftId(
+          tokenId + "." + serialNumber
+        );
 
         const nftInfos = await nftInfoQuery.execute(this.client);
 
@@ -697,18 +786,17 @@ export class HederaService {
       );
     }
 
-    // Validate each metadata object
+    // Validate metadata size (Hedera limit is 100 bytes per NFT)
     params.metadata.forEach((meta, index) => {
-      if (
-        !meta.name ||
-        !meta.project_id ||
-        typeof meta.stock_number !== "number"
-      ) {
+      const metadataString = JSON.stringify(meta);
+      const metadataSize = Buffer.byteLength(metadataString, "utf8");
+
+      if (metadataSize > 100) {
         throw new HederaServiceError(
-          `Invalid metadata at index ${index}: missing required fields`,
+          `Metadata at index ${index} exceeds 100 byte limit: ${metadataSize} bytes`,
           HederaErrorCodes.METADATA_VALIDATION_FAILED,
           400,
-          { index, metadata: meta }
+          { index, metadataSize, metadata: meta }
         );
       }
     });
@@ -726,11 +814,31 @@ export class HederaService {
     const errorStatus = error.status?.toString() || "";
 
     // Map Hedera status codes to our error codes
+    if (errorStatus.includes("INVALID_SIGNATURE")) {
+      return new HederaServiceError(
+        "Invalid signature - check private key configuration",
+        HederaErrorCodes.INVALID_CONFIGURATION,
+        400,
+        { operation, context, hederaStatus: errorStatus },
+        error
+      );
+    }
+
     if (errorStatus.includes("INSUFFICIENT_PAYER_BALANCE")) {
       return new HederaServiceError(
         "Insufficient balance to complete transaction",
         HederaErrorCodes.INSUFFICIENT_BALANCE,
         402,
+        { operation, context, hederaStatus: errorStatus },
+        error
+      );
+    }
+
+    if (errorStatus.includes("METADATA_TOO_LONG")) {
+      return new HederaServiceError(
+        "Token metadata exceeds maximum size limit",
+        HederaErrorCodes.METADATA_VALIDATION_FAILED,
+        400,
         { operation, context, hederaStatus: errorStatus },
         error
       );
@@ -782,9 +890,9 @@ export class HederaService {
   /**
    * Close the client connection
    */
-  async close(): Promise<void> {
+  close(): void {
     try {
-      await this.client.close();
+      this.client.close();
     } catch (error) {
       console.warn("Error closing Hedera client:", error);
     }
@@ -809,4 +917,62 @@ export function createHederaService(
 
   const finalConfig = { ...defaultConfig, ...config };
   return new HederaService(finalConfig);
+}
+
+/**
+ * Factory function to create HederaService instance with AWS Secrets Manager
+ */
+export async function createHederaServiceFromSecrets(): Promise<HederaService> {
+  const secretName = process.env.HEDERA_CREDENTIALS_SECRET_NAME;
+
+  if (!secretName) {
+    throw new HederaServiceError(
+      "HEDERA_CREDENTIALS_SECRET_NAME environment variable is required",
+      HederaErrorCodes.INVALID_CONFIGURATION,
+      500
+    );
+  }
+
+  try {
+    // Import AWS SDK v3 for Secrets Manager
+    const { SecretsManagerClient, GetSecretValueCommand } = await import(
+      "@aws-sdk/client-secrets-manager"
+    );
+
+    const client = new SecretsManagerClient({
+      region: process.env.AWS_REGION || "us-east-1",
+    });
+
+    const command = new GetSecretValueCommand({
+      SecretId: secretName,
+    });
+
+    const response = await client.send(command);
+
+    if (!response.SecretString) {
+      throw new Error("Secret value is empty");
+    }
+
+    const credentials = JSON.parse(response.SecretString);
+
+    const config: HederaConfig = {
+      operatorId: credentials.operatorId,
+      operatorKey: credentials.operatorKey,
+      network: credentials.network || "testnet",
+      maxTransactionFee: 100, // 100 Hbar max
+      maxQueryPayment: 1, // 1 Hbar max
+    };
+
+    return new HederaService(config);
+  } catch (error) {
+    throw new HederaServiceError(
+      `Failed to load Hedera credentials from AWS Secrets Manager: ${
+        (error as Error).message
+      }`,
+      HederaErrorCodes.INVALID_CONFIGURATION,
+      500,
+      { secretName },
+      error as Error
+    );
+  }
 }

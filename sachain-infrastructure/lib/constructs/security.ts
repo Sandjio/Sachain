@@ -622,7 +622,10 @@ export class SecurityConstruct extends Construct {
         resources: ["*"],
         conditions: {
           StringEquals: {
-            "cloudwatch:namespace": "Sachain/StockMinting",
+            "cloudwatch:namespace": [
+              "Sachain/StockMinting",
+              "Sachain/Projects",
+            ],
           },
         },
       })
