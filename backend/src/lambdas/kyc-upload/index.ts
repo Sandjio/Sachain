@@ -46,9 +46,17 @@ const retry = new ExponentialBackoff({
   jitterType: "full",
 });
 
+// Helper function to get allowed origin
+const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
+  const origin = event.headers.origin ?? event.headers.Origin ?? "";
+  const allowedOrigins = ["http://localhost:5173", "http://localhost:3001"];
+  return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
+};
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("KYC Upload Lambda triggered", {
     operation: "LambdaInvocation",
@@ -63,7 +71,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     return {
       statusCode: 200,
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers":
           "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
@@ -91,7 +100,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         statusCode: 404,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
           "Access-Control-Allow-Methods": "POST, OPTIONS",
           "Access-Control-Allow-Headers":
             "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
@@ -146,7 +156,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers":
           "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
@@ -162,6 +173,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("Direct upload started", {
     operation: "DirectUpload",
@@ -197,7 +209,8 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         statusCode: 401,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
           "Access-Control-Allow-Methods": "POST, OPTIONS",
           "Access-Control-Allow-Headers":
             "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
@@ -252,7 +265,8 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         statusCode: 400,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
           "Access-Control-Allow-Methods": "POST, OPTIONS",
           "Access-Control-Allow-Headers":
             "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
@@ -305,7 +319,8 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         statusCode: 500,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
           "Access-Control-Allow-Methods": "POST, OPTIONS",
           "Access-Control-Allow-Headers":
             "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
@@ -452,7 +467,8 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers":
           "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
@@ -495,7 +511,8 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers":
           "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",

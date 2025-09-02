@@ -31,7 +31,9 @@ export class CORSSecurityManager {
       "https://www.sachain.com",
       "https://app.sachain.com",
       // Development origins (should be removed in production)
-      ...(process.env.NODE_ENV === "development" ? ["http://localhost:3000", "http://localhost:3001"] : []),
+      ...(process.env.NODE_ENV === "development"
+        ? ["http://localhost:3000", "http://localhost:3001"]
+        : []),
     ],
     allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
@@ -66,7 +68,10 @@ export class CORSSecurityManager {
 
     // Validate origin
     if (origin) {
-      const originValidation = this.validateOrigin(origin, config.allowedOrigins);
+      const originValidation = this.validateOrigin(
+        origin,
+        config.allowedOrigins
+      );
       if (!originValidation.isValid) {
         errors.push(...originValidation.errors);
         return { isValid: false, errors };
@@ -83,7 +88,10 @@ export class CORSSecurityManager {
       // Validate requested headers
       const requestHeaders = event.headers["Access-Control-Request-Headers"];
       if (requestHeaders) {
-        const headerValidation = this.validateRequestHeaders(requestHeaders, config.allowedHeaders);
+        const headerValidation = this.validateRequestHeaders(
+          requestHeaders,
+          config.allowedHeaders
+        );
         if (!headerValidation.isValid) {
           errors.push(...headerValidation.errors);
         }
@@ -92,7 +100,10 @@ export class CORSSecurityManager {
 
     return {
       isValid: errors.length === 0,
-      allowedOrigin: origin && this.isOriginAllowed(origin, config.allowedOrigins) ? origin : config.allowedOrigins[0],
+      allowedOrigin:
+        origin && this.isOriginAllowed(origin, config.allowedOrigins)
+          ? origin
+          : config.allowedOrigins[0],
       errors,
     };
   }
@@ -120,7 +131,8 @@ export class CORSSecurityManager {
 
     // Set exposed headers
     if (config.exposedHeaders && config.exposedHeaders.length > 0) {
-      headers["Access-Control-Expose-Headers"] = config.exposedHeaders.join(", ");
+      headers["Access-Control-Expose-Headers"] =
+        config.exposedHeaders.join(", ");
     }
 
     // Set credentials
@@ -134,7 +146,8 @@ export class CORSSecurityManager {
     }
 
     // Add security headers
-    headers["Vary"] = "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
+    headers["Vary"] =
+      "Origin, Access-Control-Request-Method, Access-Control-Request-Headers";
 
     return headers;
   }
@@ -176,13 +189,16 @@ export class CORSSecurityManager {
   /**
    * Validate origin against allowed origins list
    */
-  private static validateOrigin(origin: string, allowedOrigins: string[]): CORSValidationResult {
+  private static validateOrigin(
+    origin: string,
+    allowedOrigins: string[]
+  ): CORSValidationResult {
     const errors: string[] = [];
 
     // Basic URL validation
     try {
       const url = new URL(origin);
-      
+
       // Check protocol
       if (!["http:", "https:"].includes(url.protocol)) {
         errors.push("Invalid origin protocol. Only HTTP and HTTPS allowed");
@@ -192,7 +208,6 @@ export class CORSSecurityManager {
       if (this.containsSuspiciousPatterns(origin)) {
         errors.push("Origin contains suspicious patterns");
       }
-
     } catch (error) {
       errors.push("Invalid origin URL format");
     }
@@ -211,19 +226,25 @@ export class CORSSecurityManager {
   /**
    * Check if origin is in allowed origins list
    */
-  private static isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
+  private static isOriginAllowed(
+    origin: string,
+    allowedOrigins: string[]
+  ): boolean {
     // Exact match
     if (allowedOrigins.includes(origin)) {
       return true;
     }
 
     // Wildcard subdomain matching (e.g., *.sachain.com)
-    return allowedOrigins.some(allowedOrigin => {
+    return allowedOrigins.some((allowedOrigin) => {
       if (allowedOrigin.startsWith("*.")) {
         const domain = allowedOrigin.substring(2);
         try {
           const originUrl = new URL(origin);
-          return originUrl.hostname.endsWith(`.${domain}`) || originUrl.hostname === domain;
+          return (
+            originUrl.hostname.endsWith(`.${domain}`) ||
+            originUrl.hostname === domain
+          );
         } catch {
           return false;
         }
@@ -240,8 +261,10 @@ export class CORSSecurityManager {
     allowedHeaders: string[]
   ): CORSValidationResult {
     const errors: string[] = [];
-    const requestedHeaders = requestHeaders.split(",").map(h => h.trim().toLowerCase());
-    const allowedHeadersLower = allowedHeaders.map(h => h.toLowerCase());
+    const requestedHeaders = requestHeaders
+      .split(",")
+      .map((h) => h.trim().toLowerCase());
+    const allowedHeadersLower = allowedHeaders.map((h) => h.toLowerCase());
 
     for (const header of requestedHeaders) {
       if (!allowedHeadersLower.includes(header)) {
@@ -263,7 +286,9 @@ export class CORSSecurityManager {
       // IP addresses (should use domain names)
       /^https?:\/\/\d+\.\d+\.\d+\.\d+/,
       // Localhost variations (except in development)
-      ...(process.env.NODE_ENV !== "development" ? [/localhost/i, /127\.0\.0\.1/, /0\.0\.0\.0/] : []),
+      ...(process.env.NODE_ENV !== "development"
+        ? [/localhost/i, /127\.0\.0\.1/, /0\.0\.0\.0/]
+        : []),
       // Suspicious TLDs
       /\.(tk|ml|ga|cf)$/i,
       // URL shorteners
@@ -272,7 +297,7 @@ export class CORSSecurityManager {
       /[<>'"]/,
     ];
 
-    return suspiciousPatterns.some(pattern => pattern.test(origin));
+    return suspiciousPatterns.some((pattern) => pattern.test(origin));
   }
 
   /**
@@ -334,10 +359,14 @@ export class CORSMiddleware {
     handler: (event: APIGatewayProxyEvent) => Promise<APIGatewayProxyResult>,
     config?: CORSConfig
   ) {
-    return async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-      const corsConfig = config || CORSSecurityManager.getEnvironmentConfig(
-        process.env.NODE_ENV || "development"
-      );
+    return async (
+      event: APIGatewayProxyEvent
+    ): Promise<APIGatewayProxyResult> => {
+      const corsConfig =
+        config ||
+        CORSSecurityManager.getEnvironmentConfig(
+          process.env.NODE_ENV || "development"
+        );
 
       // Handle preflight requests
       if (event.httpMethod === "OPTIONS") {
@@ -349,7 +378,10 @@ export class CORSMiddleware {
         const result = await handler(event);
 
         // Add CORS headers to the response
-        const corsHeaders = CORSSecurityManager.generateCORSHeaders(event, corsConfig);
+        const corsHeaders = CORSSecurityManager.generateCORSHeaders(
+          event,
+          corsConfig
+        );
 
         return {
           ...result,
@@ -362,7 +394,10 @@ export class CORSMiddleware {
         console.error("Handler error:", error);
 
         // Return error response with CORS headers
-        const corsHeaders = CORSSecurityManager.generateCORSHeaders(event, corsConfig);
+        const corsHeaders = CORSSecurityManager.generateCORSHeaders(
+          event,
+          corsConfig
+        );
 
         return {
           statusCode: 500,
@@ -398,20 +433,24 @@ export class CORSSecurityAudit {
 
     // Check for wildcard origins
     if (config.allowedOrigins.includes("*")) {
-      issues.push("Wildcard origin (*) allows any domain - major security risk");
+      issues.push(
+        "Wildcard origin (*) allows any domain - major security risk"
+      );
       securityScore -= 50;
     }
 
     // Check for HTTP origins in production
-    const httpOrigins = config.allowedOrigins.filter(origin => origin.startsWith("http://"));
+    const httpOrigins = config.allowedOrigins.filter((origin) =>
+      origin.startsWith("http://")
+    );
     if (httpOrigins.length > 0 && process.env.NODE_ENV === "production") {
       issues.push("HTTP origins in production environment - security risk");
       securityScore -= 20;
     }
 
     // Check for localhost in production
-    const localhostOrigins = config.allowedOrigins.filter(origin => 
-      origin.includes("localhost") || origin.includes("127.0.0.1")
+    const localhostOrigins = config.allowedOrigins.filter(
+      (origin) => origin.includes("localhost") || origin.includes("127.0.0.1")
     );
     if (localhostOrigins.length > 0 && process.env.NODE_ENV === "production") {
       issues.push("Localhost origins in production - should be removed");
@@ -420,7 +459,9 @@ export class CORSSecurityAudit {
 
     // Check credentials with wildcard
     if (config.credentials && config.allowedOrigins.includes("*")) {
-      issues.push("Credentials enabled with wildcard origin - not allowed by browsers");
+      issues.push(
+        "Credentials enabled with wildcard origin - not allowed by browsers"
+      );
       securityScore -= 30;
     }
 
@@ -432,7 +473,7 @@ export class CORSSecurityAudit {
 
     // Check for overly permissive headers
     const sensitiveHeaders = ["authorization", "cookie", "x-api-key"];
-    const allowedSensitiveHeaders = config.allowedHeaders.filter(header =>
+    const allowedSensitiveHeaders = config.allowedHeaders.filter((header) =>
       sensitiveHeaders.includes(header.toLowerCase())
     );
     if (allowedSensitiveHeaders.length > 0) {
@@ -451,7 +492,7 @@ export class CORSSecurityAudit {
    */
   static generateSecurityReport(config: CORSConfig): string {
     const audit = this.auditConfiguration(config);
-    
+
     let report = "CORS Security Audit Report\n";
     report += "==========================\n\n";
     report += `Security Score: ${audit.securityScore}/100\n\n`;

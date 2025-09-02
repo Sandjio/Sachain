@@ -327,6 +327,18 @@ export class LambdaConstruct extends Construct {
         EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
         ENVIRONMENT: props.environment,
         FRONTEND_URL: `https://app.sachain-${props.environment}.com`,
+        // Hedera configuration from environment variables
+        HEDERA_OPERATOR_ID: "0.0.6621818",
+        HEDERA_OPERATOR_KEY:
+          "3030020100300706052b8104000a04220420d0be273e8cc795c37696efeee5c06a3b7755f3229601b4b3d8681d44fca63152",
+        HEDERA_NETWORK: "testnet",
+        HEDERA_MAX_TRANSACTION_FEE: "100",
+        HEDERA_MAX_QUERY_PAYMENT: "1",
+        // Legacy environment variables for backward compatibility
+        OPERATION_ID: "0.0.6621818",
+        OPERATION_KEY:
+          "3030020100300706052b8104000a04220420d0be273e8cc795c37696efeee5c06a3b7755f3229601b4b3d8681d44fca63152",
+        NETWORK: "testnet",
       },
       timeout: cdk.Duration.minutes(15), // Longer timeout for minting operations
       memorySize: 1024, // More memory for batch operations
@@ -376,22 +388,6 @@ export class LambdaConstruct extends Construct {
       restApiName: `sachain-api-${props.environment}`,
       description: "Unified API for Sachain platform",
       binaryMediaTypes: ["*/*"],
-      defaultCorsPreflightOptions: {
-        allowOrigins:
-          props.environment === "prod"
-            ? ["https://sachain.emmsandjio.com"]
-            : apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: [
-          "Content-Type",
-          "X-Amz-Date",
-          "Authorization",
-          "X-Api-Key",
-          "X-Amz-Security-Token",
-        ],
-        allowCredentials: true,
-        maxAge: cdk.Duration.hours(1),
-      },
       deployOptions: {
         stageName: props.environment,
         loggingLevel: apigateway.MethodLoggingLevel.INFO,
@@ -466,6 +462,9 @@ export class LambdaConstruct extends Construct {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
+
+    // Add OPTIONS method without authorization (handled by Lambda)
+    uploadResource.addMethod("OPTIONS", kycUploadIntegration);
 
     // Add admin endpoints with authorization
     const approveResource = this.adminResource.addResource("approve");
