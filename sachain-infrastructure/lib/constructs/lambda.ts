@@ -22,6 +22,7 @@ export interface LambdaConstructProps {
   securityConstruct?: SecurityConstruct;
   stockMintingRole?: import("aws-cdk-lib/aws-iam").Role;
   stockMintingStatusRole?: import("aws-cdk-lib/aws-iam").Role;
+  omPaymentsRole?: import("aws-cdk-lib/aws-iam").Role;
 }
 
 export class LambdaConstruct extends Construct {
@@ -34,6 +35,7 @@ export class LambdaConstruct extends Construct {
   public readonly projectManagementLambda: lambda.Function;
   public readonly stockMintingLambda: lambda.Function;
   public readonly stockMintingStatusLambda: lambda.Function;
+  public readonly omPaymentsLambda: lambda.Function;
   public readonly api: apigateway.RestApi;
   private cognitoAuthorizer?: apigateway.CognitoUserPoolsAuthorizer;
   private kycResource: apigateway.Resource;
@@ -383,6 +385,40 @@ export class LambdaConstruct extends Construct {
       }
     );
 
+    // Orange Money Payments Lambda
+    this.omPaymentsLambda = new NodejsFunction(this, "OMPaymentsLambda", {
+      functionName: `sachain-om-payments-${props.environment}`,
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/om-payments/index.ts"
+      ),
+      role: props.securityConstruct?.omPaymentsRole,
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: [
+          "aws-lambda",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/lib-dynamodb",
+          "@aws-sdk/client-cloudwatch",
+          "node-fetch", // Include node-fetch as an external module
+        ],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
+      environment: {
+        TABLE_NAME: props.table.tableName,
+        ENVIRONMENT: props.environment,
+        // Add other necessary environment variables here
+      },
+      timeout: cdk.Duration.minutes(2),
+      memorySize: 512,
+      tracing: lambda.Tracing.ACTIVE,
+    });
+
     // Create unified API Gateway
     this.api = new apigateway.RestApi(this, "SachainApi", {
       restApiName: `sachain-api-${props.environment}`,
@@ -453,6 +489,12 @@ export class LambdaConstruct extends Construct {
     // Stock Minting Status Integration
     const stockMintingStatusIntegration = new apigateway.LambdaIntegration(
       this.stockMintingStatusLambda,
+      { proxy: true }
+    );
+
+    // Orange Money Payments Integration
+    const omPaymentsIntegration = new apigateway.LambdaIntegration(
+      this.omPaymentsLambda,
       { proxy: true }
     );
 
@@ -550,6 +592,13 @@ export class LambdaConstruct extends Construct {
     // GET /projects/{projectId}/mint-stocks/status
     const mintStocksStatusResource = mintStocksResource.addResource("status");
     mintStocksStatusResource.addMethod("GET", stockMintingStatusIntegration, {
+      authorizer: this.cognitoAuthorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    // Add Orange Money payments endpoint
+    const omPaymentsResource = this.api.root.addResource("om-payments");
+    omPaymentsResource.addMethod("POST", omPaymentsIntegration, {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });

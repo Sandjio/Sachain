@@ -3,8 +3,6 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import * as sns from "aws-cdk-lib/aws-sns";
-import * as events from "aws-cdk-lib/aws-events";
 import * as kms from "aws-cdk-lib/aws-kms";
 import { Construct } from "constructs";
 
@@ -57,6 +55,7 @@ export class SecurityConstruct extends Construct {
   public readonly projectCreationRole: iam.Role;
   public readonly stockMintingRole: iam.Role;
   public readonly stockMintingStatusRole: iam.Role;
+  public readonly omPaymentsRole: iam.Role;
 
   private readonly table: dynamodb.Table;
   private readonly documentBucket: s3.Bucket;
