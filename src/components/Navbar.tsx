@@ -4,6 +4,7 @@ import { Search, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/router";
 import GetStartedModal from "@/features/auth/components/GetStartedModal"; // adjust path if needed
+import LanguageSwitcher from "./LanguageSwitcher";
 
 
 export function Navbar() {
@@ -46,6 +47,7 @@ export function Navbar() {
               />
             </div>
             {/* Login → straight to login page */}
+           
             <Button
               variant="outline"
               className="border-purple-600 text-purple-600 hover:bg-purple-50"
@@ -60,6 +62,7 @@ export function Navbar() {
 >
   Get Started
 </Button>
+      <LanguageSwitcher />
 
           </div>
 
@@ -105,8 +108,10 @@ export function Navbar() {
 >
   Get Started
 </Button>
+      <LanguageSwitcher />
 
                 </div>
+                 
               </div>
             </div>
           </div>

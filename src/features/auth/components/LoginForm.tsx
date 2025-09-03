@@ -496,7 +496,8 @@ export default function LoginForm({ role }: LoginFormProps) {
 
   return (
     <>
-     <Card className="w-full max-w-md mx-auto mt-10 p-6 shadow-lg rounded-2xl bg-background">
+
+     {/* <Card className="w-full max-w-md mx-auto mt-10 p-6 shadow-lg rounded-2xl bg-background">
          <CardHeader className="space-y-1 text-center">
           <CardTitle>Welcome Back</CardTitle>
           <CardDescription>
@@ -568,7 +569,81 @@ export default function LoginForm({ role }: LoginFormProps) {
             </Button>
           </form>
         </CardContent>
+      </Card> */}
+
+
+<Card className="w-full max-w-md mx-auto mt-10 p-6 shadow-lg rounded-2xl bg-background">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle>Welcome Back</CardTitle>
+          <CardDescription>Sign in to your {role} account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {errorMsg && (
+              <Alert variant="destructive">
+                <AlertDescription>{errorMsg}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                {...register("email")}
+              />
+              {errors.email && (
+                <span className="text-destructive text-sm">
+                  {errors.email.message}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  {...register("password")}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              {errors.password && (
+                <span className="text-destructive text-sm">
+                  {errors.password.message}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Button variant="link" className="px-0 h-auto">
+                Forgot password?
+              </Button>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {`Login as ${role ?? ""}`}
+            </Button>
+          </form>
+        </CardContent>
       </Card>
+
 
       <Dialog open={!!welcomeUser} onOpenChange={() => setWelcomeUser(null)}>
         <DialogContent>
@@ -577,6 +652,7 @@ export default function LoginForm({ role }: LoginFormProps) {
           </DialogHeader>
         </DialogContent>
       </Dialog>
+
     </>
   );
 }

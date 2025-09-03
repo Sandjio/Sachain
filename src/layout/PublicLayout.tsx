@@ -14,7 +14,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       </a>
 
       {/* Header */}
-      <Header />
+      {/* <Header /> */}
 
       {/* Main content */}
       <main id="main" className="flex-1">

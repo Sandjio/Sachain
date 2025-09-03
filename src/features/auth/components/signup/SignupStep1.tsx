@@ -39,7 +39,7 @@ export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3 mt-4">
-      <Input {...register("firstName")} placeholder={translate("form.firstName")} />
+      {/* <Input {...register("firstName")} placeholder={translate("form.firstName")} />
       {errors.firstName && <span className="text-destructive">{errors.firstName.message}</span>}
 
       <Input {...register("lastName")} placeholder={translate("form.lastName")} />
@@ -56,7 +56,26 @@ export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
 
       <Button type="submit" className="w-full" disabled={loading}>
         {translate("actions.next")}
-      </Button>
+      </Button> */}
+      <Input {...register("firstName")} placeholder="First Name" />
+{errors.firstName && <span className="text-destructive">{errors.firstName.message}</span>}
+
+<Input {...register("lastName")} placeholder="Last Name" />
+{errors.lastName && <span className="text-destructive">{errors.lastName.message}</span>}
+
+<Input {...register("email")} placeholder="Email" type="email" />
+{errors.email && <span className="text-destructive">{errors.email.message}</span>}
+
+<Input {...register("password")} placeholder="Password" type="password" />
+{errors.password && <span className="text-destructive">{errors.password.message}</span>}
+
+<Input {...register("confirmPassword")} placeholder="Confirm Password" type="password" />
+{errors.confirmPassword && <span className="text-destructive">{errors.confirmPassword.message}</span>}
+
+<Button type="submit" className="w-full" disabled={loading}>
+  Next
+</Button>
+
     </form>
   );
 }

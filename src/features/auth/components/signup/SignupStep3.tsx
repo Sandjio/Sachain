@@ -298,60 +298,117 @@ export default function SignupStep3({ role, onNext, onBack }: SignupStep3Props) 
   };
 
   return (
+    // <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    //   {/* Instruction */}
+    //   <p className="text-muted-foreground text-sm">
+    //     {role === "investor"
+    //       ? translate("upload.investorInstruction")
+    //       : translate("upload.startupInstruction")}
+    //   </p>
+
+    //   {/* Upload box */}
+    //   <Card className="border-dashed border-2 hover:border-primary transition-colors">
+    //     <CardContent className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
+    //       <Upload className="w-10 h-10 text-muted-foreground" />
+    //       <div>
+    //         <label
+    //           htmlFor="file-upload"
+    //           className="cursor-pointer text-primary font-medium hover:underline"
+    //         >
+    //           Click to upload
+    //         </label>{" "}
+    //         or drag and drop
+    //       </div>
+    //       <Input
+    //         id="file-upload"
+    //         type="file"
+    //         accept="image/*,application/pdf"
+    //         className="hidden"
+    //         {...register("file", {
+    //           onChange: (e) => setSelectedFile(e.target.files?.[0] ?? null),
+    //         })}
+    //       />
+    //       {selectedFile && (
+    //         <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    //           <FileText className="w-4 h-4" />
+    //           <span>{selectedFile.name}</span>
+    //         </div>
+    //       )}
+    //       {errors.file && (
+    //         <span className="text-destructive text-sm">{errors.file.message}</span>
+    //       )}
+    //     </CardContent>
+    //   </Card>
+
+    //   {/* Actions */}
+    //   <div className="flex justify-between">
+    //     <Button type="button" variant="outline" onClick={onBack}>
+    //       {translate("actions.back")}
+    //     </Button>
+    //     <Button type="submit" disabled={loading}>
+    //       {loading ? "Uploading..." : translate("actions.next")}
+    //     </Button>
+    //   </div>
+
+    //   {/* Error */}
+    //   {error && <p className="text-destructive text-sm">{error}</p>}
+    // </form>
+
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Instruction */}
-      <p className="text-muted-foreground text-sm">
-        {role === "investor"
-          ? translate("upload.investorInstruction")
-          : translate("upload.startupInstruction")}
-      </p>
+  {/* Instruction */}
+  <p className="text-muted-foreground text-sm">
+    {role === "investor"
+      ? "Please upload a valid government-issued ID (image or PDF)."
+      : "Please upload your business registration certificate or startup ID (image or PDF)."}
+  </p>
 
-      {/* Upload box */}
-      <Card className="border-dashed border-2 hover:border-primary transition-colors">
-        <CardContent className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
-          <Upload className="w-10 h-10 text-muted-foreground" />
-          <div>
-            <label
-              htmlFor="file-upload"
-              className="cursor-pointer text-primary font-medium hover:underline"
-            >
-              Click to upload
-            </label>{" "}
-            or drag and drop
-          </div>
-          <Input
-            id="file-upload"
-            type="file"
-            accept="image/*,application/pdf"
-            className="hidden"
-            {...register("file", {
-              onChange: (e) => setSelectedFile(e.target.files?.[0] ?? null),
-            })}
-          />
-          {selectedFile && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileText className="w-4 h-4" />
-              <span>{selectedFile.name}</span>
-            </div>
-          )}
-          {errors.file && (
-            <span className="text-destructive text-sm">{errors.file.message}</span>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Actions */}
-      <div className="flex justify-between">
-        <Button type="button" variant="outline" onClick={onBack}>
-          {translate("actions.back")}
-        </Button>
-        <Button type="submit" disabled={loading}>
-          {loading ? "Uploading..." : translate("actions.next")}
-        </Button>
+  {/* Upload box */}
+  <Card className="border-dashed border-2 hover:border-primary transition-colors">
+    <CardContent className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
+      <Upload className="w-10 h-10 text-muted-foreground" />
+      <div>
+        <label
+          htmlFor="file-upload"
+          className="cursor-pointer text-primary font-medium hover:underline"
+        >
+          Click to upload
+        </label>{" "}
+        or drag and drop
       </div>
+      <Input
+        id="file-upload"
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        {...register("file", {
+          onChange: (e) => setSelectedFile(e.target.files?.[0] ?? null),
+        })}
+      />
+      {selectedFile && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <FileText className="w-4 h-4" />
+          <span>{selectedFile.name}</span>
+        </div>
+      )}
+      {errors.file && (
+        <span className="text-destructive text-sm">{errors.file.message}</span>
+      )}
+    </CardContent>
+  </Card>
 
-      {/* Error */}
-      {error && <p className="text-destructive text-sm">{error}</p>}
-    </form>
+  {/* Actions */}
+  <div className="flex justify-between">
+    <Button type="button" variant="outline" onClick={onBack}>
+      Back
+    </Button>
+    <Button type="submit" disabled={loading}>
+      {loading ? "Uploading..." : "Next"}
+    </Button>
+  </div>
+
+  {/* Error */}
+  {error && <p className="text-destructive text-sm">{error}</p>}
+</form>
+
   );
 }

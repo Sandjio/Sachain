@@ -28,7 +28,7 @@ export default function SignupForm({ role }: SignupFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
-      <Input {...register("name")} placeholder={translate("form.name")} />
+      {/* <Input {...register("name")} placeholder={translate("form.name")} />
       {errors.name && <span className="text-destructive">{errors.name.message}</span>}
 
       <Input {...register("email")} placeholder={translate("form.email")} />
@@ -39,7 +39,20 @@ export default function SignupForm({ role }: SignupFormProps) {
 
       <Button type="submit" className="w-full">
         {translate("actions.signupAs")} {role}
-      </Button>
+      </Button> */}
+
+      <Input {...register("name")} placeholder="Name" />
+{errors.name && <span className="text-destructive">{errors.name.message}</span>}
+
+<Input {...register("email")} placeholder="Email" />
+{errors.email && <span className="text-destructive">{errors.email.message}</span>}
+
+<Input {...register("password")} placeholder="Password" type="password" />
+{errors.password && <span className="text-destructive">{errors.password.message}</span>}
+
+<Button type="submit" className="w-full">
+  Sign up as {role}
+</Button>
     </form>
   );
 }

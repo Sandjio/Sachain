@@ -79,7 +79,7 @@ export default function GetStartedModal({ open, onOpenChange }: GetStartedModalP
 
   const handleChooseRole = (role: "startup" | "investor") => {
     onOpenChange(false); // close modal
-    router.push(`/auth/sigup?role=${role}`); // redirect to auth page
+    router.push(`/auth/sigup?role=${role}`); 
   };
 
   return (
