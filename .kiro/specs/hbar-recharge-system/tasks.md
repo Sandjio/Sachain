@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Set up core data models and types for HBAR recharge system
+- [x] 1. Set up core data models and types for HBAR recharge system
 
   - Create TypeScript interfaces for recharge transactions, exchange rates, and API requests/responses
   - Define event schemas for Orange Money payment success and HBAR conversion events

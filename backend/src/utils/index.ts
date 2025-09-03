@@ -14,6 +14,7 @@ export * from "./cors-security";
 // Validation utilities
 export * from "./project-validation";
 export * from "./file-validation";
+export * from "./hbar-recharge-validation";
 
 // Error handling utilities
 export * from "./error-handler";
