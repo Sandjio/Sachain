@@ -47,6 +47,7 @@ export function useLogin() {
     try {
       // 1. Call Cognito sign in
       const tokens = await cognitoSignIn({ email, password });
+      console.log("Cognito tokens:", tokens.idToken);
 
       // 2. Get minimal user object (you might extend this)
       const user: AuthUser = {

@@ -313,7 +313,107 @@
 
 
 // src/components/auth/signup/SignupFormWizard.tsx
+// import { useState } from "react";
+// import SignupStep1 from "./SignupStep1";
+// import SignupStep2 from "./SignupStep2";
+// import SignupStep3 from "./SignupStep3";
+// import Step4Success from "./Step4Success";
+// import { useSignup } from "@/features/auth/hook/useSignup";
+// import { useAuthStore } from "@/store/authStore";
+
+// export type SignupData = {
+//   givenName?: string;
+//   familyName?: string;
+//   email?: string;
+//   password?: string;
+//   confirmPassword?: string;
+//   code?: string;
+//   role?: "startup" | "investor";
+// };
+
+// interface SignupFormWizardProps {
+//   role: "startup" | "investor";
+// }
+
+// export default function SignupFormWizard({ role }: SignupFormWizardProps) {
+//   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+//   const [formData, setFormData] = useState<SignupData>({});
+//   const { signup, confirm, loading, error } = useSignup(role);
+//   const { user } = useAuthStore(); // get logged in user after auto-login
+
+//   // Step 1 → Step 2
+//   const handleStep1Next = async (data: {
+//     firstName: string;
+//     lastName: string;
+//     email: string;
+//     password: string;
+//     confirmPassword: string;
+//   }) => {
+//     setFormData({ ...formData, ...data, role });
+//     try {
+//       await signup({
+//         email: data.email,
+//         password: data.password,
+//         givenName: data.firstName,
+//         familyName: data.lastName,
+//         role,
+//       });
+//       setStep(2);
+//     } catch (err) {
+//       console.error("Signup failed:", err);
+//     }
+//   };
+
+//   // Step 2 → Step 3 (confirm & auto-login)
+//   const handleStep2Verify = async ({ code }: { code: string }) => {
+//     try {
+//       await confirm({ email: formData.email!, code });
+//       setStep(3); // move to KYC upload
+//     } catch (err) {
+//       console.error("Confirmation failed:", err);
+//     }
+//   };
+
+//   // Step 3 → Step 4 (success)
+//   const handleStep3Next = () => {
+//     setStep(4);
+//   };
+
+//   // Reset wizard
+//   const handleClose = () => {
+//     setFormData({});
+//     setStep(1);
+//   };
+
+//   return (
+//     <div>
+//       {step === 1 && <SignupStep1 onNext={handleStep1Next} loading={loading} />}
+//       {step === 2 && (
+//         <SignupStep2
+//           onVerify={handleStep2Verify}
+//           onBack={() => setStep(1)}
+//           loading={loading}
+//         />
+//       )}
+//       {step === 3 && (
+//         <SignupStep3
+//           role={user?.role || role} // role from user after auto-login
+//           onBack={() => setStep(2)}
+//           onNext={handleStep3Next}
+//         />
+//       )}
+//       {step === 4 && <Step4Success role={role} onClose={handleClose} />}
+//       {error && <p className="text-red-500">{error}</p>}
+//     </div>
+//   );
+// }
+
+
+
+
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import SignupStep1 from "./SignupStep1";
 import SignupStep2 from "./SignupStep2";
 import SignupStep3 from "./SignupStep3";
@@ -339,9 +439,19 @@ export default function SignupFormWizard({ role }: SignupFormWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [formData, setFormData] = useState<SignupData>({});
   const { signup, confirm, loading, error } = useSignup(role);
-  const { user } = useAuthStore(); // get logged in user after auto-login
+  const { user } = useAuthStore(); // logged-in user after auto-login
 
-  // Step 1 → Step 2
+  const totalSteps = 4;
+  const progress = (step / totalSteps) * 100;
+
+  const stepTitles: Record<number, string> = {
+    1: "Personal Information",
+    2: "Verify Your Email",
+    3: role === "investor" ? "Upload ID Document" : "Upload Business Documents",
+    4: "Welcome to Sachain!",
+  };
+
+  // --- Handlers ---
   const handleStep1Next = async (data: {
     firstName: string;
     lastName: string;
@@ -364,46 +474,67 @@ export default function SignupFormWizard({ role }: SignupFormWizardProps) {
     }
   };
 
-  // Step 2 → Step 3 (confirm & auto-login)
   const handleStep2Verify = async ({ code }: { code: string }) => {
     try {
       await confirm({ email: formData.email!, code });
-      setStep(3); // move to KYC upload
+      setStep(3);
     } catch (err) {
       console.error("Confirmation failed:", err);
     }
   };
 
-  // Step 3 → Step 4 (success)
-  const handleStep3Next = () => {
-    setStep(4);
-  };
+  const handleStep3Next = () => setStep(4);
 
-  // Reset wizard
   const handleClose = () => {
     setFormData({});
     setStep(1);
   };
 
+  // --- Step Renderer ---
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return <SignupStep1 onNext={handleStep1Next} loading={loading} />;
+      case 2:
+        return (
+          <SignupStep2
+            onVerify={handleStep2Verify}
+            onBack={() => setStep(1)}
+            loading={loading}
+          />
+        );
+      case 3:
+        return (
+          <SignupStep3
+            role={user?.role || role}
+            onBack={() => setStep(2)}
+            onNext={handleStep3Next}
+          />
+        );
+      case 4:
+        return <Step4Success role={role} onClose={handleClose} />;
+      default:
+        return null;
+    }
+  };
+
+  // --- Layout ---
   return (
-    <div>
-      {step === 1 && <SignupStep1 onNext={handleStep1Next} loading={loading} />}
-      {step === 2 && (
-        <SignupStep2
-          onVerify={handleStep2Verify}
-          onBack={() => setStep(1)}
-          loading={loading}
-        />
-      )}
-      {step === 3 && (
-        <SignupStep3
-          role={user?.role || role} // role from user after auto-login
-          onBack={() => setStep(2)}
-          onNext={handleStep3Next}
-        />
-      )}
-      {step === 4 && <Step4Success role={role} onClose={handleClose} />}
-      {error && <p className="text-red-500">{error}</p>}
-    </div>
+    <Card className="max-w-lg w-full mx-auto shadow-xl">
+      <CardHeader>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <CardTitle>Create Account</CardTitle>
+            <span className="text-sm text-muted-foreground">
+              Step {step} of {totalSteps}
+            </span>
+          </div>
+          <CardDescription>{stepTitles[step]}</CardDescription>
+          <Progress value={progress} className="w-full" />
+        </div>
+      </CardHeader>
+      <CardContent>{renderStep()}</CardContent>
+      {error && <p className="text-red-500 px-6 pb-4">{error}</p>}
+    </Card>
   );
 }

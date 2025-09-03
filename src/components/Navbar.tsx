@@ -3,12 +3,17 @@ import { Button } from "./ui/button";
 import { Search, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/router";
+import GetStartedModal from "@/features/auth/components/GetStartedModal"; // adjust path if needed
+
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
+  const [showGetStarted, setShowGetStarted] = useState(false);
+
 
   return (
+    <>
     <nav className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -50,11 +55,12 @@ export function Navbar() {
             </Button>
             {/* Get Started → role selection modal */}
             <Button
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-              onClick={() => router.push("/auth/signup")}
-            >
-              Get Started
-            </Button>
+  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+  onClick={() => setShowGetStarted(true)}
+>
+  Get Started
+</Button>
+
           </div>
 
           {/* Mobile menu button */}
@@ -93,12 +99,13 @@ export function Navbar() {
                   >
                     Login
                   </Button>
-                  <Button
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    onClick={() => router.push("/auth/signup")}
-                  >
-                    Get Started
-                  </Button>
+                 <Button
+  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+  onClick={() => setShowGetStarted(true)}
+>
+  Get Started
+</Button>
+
                 </div>
               </div>
             </div>
@@ -106,5 +113,7 @@ export function Navbar() {
         )}
       </div>
     </nav>
+    <GetStartedModal open={showGetStarted} onOpenChange={setShowGetStarted} />  
+    </>
   );
 }

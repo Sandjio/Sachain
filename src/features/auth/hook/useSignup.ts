@@ -283,6 +283,9 @@ export function useSignup(role: "startup" | "investor") {
       // Save user + tokens to global store
       loginToStore(userForFlow, tokens);
 
+      console.log("User signed up and logged in:", tokens.idToken);
+      console.log("User information:", userForFlow);
+
       return { ok: true, tokens };
     } catch (err: any) {
       setError(err.message || "Confirmation or login failed");

@@ -1,8 +1,6 @@
 // src/features/auth/core/kycService.ts
 
-
 const BASE_URL = process.env.NEXT_PUBLIC_KYC_API_BASE!;
-
 
 export async function uploadKycDocument({
   idToken,
@@ -30,7 +28,7 @@ export async function uploadKycDocument({
   const res = await fetch(`${BASE_URL}/kyc/upload`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/pdf",
       Authorization: `Bearer ${idToken}`,
     },
     body: JSON.stringify({

@@ -8,6 +8,7 @@ import {
   InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 
+
 const region = process.env.NEXT_PUBLIC_COGNITO_REGION!;
 const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
 
@@ -50,7 +51,7 @@ export async function cognitoSignUp({
         { Name: "email", Value: email },
         { Name: "given_name", Value: givenName },
         { Name: "family_name", Value: familyName },
-        { Name: "custom:userType", Value: role }, // ✅ required by backend
+        { Name: "custom:userType", Value: role },
       ],
     })
   );
@@ -70,6 +71,7 @@ export async function cognitoConfirmSignUp(params: {
       ConfirmationCode: code,
     })
   );
+
 
   return { ok: true };
 }
