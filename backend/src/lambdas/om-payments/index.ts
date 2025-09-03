@@ -4,7 +4,9 @@ import {
   PayTokenResponse,
   CreatePaymentResponse,
   PaymentRequest,
+  HBARRechargePaymentRequest,
 } from "./types";
+import { OrangeMoneyRechargeService } from "./recharge-service";
 
 const OM_BASE_URL = "https://omdeveloper.orange.cm/";
 const X_AUTH_TOKEN = "YWRtaW46YWRtaW4=";
@@ -147,8 +149,19 @@ export const handler = async (
         body: JSON.stringify({ message: "Missing body" }),
       };
     }
+
+    const requestBody = JSON.parse(event.body);
+
+    // Check if this is an HBAR recharge request
+    if (requestBody.transactionId && requestBody.userHederaAccountId) {
+      return await handleHBARRecharge(
+        requestBody as HBARRechargePaymentRequest
+      );
+    }
+
+    // Handle regular Orange Money payment
     const { customerNumber, amount, description, orderId, pin, notifUrls } =
-      JSON.parse(event.body) as PaymentRequest;
+      requestBody as PaymentRequest;
 
     if (!customerNumber || !amount || !pin) {
       return {
@@ -196,3 +209,51 @@ export const handler = async (
     };
   }
 };
+
+/**
+ * Handles HBAR recharge payments using the dedicated recharge service
+ */
+async function handleHBARRecharge(
+  request: HBARRechargePaymentRequest
+): Promise<APIGatewayProxyResult> {
+  try {
+    const rechargeService = new OrangeMoneyRechargeService();
+    const result = await rechargeService.initiateRechargePayment(request);
+
+    if (result.success) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          transactionId: result.transactionId,
+          orangeMoneyTransactionId: result.orangeMoneyTransactionId,
+          status: "payment_initiated",
+          paymentData: result.paymentData,
+        }),
+      };
+    } else {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          success: false,
+          error: result.error,
+        }),
+      };
+    }
+  } catch (error) {
+    console.error("Error processing HBAR recharge:", {
+      error: (error as Error).message,
+      stack: (error as Error).stack,
+    });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Internal server error occurred while processing recharge",
+        },
+      }),
+    };
+  }
+}

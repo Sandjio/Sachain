@@ -1,362 +1,294 @@
 /**
- * Validation functions for HBAR recharge system
- * Validates recharge amounts, Hedera account IDs, and user inputs
+ * HBAR Recharge Validation Utilities
+ * Provides validation functions for HBAR recharge operations
  */
 
 import {
-  HBARRechargeRequest,
-  RechargeConfig,
-  RechargeError,
   RECHARGE_ERROR_CODES,
   RechargeErrorCode,
 } from "../types/hbar-recharge";
 
-// ============================================================================
-// Configuration Constants
-// ============================================================================
-
-export const DEFAULT_RECHARGE_CONFIG: RechargeConfig = {
-  limits: {
-    minRechargeAmount: 1000, // 1,000 XAF minimum
-    maxRechargeAmount: 1000000, // 1,000,000 XAF maximum
-    dailyUserLimit: 5000000, // 5,000,000 XAF daily limit
-  },
-  fees: {
-    platformFeePercentage: 2.5, // 2.5% platform fee
-    orangeMoneyFeePercentage: 1.5, // 1.5% Orange Money fee
-  },
-  retry: {
-    maxRetries: 5,
-    baseDelay: 1000,
-    maxDelay: 30000,
-    backoffMultiplier: 2,
-  },
-  exchangeRate: {
-    cacheTimeout: 300, // 5 minutes
-    staleThreshold: 600, // 10 minutes
-  },
-};
-
-// ============================================================================
-// Validation Result Types
-// ============================================================================
-
 export interface ValidationResult {
   isValid: boolean;
-  errors: RechargeError[];
+  errorCode?: RechargeErrorCode;
+  errorMessage?: string;
 }
 
-export interface AmountValidationResult extends ValidationResult {
-  normalizedAmount?: number;
+export interface RechargeValidationConfig {
+  minAmount: number;
+  maxAmount: number;
+  dailyLimit: number;
 }
 
-export interface HederaAccountValidationResult extends ValidationResult {
-  normalizedAccountId?: string;
-}
-
-// ============================================================================
-// Amount Validation Functions
-// ============================================================================
+// Default validation configuration
+const DEFAULT_CONFIG: RechargeValidationConfig = {
+  minAmount: 1000, // 1,000 XAF
+  maxAmount: 1000000, // 1,000,000 XAF
+  dailyLimit: 5000000, // 5,000,000 XAF
+};
 
 /**
- * Validates XAF recharge amount against configured limits
+ * Validates XAF amount for recharge
  */
 export function validateRechargeAmount(
   amount: number,
-  config: RechargeConfig = DEFAULT_RECHARGE_CONFIG
-): AmountValidationResult {
-  const errors: RechargeError[] = [];
-
-  // Check if amount is a valid number
-  if (!Number.isFinite(amount) || amount <= 0) {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-      message: "Recharge amount must be a positive number",
-      retryable: false,
-    });
-    return { isValid: false, errors };
+  config: RechargeValidationConfig = DEFAULT_CONFIG
+): ValidationResult {
+  if (!amount || typeof amount !== "number" || amount <= 0) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
+      errorMessage: "Amount must be a positive number",
+    };
   }
 
-  // Check minimum amount
-  if (amount < config.limits.minRechargeAmount) {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.AMOUNT_TOO_LOW,
-      message: `Minimum recharge amount is ${config.limits.minRechargeAmount} XAF`,
-      details: {
-        minAmount: config.limits.minRechargeAmount,
-        providedAmount: amount,
-      },
-      retryable: false,
-    });
+  if (amount < config.minAmount) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.AMOUNT_TOO_LOW,
+      errorMessage: `Amount must be at least ${config.minAmount.toLocaleString()} XAF`,
+    };
   }
 
-  // Check maximum amount
-  if (amount > config.limits.maxRechargeAmount) {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.AMOUNT_TOO_HIGH,
-      message: `Maximum recharge amount is ${config.limits.maxRechargeAmount} XAF`,
-      details: {
-        maxAmount: config.limits.maxRechargeAmount,
-        providedAmount: amount,
-      },
-      retryable: false,
-    });
+  if (amount > config.maxAmount) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.AMOUNT_TOO_HIGH,
+      errorMessage: `Amount cannot exceed ${config.maxAmount.toLocaleString()} XAF`,
+    };
   }
 
-  const isValid = errors.length === 0;
-  const result: AmountValidationResult = { isValid, errors };
-
-  if (isValid) {
-    // Round to 2 decimal places for XAF
-    result.normalizedAmount = Math.round(amount * 100) / 100;
-  }
-
-  return result;
+  return { isValid: true };
 }
 
 /**
- * Validates daily spending limit for a user
+ * Validates daily spending limit for user
  */
 export function validateDailyLimit(
-  amount: number,
   currentDailySpent: number,
-  config: RechargeConfig = DEFAULT_RECHARGE_CONFIG
+  newAmount: number,
+  config: RechargeValidationConfig = DEFAULT_CONFIG
 ): ValidationResult {
-  const errors: RechargeError[] = [];
+  const totalAfterTransaction = currentDailySpent + newAmount;
 
-  const totalAfterRecharge = currentDailySpent + amount;
-
-  if (totalAfterRecharge > config.limits.dailyUserLimit) {
-    const remainingLimit = Math.max(
-      0,
-      config.limits.dailyUserLimit - currentDailySpent
-    );
-    errors.push({
-      code: RECHARGE_ERROR_CODES.DAILY_LIMIT_EXCEEDED,
-      message: `Daily limit exceeded. Remaining limit: ${remainingLimit} XAF`,
-      details: {
-        dailyLimit: config.limits.dailyUserLimit,
-        currentSpent: currentDailySpent,
-        requestedAmount: amount,
-        remainingLimit,
-      },
-      retryable: false,
-    });
+  if (totalAfterTransaction > config.dailyLimit) {
+    const remainingLimit = config.dailyLimit - currentDailySpent;
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.DAILY_LIMIT_EXCEEDED,
+      errorMessage: `Daily limit exceeded. You can still recharge up to ${remainingLimit.toLocaleString()} XAF today`,
+    };
   }
 
-  return { isValid: errors.length === 0, errors };
+  return { isValid: true };
 }
-
-// ============================================================================
-// Hedera Account Validation Functions
-// ============================================================================
 
 /**
  * Validates Hedera account ID format
- * Format: 0.0.accountNum (e.g., 0.0.123456)
  */
-export function validateHederaAccountId(
-  accountId: string
-): HederaAccountValidationResult {
-  const errors: RechargeError[] = [];
-
+export function validateHederaAccountId(accountId: string): ValidationResult {
   if (!accountId || typeof accountId !== "string") {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT,
-      message: "Hedera account ID is required",
-      retryable: false,
-    });
-    return { isValid: false, errors };
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT,
+      errorMessage: "Hedera account ID is required",
+    };
   }
 
-  // Trim whitespace
-  const trimmedAccountId = accountId.trim();
-
-  // Hedera account ID regex: 0.0.number or shard.realm.number
-  const hederaAccountRegex = /^(\d+)\.(\d+)\.(\d+)$/;
-  const match = trimmedAccountId.match(hederaAccountRegex);
-
-  if (!match) {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT,
-      message: "Invalid Hedera account ID format. Expected format: 0.0.123456",
-      details: { providedAccountId: accountId },
-      retryable: false,
-    });
-    return { isValid: false, errors };
+  // Hedera account ID format: 0.0.XXXXXX
+  const pattern = /^0\.0\.\d+$/;
+  if (!pattern.test(accountId)) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT,
+      errorMessage:
+        "Invalid Hedera account ID format. Expected format: 0.0.XXXXXX",
+    };
   }
 
-  const [, shard, realm, accountNum] = match;
-
-  // Validate account number is not zero
-  if (accountNum === "0") {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT,
-      message: "Account number cannot be zero",
-      details: { providedAccountId: accountId },
-      retryable: false,
-    });
-  }
-
-  // Validate reasonable ranges (optional additional validation)
-  const accountNumber = parseInt(accountNum, 10);
-  if (accountNumber < 1 || accountNumber > 999999999) {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT,
-      message: "Account number out of valid range",
-      details: {
-        providedAccountId: accountId,
-        accountNumber,
-        validRange: "1-999999999",
-      },
-      retryable: false,
-    });
-  }
-
-  const isValid = errors.length === 0;
-  const result: HederaAccountValidationResult = { isValid, errors };
-
-  if (isValid) {
-    result.normalizedAccountId = trimmedAccountId;
-  }
-
-  return result;
+  return { isValid: true };
 }
 
-// ============================================================================
-// Request Validation Functions
-// ============================================================================
+/**
+ * Validates Cameroon phone number format for Orange Money
+ */
+export function validateCameroonPhoneNumber(
+  phoneNumber: string
+): ValidationResult {
+  if (!phoneNumber || typeof phoneNumber !== "string") {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_AMOUNT, // Using generic code as no specific phone validation code exists
+      errorMessage: "Phone number is required",
+    };
+  }
+
+  // Cameroon phone number patterns
+  const patterns = [
+    /^\+237[67]\d{8}$/, // +237 followed by 6 or 7 and 8 digits
+    /^237[67]\d{8}$/, // 237 followed by 6 or 7 and 8 digits
+    /^[67]\d{8}$/, // 6 or 7 followed by 8 digits
+  ];
+
+  const isValid = patterns.some((pattern) => pattern.test(phoneNumber));
+
+  if (!isValid) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
+      errorMessage:
+        "Invalid Cameroon phone number format. Expected formats: 677123456, 237677123456, or +237677123456",
+    };
+  }
+
+  return { isValid: true };
+}
 
 /**
- * Validates complete HBAR recharge request
+ * Validates Orange Money PIN format
+ */
+export function validateOrangeMoneyPin(pin: string): ValidationResult {
+  if (!pin || typeof pin !== "string") {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
+      errorMessage: "Orange Money PIN is required",
+    };
+  }
+
+  // PIN should be 4-6 digits
+  const pattern = /^\d{4,6}$/;
+  if (!pattern.test(pin)) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
+      errorMessage: "Orange Money PIN must be 4-6 digits",
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates user ID format
+ */
+export function validateUserId(userId: string): ValidationResult {
+  if (!userId || typeof userId !== "string" || userId.trim().length === 0) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_USER,
+      errorMessage: "User ID is required",
+    };
+  }
+
+  // Basic format validation - should be non-empty string
+  if (userId.length < 3) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_USER,
+      errorMessage: "Invalid user ID format",
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates transaction ID format
+ */
+export function validateTransactionId(transactionId: string): ValidationResult {
+  if (
+    !transactionId ||
+    typeof transactionId !== "string" ||
+    transactionId.trim().length === 0
+  ) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
+      errorMessage: "Transaction ID is required",
+    };
+  }
+
+  // Basic format validation - should be non-empty string
+  if (transactionId.length < 5) {
+    return {
+      isValid: false,
+      errorCode: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
+      errorMessage: "Invalid transaction ID format",
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Comprehensive validation for HBAR recharge request
  */
 export function validateHBARRechargeRequest(
-  request: Partial<HBARRechargeRequest>,
-  config: RechargeConfig = DEFAULT_RECHARGE_CONFIG
-): ValidationResult {
-  const errors: RechargeError[] = [];
+  request: {
+    userId: string;
+    xafAmount: number;
+    userHederaAccountId: string;
+    customerNumber: string;
+    pin: string;
+    transactionId: string;
+  },
+  config?: RechargeValidationConfig
+): ValidationResult[] {
+  const results: ValidationResult[] = [];
 
-  // Validate required fields
-  if (
-    !request.userId ||
-    typeof request.userId !== "string" ||
-    request.userId.trim().length === 0
-  ) {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_USER,
-      message: "User ID is required",
-      retryable: false,
-    });
-  }
+  // Validate all fields
+  results.push(validateUserId(request.userId));
+  results.push(validateTransactionId(request.transactionId));
+  results.push(validateRechargeAmount(request.xafAmount, config));
+  results.push(validateHederaAccountId(request.userHederaAccountId));
+  results.push(validateCameroonPhoneNumber(request.customerNumber));
+  results.push(validateOrangeMoneyPin(request.pin));
 
-  if (
-    !request.pin ||
-    typeof request.pin !== "string" ||
-    request.pin.trim().length === 0
-  ) {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_PIN,
-      message: "Orange Money PIN is required",
-      retryable: false,
-    });
-  }
-
-  // Validate PIN format (typically 4-6 digits)
-  if (request.pin && !/^\d{4,6}$/.test(request.pin.trim())) {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_PIN,
-      message: "Orange Money PIN must be 4-6 digits",
-      retryable: false,
-    });
-  }
-
-  // Validate amount
-  if (request.xafAmount !== undefined) {
-    const amountValidation = validateRechargeAmount(request.xafAmount, config);
-    errors.push(...amountValidation.errors);
-  } else {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-      message: "XAF amount is required",
-      retryable: false,
-    });
-  }
-
-  // Validate Hedera account ID
-  if (request.userHederaAccountId) {
-    const accountValidation = validateHederaAccountId(
-      request.userHederaAccountId
-    );
-    errors.push(...accountValidation.errors);
-  } else {
-    errors.push({
-      code: RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT,
-      message: "Hedera account ID is required",
-      retryable: false,
-    });
-  }
-
-  return { isValid: errors.length === 0, errors };
-}
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
-/**
- * Creates a standardized validation error
- */
-export function createValidationError(
-  code: RechargeErrorCode,
-  message: string,
-  details?: Record<string, any>,
-  retryable: boolean = false
-): RechargeError {
-  return {
-    code,
-    message,
-    details,
-    retryable,
-  };
+  return results;
 }
 
 /**
- * Checks if an error is retryable
+ * Gets the first validation error from a list of validation results
  */
-export function isRetryableError(error: RechargeError): boolean {
-  return error.retryable;
+export function getFirstValidationError(
+  results: ValidationResult[]
+): ValidationResult | null {
+  const firstError = results.find((result) => !result.isValid);
+  return firstError || null;
 }
 
 /**
- * Filters validation errors by type
+ * Checks if all validation results are valid
  */
-export function filterErrorsByCode(
-  errors: RechargeError[],
-  codes: RechargeErrorCode[]
-): RechargeError[] {
-  return errors.filter((error) =>
-    codes.includes(error.code as RechargeErrorCode)
-  );
+export function areAllValidationsValid(results: ValidationResult[]): boolean {
+  return results.every((result) => result.isValid);
 }
 
 /**
- * Gets the first error of a specific type
+ * Formats validation errors for user display
  */
-export function getFirstErrorByCode(
-  errors: RechargeError[],
-  code: RechargeErrorCode
-): RechargeError | undefined {
-  return errors.find((error) => error.code === code);
+export function formatValidationErrors(results: ValidationResult[]): string[] {
+  return results
+    .filter((result) => !result.isValid)
+    .map((result) => result.errorMessage || "Unknown validation error");
 }
 
 /**
- * Formats validation errors for API response
+ * Creates a user-friendly error message for recharge validation failures
  */
-export function formatValidationErrors(errors: RechargeError[]): string {
-  if (errors.length === 0) return "";
-  if (errors.length === 1) return errors[0].message;
+export function createRechargeValidationErrorMessage(
+  results: ValidationResult[]
+): string {
+  const errors = formatValidationErrors(results);
 
-  return `Multiple validation errors: ${errors
-    .map((e) => e.message)
-    .join("; ")}`;
+  if (errors.length === 0) {
+    return "";
+  }
+
+  if (errors.length === 1) {
+    return errors[0];
+  }
+
+  return `Multiple validation errors: ${errors.join("; ")}`;
 }

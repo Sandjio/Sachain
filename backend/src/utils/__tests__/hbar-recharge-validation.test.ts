@@ -1,396 +1,324 @@
 /**
- * Unit tests for HBAR recharge validation functions
+ * Unit tests for HBAR Recharge Validation Utilities
  */
 
 import {
   validateRechargeAmount,
   validateDailyLimit,
   validateHederaAccountId,
+  validateCameroonPhoneNumber,
+  validateOrangeMoneyPin,
+  validateUserId,
+  validateTransactionId,
   validateHBARRechargeRequest,
-  createValidationError,
-  isRetryableError,
-  filterErrorsByCode,
-  getFirstErrorByCode,
+  getFirstValidationError,
+  areAllValidationsValid,
   formatValidationErrors,
-  DEFAULT_RECHARGE_CONFIG,
+  createRechargeValidationErrorMessage,
+  RechargeValidationConfig,
 } from "../hbar-recharge-validation";
+import { RECHARGE_ERROR_CODES } from "../../types/hbar-recharge";
 
-import {
-  HBARRechargeRequest,
-  RechargeConfig,
-  RECHARGE_ERROR_CODES,
-} from "../../types/hbar-recharge";
+describe("HBAR Recharge Validation Utilities", () => {
+  const defaultConfig: RechargeValidationConfig = {
+    minAmount: 1000,
+    maxAmount: 1000000,
+    dailyLimit: 5000000,
+  };
 
-describe("HBAR Recharge Validation", () => {
   describe("validateRechargeAmount", () => {
-    it("should validate valid amounts", () => {
-      const result = validateRechargeAmount(5000);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.normalizedAmount).toBe(5000);
+    it("should accept valid amounts", () => {
+      const validAmounts = [1000, 50000, 500000, 1000000];
+
+      validAmounts.forEach((amount) => {
+        const result = validateRechargeAmount(amount);
+        expect(result.isValid).toBe(true);
+        expect(result.errorCode).toBeUndefined();
+      });
     });
 
-    it("should normalize decimal amounts", () => {
-      const result = validateRechargeAmount(5000.567);
-      expect(result.isValid).toBe(true);
-      expect(result.normalizedAmount).toBe(5000.57);
-    });
+    it("should reject invalid amounts", () => {
+      const invalidAmounts = [0, -100, null, undefined, NaN];
 
-    it("should reject negative amounts", () => {
-      const result = validateRechargeAmount(-100);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0].code).toBe(RECHARGE_ERROR_CODES.INVALID_AMOUNT);
-    });
-
-    it("should reject zero amounts", () => {
-      const result = validateRechargeAmount(0);
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(RECHARGE_ERROR_CODES.INVALID_AMOUNT);
-    });
-
-    it("should reject non-finite amounts", () => {
-      const result = validateRechargeAmount(NaN);
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(RECHARGE_ERROR_CODES.INVALID_AMOUNT);
+      invalidAmounts.forEach((amount) => {
+        const result = validateRechargeAmount(amount as number);
+        expect(result.isValid).toBe(false);
+        expect(result.errorCode).toBe(RECHARGE_ERROR_CODES.INVALID_AMOUNT);
+      });
     });
 
     it("should reject amounts below minimum", () => {
-      const result = validateRechargeAmount(500); // Below 1000 XAF minimum
+      const result = validateRechargeAmount(500);
       expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(RECHARGE_ERROR_CODES.AMOUNT_TOO_LOW);
-      expect(result.errors[0].details?.minAmount).toBe(1000);
+      expect(result.errorCode).toBe(RECHARGE_ERROR_CODES.AMOUNT_TOO_LOW);
+      expect(result.errorMessage).toContain("1,000 XAF");
     });
 
     it("should reject amounts above maximum", () => {
-      const result = validateRechargeAmount(2000000); // Above 1,000,000 XAF maximum
+      const result = validateRechargeAmount(2000000);
       expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(RECHARGE_ERROR_CODES.AMOUNT_TOO_HIGH);
-      expect(result.errors[0].details?.maxAmount).toBe(1000000);
+      expect(result.errorCode).toBe(RECHARGE_ERROR_CODES.AMOUNT_TOO_HIGH);
+      expect(result.errorMessage).toContain("1,000,000 XAF");
     });
 
-    it("should use custom config limits", () => {
-      const customConfig: RechargeConfig = {
-        ...DEFAULT_RECHARGE_CONFIG,
-        limits: {
-          ...DEFAULT_RECHARGE_CONFIG.limits,
-          minRechargeAmount: 2000,
-          maxRechargeAmount: 500000,
-        },
+    it("should use custom config", () => {
+      const customConfig: RechargeValidationConfig = {
+        minAmount: 2000,
+        maxAmount: 500000,
+        dailyLimit: 1000000,
       };
 
-      const result = validateRechargeAmount(1500, customConfig);
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(RECHARGE_ERROR_CODES.AMOUNT_TOO_LOW);
+      const result1 = validateRechargeAmount(1500, customConfig);
+      expect(result1.isValid).toBe(false);
+      expect(result1.errorCode).toBe(RECHARGE_ERROR_CODES.AMOUNT_TOO_LOW);
+
+      const result2 = validateRechargeAmount(600000, customConfig);
+      expect(result2.isValid).toBe(false);
+      expect(result2.errorCode).toBe(RECHARGE_ERROR_CODES.AMOUNT_TOO_HIGH);
     });
   });
 
   describe("validateDailyLimit", () => {
-    it("should allow amounts within daily limit", () => {
-      const result = validateDailyLimit(10000, 100000); // 110k total, under 5M limit
+    it("should accept amounts within daily limit", () => {
+      const result = validateDailyLimit(1000000, 500000);
       expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
     });
 
     it("should reject amounts exceeding daily limit", () => {
-      const result = validateDailyLimit(1000000, 4500000); // 5.5M total, over 5M limit
+      const result = validateDailyLimit(4000000, 2000000);
       expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(
-        RECHARGE_ERROR_CODES.DAILY_LIMIT_EXCEEDED
-      );
-      expect(result.errors[0].details?.remainingLimit).toBe(500000);
+      expect(result.errorCode).toBe(RECHARGE_ERROR_CODES.DAILY_LIMIT_EXCEEDED);
+      expect(result.errorMessage).toContain("1,000,000 XAF today");
     });
 
-    it("should handle zero remaining limit", () => {
-      const result = validateDailyLimit(1000, 5000000); // Already at limit
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].details?.remainingLimit).toBe(0);
+    it("should handle edge case at exact limit", () => {
+      const result = validateDailyLimit(4000000, 1000000);
+      expect(result.isValid).toBe(true);
     });
   });
 
   describe("validateHederaAccountId", () => {
-    it("should validate correct Hedera account format", () => {
-      const result = validateHederaAccountId("0.0.123456");
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.normalizedAccountId).toBe("0.0.123456");
+    it("should accept valid Hedera account IDs", () => {
+      const validIds = ["0.0.123456", "0.0.1", "0.0.999999999"];
+
+      validIds.forEach((id) => {
+        const result = validateHederaAccountId(id);
+        expect(result.isValid).toBe(true);
+      });
     });
 
-    it("should validate different shard/realm combinations", () => {
-      const result = validateHederaAccountId("1.2.123456");
-      expect(result.isValid).toBe(true);
-      expect(result.normalizedAccountId).toBe("1.2.123456");
+    it("should reject invalid Hedera account IDs", () => {
+      const invalidIds = [
+        "",
+        null,
+        undefined,
+        "123456",
+        "0.123456",
+        "0.0",
+        "1.0.123456",
+        "0.1.123456",
+        "abc.def.ghi",
+      ];
+
+      invalidIds.forEach((id) => {
+        const result = validateHederaAccountId(id as string);
+        expect(result.isValid).toBe(false);
+        expect(result.errorCode).toBe(
+          RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT
+        );
+      });
+    });
+  });
+
+  describe("validateCameroonPhoneNumber", () => {
+    it("should accept valid Cameroon phone numbers", () => {
+      const validNumbers = [
+        "677123456",
+        "697123456",
+        "237677123456",
+        "+237677123456",
+        "237697123456",
+        "+237697123456",
+      ];
+
+      validNumbers.forEach((number) => {
+        const result = validateCameroonPhoneNumber(number);
+        expect(result.isValid).toBe(true);
+      });
     });
 
-    it("should trim whitespace", () => {
-      const result = validateHederaAccountId("  0.0.123456  ");
-      expect(result.isValid).toBe(true);
-      expect(result.normalizedAccountId).toBe("0.0.123456");
+    it("should reject invalid phone numbers", () => {
+      const invalidNumbers = [
+        "",
+        null,
+        undefined,
+        "123456789",
+        "12345678901",
+        "577123456",
+        "+33677123456",
+        "abc123456",
+      ];
+
+      invalidNumbers.forEach((number) => {
+        const result = validateCameroonPhoneNumber(number as string);
+        expect(result.isValid).toBe(false);
+      });
+    });
+  });
+
+  describe("validateOrangeMoneyPin", () => {
+    it("should accept valid PINs", () => {
+      const validPins = ["1234", "12345", "123456"];
+
+      validPins.forEach((pin) => {
+        const result = validateOrangeMoneyPin(pin);
+        expect(result.isValid).toBe(true);
+      });
     });
 
-    it("should reject empty account ID", () => {
-      const result = validateHederaAccountId("");
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(
-        RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT
-      );
+    it("should reject invalid PINs", () => {
+      const invalidPins = [
+        "",
+        null,
+        undefined,
+        "123",
+        "1234567",
+        "abcd",
+        "12a4",
+      ];
+
+      invalidPins.forEach((pin) => {
+        const result = validateOrangeMoneyPin(pin as string);
+        expect(result.isValid).toBe(false);
+      });
+    });
+  });
+
+  describe("validateUserId", () => {
+    it("should accept valid user IDs", () => {
+      const validIds = ["user123", "abc-def-ghi", "user_456"];
+
+      validIds.forEach((id) => {
+        const result = validateUserId(id);
+        expect(result.isValid).toBe(true);
+      });
     });
 
-    it("should reject null/undefined account ID", () => {
-      const result = validateHederaAccountId(null as any);
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(
-        RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT
-      );
+    it("should reject invalid user IDs", () => {
+      const invalidIds = ["", null, undefined, "ab", "  "];
+
+      invalidIds.forEach((id) => {
+        const result = validateUserId(id as string);
+        expect(result.isValid).toBe(false);
+        expect(result.errorCode).toBe(RECHARGE_ERROR_CODES.INVALID_USER);
+      });
+    });
+  });
+
+  describe("validateTransactionId", () => {
+    it("should accept valid transaction IDs", () => {
+      const validIds = ["txn-123", "transaction_456", "recharge-789"];
+
+      validIds.forEach((id) => {
+        const result = validateTransactionId(id);
+        expect(result.isValid).toBe(true);
+      });
     });
 
-    it("should reject invalid format", () => {
-      const result = validateHederaAccountId("invalid-account");
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(
-        RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT
-      );
-    });
+    it("should reject invalid transaction IDs", () => {
+      const invalidIds = ["", null, undefined, "abc", "  "];
 
-    it("should reject zero account number", () => {
-      const result = validateHederaAccountId("0.0.0");
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(
-        RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT
-      );
-    });
-
-    it("should reject account numbers out of range", () => {
-      const result = validateHederaAccountId("0.0.9999999999");
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0].code).toBe(
-        RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT
-      );
+      invalidIds.forEach((id) => {
+        const result = validateTransactionId(id as string);
+        expect(result.isValid).toBe(false);
+      });
     });
   });
 
   describe("validateHBARRechargeRequest", () => {
-    const validRequest: HBARRechargeRequest = {
-      userId: "user123",
-      xafAmount: 5000,
+    const validRequest = {
+      userId: "user-123",
+      xafAmount: 50000,
       userHederaAccountId: "0.0.123456",
+      customerNumber: "677123456",
       pin: "1234",
+      transactionId: "txn-789",
     };
 
-    it("should validate complete valid request", () => {
-      const result = validateHBARRechargeRequest(validRequest);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+    it("should validate a complete valid request", () => {
+      const results = validateHBARRechargeRequest(validRequest);
+      expect(areAllValidationsValid(results)).toBe(true);
     });
 
-    it("should reject missing userId", () => {
-      const request = { ...validRequest, userId: "" };
-      const result = validateHBARRechargeRequest(request);
-      expect(result.isValid).toBe(false);
-      expect(
-        result.errors.some((e) => e.code === RECHARGE_ERROR_CODES.INVALID_USER)
-      ).toBe(true);
-    });
-
-    it("should reject missing PIN", () => {
-      const request = { ...validRequest, pin: "" };
-      const result = validateHBARRechargeRequest(request);
-      expect(result.isValid).toBe(false);
-      expect(
-        result.errors.some((e) => e.code === RECHARGE_ERROR_CODES.INVALID_PIN)
-      ).toBe(true);
-    });
-
-    it("should reject invalid PIN format", () => {
-      const request = { ...validRequest, pin: "12" }; // Too short
-      const result = validateHBARRechargeRequest(request);
-      expect(result.isValid).toBe(false);
-      expect(
-        result.errors.some((e) => e.code === RECHARGE_ERROR_CODES.INVALID_PIN)
-      ).toBe(true);
-    });
-
-    it("should reject non-numeric PIN", () => {
-      const request = { ...validRequest, pin: "abcd" };
-      const result = validateHBARRechargeRequest(request);
-      expect(result.isValid).toBe(false);
-      expect(
-        result.errors.some((e) => e.code === RECHARGE_ERROR_CODES.INVALID_PIN)
-      ).toBe(true);
-    });
-
-    it("should reject missing amount", () => {
-      const request = { ...validRequest };
-      delete (request as any).xafAmount;
-      const result = validateHBARRechargeRequest(request);
-      expect(result.isValid).toBe(false);
-      expect(
-        result.errors.some(
-          (e) => e.code === RECHARGE_ERROR_CODES.INVALID_AMOUNT
-        )
-      ).toBe(true);
-    });
-
-    it("should reject missing Hedera account", () => {
-      const request = { ...validRequest };
-      delete (request as any).userHederaAccountId;
-      const result = validateHBARRechargeRequest(request);
-      expect(result.isValid).toBe(false);
-      expect(
-        result.errors.some(
-          (e) => e.code === RECHARGE_ERROR_CODES.INVALID_HEDERA_ACCOUNT
-        )
-      ).toBe(true);
-    });
-
-    it("should accumulate multiple validation errors", () => {
-      const request = {
+    it("should return multiple errors for invalid request", () => {
+      const invalidRequest = {
         userId: "",
-        xafAmount: -100,
+        xafAmount: 500,
         userHederaAccountId: "invalid",
-        pin: "12",
+        customerNumber: "123",
+        pin: "abc",
+        transactionId: "",
       };
-      const result = validateHBARRechargeRequest(request);
-      expect(result.isValid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(1);
+
+      const results = validateHBARRechargeRequest(invalidRequest);
+      expect(areAllValidationsValid(results)).toBe(false);
+      expect(results.filter((r) => !r.isValid)).toHaveLength(6);
     });
   });
 
-  describe("Utility Functions", () => {
-    describe("createValidationError", () => {
-      it("should create error with all properties", () => {
-        const error = createValidationError(
-          RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-          "Test message",
-          { test: "data" },
-          true
-        );
+  describe("utility functions", () => {
+    it("should get first validation error", () => {
+      const results = [
+        { isValid: true },
+        {
+          isValid: false,
+          errorCode: RECHARGE_ERROR_CODES.INVALID_AMOUNT,
+          errorMessage: "First error",
+        },
+        {
+          isValid: false,
+          errorCode: RECHARGE_ERROR_CODES.AMOUNT_TOO_LOW,
+          errorMessage: "Second error",
+        },
+      ];
 
-        expect(error.code).toBe(RECHARGE_ERROR_CODES.INVALID_AMOUNT);
-        expect(error.message).toBe("Test message");
-        expect(error.details).toEqual({ test: "data" });
-        expect(error.retryable).toBe(true);
-      });
-
-      it("should default retryable to false", () => {
-        const error = createValidationError(
-          RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-          "Test message"
-        );
-        expect(error.retryable).toBe(false);
-      });
+      const firstError = getFirstValidationError(results);
+      expect(firstError?.errorMessage).toBe("First error");
     });
 
-    describe("isRetryableError", () => {
-      it("should identify retryable errors", () => {
-        const error = createValidationError(
-          RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-          "Test",
-          undefined,
-          true
-        );
-        expect(isRetryableError(error)).toBe(true);
-      });
+    it("should return null when no errors", () => {
+      const results = [{ isValid: true }, { isValid: true }];
 
-      it("should identify non-retryable errors", () => {
-        const error = createValidationError(
-          RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-          "Test",
-          undefined,
-          false
-        );
-        expect(isRetryableError(error)).toBe(false);
-      });
+      const firstError = getFirstValidationError(results);
+      expect(firstError).toBeNull();
     });
 
-    describe("filterErrorsByCode", () => {
-      it("should filter errors by code", () => {
-        const errors = [
-          createValidationError(
-            RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-            "Amount error"
-          ),
-          createValidationError(RECHARGE_ERROR_CODES.INVALID_PIN, "PIN error"),
-          createValidationError(
-            RECHARGE_ERROR_CODES.INVALID_USER,
-            "User error"
-          ),
-        ];
+    it("should format validation errors", () => {
+      const results = [
+        { isValid: true },
+        { isValid: false, errorMessage: "Error 1" },
+        { isValid: false, errorMessage: "Error 2" },
+      ];
 
-        const filtered = filterErrorsByCode(errors, [
-          RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-          RECHARGE_ERROR_CODES.INVALID_PIN,
-        ]);
-
-        expect(filtered).toHaveLength(2);
-        expect(filtered[0].code).toBe(RECHARGE_ERROR_CODES.INVALID_AMOUNT);
-        expect(filtered[1].code).toBe(RECHARGE_ERROR_CODES.INVALID_PIN);
-      });
+      const errors = formatValidationErrors(results);
+      expect(errors).toEqual(["Error 1", "Error 2"]);
     });
 
-    describe("getFirstErrorByCode", () => {
-      it("should find first error by code", () => {
-        const errors = [
-          createValidationError(
-            RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-            "Amount error"
-          ),
-          createValidationError(RECHARGE_ERROR_CODES.INVALID_PIN, "PIN error"),
-        ];
+    it("should create user-friendly error messages", () => {
+      const singleError = [{ isValid: false, errorMessage: "Single error" }];
 
-        const error = getFirstErrorByCode(
-          errors,
-          RECHARGE_ERROR_CODES.INVALID_PIN
-        );
-        expect(error?.message).toBe("PIN error");
-      });
+      const multipleErrors = [
+        { isValid: false, errorMessage: "Error 1" },
+        { isValid: false, errorMessage: "Error 2" },
+      ];
 
-      it("should return undefined if not found", () => {
-        const errors = [
-          createValidationError(
-            RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-            "Amount error"
-          ),
-        ];
-
-        const error = getFirstErrorByCode(
-          errors,
-          RECHARGE_ERROR_CODES.INVALID_PIN
-        );
-        expect(error).toBeUndefined();
-      });
-    });
-
-    describe("formatValidationErrors", () => {
-      it("should return empty string for no errors", () => {
-        const result = formatValidationErrors([]);
-        expect(result).toBe("");
-      });
-
-      it("should return single error message", () => {
-        const errors = [
-          createValidationError(
-            RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-            "Amount error"
-          ),
-        ];
-        const result = formatValidationErrors(errors);
-        expect(result).toBe("Amount error");
-      });
-
-      it("should format multiple errors", () => {
-        const errors = [
-          createValidationError(
-            RECHARGE_ERROR_CODES.INVALID_AMOUNT,
-            "Amount error"
-          ),
-          createValidationError(RECHARGE_ERROR_CODES.INVALID_PIN, "PIN error"),
-        ];
-        const result = formatValidationErrors(errors);
-        expect(result).toBe(
-          "Multiple validation errors: Amount error; PIN error"
-        );
-      });
+      expect(createRechargeValidationErrorMessage(singleError)).toBe(
+        "Single error"
+      );
+      expect(createRechargeValidationErrorMessage(multipleErrors)).toBe(
+        "Multiple validation errors: Error 1; Error 2"
+      );
+      expect(createRechargeValidationErrorMessage([])).toBe("");
     });
   });
 });

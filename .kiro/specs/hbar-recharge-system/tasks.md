@@ -7,7 +7,7 @@
   - Implement validation functions for recharge amounts, Hedera account IDs, and user inputs
   - _Requirements: 1.1, 1.2, 2.2, 4.1, 4.2_
 
-- [ ] 2. Extend Orange Money service for recharge functionality
+- [x] 2. Extend Orange Money service for recharge functionality
 
   - Enhance existing om-payments types to include recharge-specific interfaces
   - Create recharge payment validation functions that check minimum/maximum limits
