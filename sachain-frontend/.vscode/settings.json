@@ -1,0 +1,12 @@
+{
+    "eslint.debug": true,
+    "emmet.useInlineCompletions": true,
+    "emmet.triggerExpansionOnTab": true,
+    "github.copilot.advanced": {
+
+    },
+    "github-actions.workflows.pinned.refresh.enabled": false,
+    "gitProjectManager.warnIfFolderNotFound": true,
+    "gitProjectManager.displayProjectPath": false,
+    "extensions.experimental.deferredStartupFinishedActivation": false
+}
