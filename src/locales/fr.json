@@ -1,7 +1,7 @@
 {
   "hero": {
     "title": "Investissez dans de vrais projets avec HBAR",
-    "subtitle": "Une plateforme de financement participatif transparente basée sur les parts, connectant les porteurs de projets et les investisseurs à travers l'Afrique.",
+    "subtitle": "Une plateforme de financement participatif transparente, basée sur les parts, reliant porteurs de projets et investisseurs à travers l’Afrique.",
     "getStarted": "Commencer",
     "learnMore": "En savoir plus"
   },
@@ -14,60 +14,109 @@
     "steps": {
       "discover": {
         "title": "Découvrez des projets",
-        "description": "Parcourez des projets vérifiés à travers l’Afrique en quête de financement."
+        "description": "Parcourez des projets vérifiés venant de toute l’Afrique à la recherche de financement."
       },
       "invest": {
         "title": "Investissez en toute sécurité",
         "description": "Utilisez HBAR pour investir de manière transparente et sécurisée."
       },
       "grow": {
-        "title": "Grandir ensemble",
-        "description": "Générez des retours et soutenez des initiatives impactantes."
+        "title": "Grandissons ensemble",
+        "description": "Percevez des rendements et soutenez des initiatives à impact."
       }
     }
   },
   "users": {
     "title": "Pour qui est SACHAIN ?",
     "startups": {
-      "title": "Pour les startups",
+      "title": "Pour les Startups",
       "description": "Levez des fonds de manière transparente, gagnez la confiance de la communauté et développez votre vision."
     },
     "investors": {
-      "title": "Pour les investisseurs",
-      "description": "Découvrez des projets vérifiés, investissez en toute sécurité avec HBAR et grandissez avec impact."
+      "title": "Pour les Investisseurs",
+      "description": "Découvrez des projets vérifiés, investissez en toute sécurité avec HBAR et croissez avec impact."
     }
   },
-   "benefits": {
+  "benefits": {
     "title": "Pourquoi choisir SACHAIN ?",
     "items": {
       "lowFees": {
         "title": "Frais de transaction réduits",
-        "description": "Profitez de frais quasi nuls grâce au réseau efficace de Hedera."
+        "description": "Profitez de coûts quasi nuls grâce au réseau efficace de Hedera."
       },
       "transparency": {
         "title": "Transparence totale",
-        "description": "Toutes les activités de projets et de financement sont enregistrées sur la blockchain."
+        "description": "Tous les projets et activités de financement sont enregistrés sur la blockchain."
       },
       "speed": {
         "title": "Règlements rapides",
-        "description": "Les transactions sont confirmées en quelques secondes, pas en minutes ou heures."
+        "description": "Les transactions sont confirmées en secondes, pas en minutes ou heures."
       }
     }
   },
-   "cta": {
+  "cta": {
     "title": "Commencer",
-    "subtitle": "Choisissez votre rôle pour commencer",
+    "subtitle": "Tentez votre chance et commencez votre aventure",
+    "getStarted": "Commencer",
     "roles": {
-      "startup": "Je suis une startup",
-      "investor": "Je suis un investisseur"
+      "startup": "Je suis une Startup",
+      "investor": "Je suis un Investisseur"
     }
   },
-   "footer": {
+  "footer": {
     "copyright": "© 2025 SACHAIN. Tous droits réservés.",
     "links": {
       "privacy": "Politique de confidentialité",
-      "terms": "Conditions d'utilisation",
-      "contact": "Contactez-nous"
+      "terms": "Conditions d’utilisation",
+      "contact": "Nous contacter"
+    }
+  },
+  "getStartedModal": {
+    "chooseRole": "Choisissez votre rôle",
+    "welcomeBack": "Bon retour",
+    "roles": {
+      "startup": "Je suis une Startup",
+      "investor": "Je suis un Investisseur"
+    },
+    "tabs": {
+      "login": "Connexion",
+      "signup": "Inscription"
+    },
+    "form": {
+      "name": "Nom",
+      "email": "Email",
+      "password": "Mot de passe",
+      "confirmPassword": "Confirmez le mot de passe",
+      "verifyCode": "Veuillez entrer le code de vérification envoyé à votre email",
+      "firstName": "Prénom",
+      "lastName": "Nom de famille"
+    },
+    "actions": {
+      "loginAs": "Se connecter en tant que",
+      "signupAs": "S’inscrire en tant que",
+      "next": "Suivant",
+      "back": "Retour",
+      "submit": "Valider",
+      "close": "Fermer",
+      "verify": "Vérifier"
+    },
+    "upload": {
+      "investorInstruction": "Veuillez télécharger une pièce d’identité officielle valide (image ou PDF).",
+      "startupInstruction": "Veuillez télécharger votre certificat d’enregistrement ou ID de startup (image ou PDF)."
+    },
+    "success": {
+      "title": "Inscription terminée !",
+      "message": "Votre compte en tant que {{role}} est en attente de vérification. Nous vous informerons une fois approuvé."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Connexion",
+      "form": {
+        "email": "Email",
+        "password": "Mot de passe"
+      },
+      "submit": "Connexion"
     }
   }
 }
