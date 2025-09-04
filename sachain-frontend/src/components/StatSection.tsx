@@ -1,58 +1,12 @@
 import { Card, CardContent } from "./ui/card";
-import { TrendingUp, Users, DollarSign, Building, Globe, Lightbulb, Shield, Zap } from "lucide-react";
+import { Shield, Zap, TrendingUp } from "lucide-react";
+import { DefaultStats, StatItem } from "@/data/statsData";
 
-const stats = [
-  {
-    icon: Building,
-    value: "500K+",
-    label: "African Startups",
-    description: "Seeking funding opportunities",
-    color: "text-blue-600",
-    bgColor: "bg-blue-100"
-  },
-  {
-    icon: DollarSign,
-    value: "$2.3B",
-    label: "Funding Gap",
-    description: "Unmet capital needs in Africa",
-    color: "text-green-600",
-    bgColor: "bg-green-100"
-  },
-  {
-    icon: Users,
-    value: "200M+",
-    label: "Potential Investors",
-    description: "African diaspora worldwide",
-    color: "text-purple-600",
-    bgColor: "bg-purple-100"
-  },
-  {
-    icon: TrendingUp,
-    value: "25%",
-    label: "Annual Growth",
-    description: "African startup ecosystem",
-    color: "text-orange-600",
-    bgColor: "bg-orange-100"
-  },
-  {
-    icon: Globe,
-    value: "54",
-    label: "African Countries",
-    description: "Ready for digital investment",
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-100"
-  },
-  {
-    icon: Lightbulb,
-    value: "1M+",
-    label: "Ideas Waiting",
-    description: "For funding and support",
-    color: "text-yellow-600",
-    bgColor: "bg-yellow-100"
-  }
-];
+interface StatsProps {
+  stats?: StatItem[];
+}
 
-export function StatsSection() {
+export function StatsSection({ stats = DefaultStats }: StatsProps) {
   return (
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,7 +15,7 @@ export function StatsSection() {
             The African Opportunity
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Africa's startup ecosystem is booming, but access to capital remains a challenge. 
+            Africa&apos;s startup ecosystem is booming, but access to capital remains a challenge. 
             sachain bridges this gap with blockchain-powered crowdfunding.
           </p>
         </div>
@@ -97,7 +51,7 @@ export function StatsSection() {
               Why sachain for Africa?
             </h3>
             <p className="text-gray-600">
-              Purpose-built to unlock Africa's innovation potential through accessible, secure crowdfunding
+              Purpose-built to unlock Africa&apos;s innovation potential through accessible, secure crowdfunding
             </p>
           </div>
           

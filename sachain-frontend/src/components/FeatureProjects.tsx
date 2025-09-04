@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { Clock, Users, Target, TrendingUp } from "lucide-react";
+import { Clock, Users, TrendingUp } from "lucide-react";
 
 const projects = [
   {

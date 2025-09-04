@@ -24,7 +24,6 @@
 //   );
 // }
 
-
 import { Button } from "./ui/button";
 import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
 
@@ -50,7 +49,7 @@ export function CTASection() {
         </h2>
         
         <p className="text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
-          Whether you're an investor looking for African opportunities or a startup 
+          Whether you&apos;re an investor looking for African opportunities or a startup 
           ready to scale across the continent, sachain makes it simple, secure, and transparent.
         </p>
         

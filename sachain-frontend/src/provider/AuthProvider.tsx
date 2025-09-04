@@ -7,7 +7,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { hydrate, isHydrated } = useAuthStore();
+  const { hydrate } = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
