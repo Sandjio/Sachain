@@ -98,8 +98,34 @@ const secureHandler = SecurityMiddleware.secureHandler(
   }
 );
 
+// Helper function to get allowed origin
+const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
+  const origin = event.headers.origin ?? event.headers.Origin ?? "";
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app",
+  ];
+  return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
+};
 // Add basic logging wrapper to catch early failures
 export const handler: APIGatewayProxyHandler = async (event, context) => {
+  const allowedOrigin = getAllowedOrigin(event);
+  // Handle CORS preflight requests
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+        "Access-Control-Max-Age": "86400",
+      },
+      body: "",
+    };
+  }
   try {
     // Decode base64 body before any processing
     if (event.isBase64Encoded && event.body) {
@@ -122,6 +148,11 @@ export const handler: APIGatewayProxyHandler = async (event, context) => {
           statusCode: 400,
           headers: {
             "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": allowedOrigin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers":
+              "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
           },
           body: JSON.stringify({
             message: "Invalid request encoding",
@@ -155,6 +186,11 @@ export const handler: APIGatewayProxyHandler = async (event, context) => {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: "Internal server error",
@@ -168,6 +204,7 @@ export const handler: APIGatewayProxyHandler = async (event, context) => {
 async function handleProjectCreationWithSecurity(event: APIGatewayProxyEvent) {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("Project Creation Lambda triggered", {
     operation: "LambdaInvocation",
@@ -190,6 +227,11 @@ async function handleProjectCreationWithSecurity(event: APIGatewayProxyEvent) {
       statusCode: 429,
       headers: {
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: "Too many requests detected",
@@ -215,6 +257,11 @@ async function handleProjectCreationWithSecurity(event: APIGatewayProxyEvent) {
       statusCode: 400,
       headers: {
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: "Security validation failed",
@@ -281,6 +328,11 @@ async function handleProjectCreationWithSecurity(event: APIGatewayProxyEvent) {
       statusCode: projectError.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: projectError.userMessage || "An error occurred",
@@ -330,6 +382,7 @@ async function handleProjectCreation(
   const requestId = event.requestContext.requestId;
   let entrepreneurId: string | undefined;
   let request: CreateProjectRequest | undefined;
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("Project creation started", {
     operation: "ProjectCreation",
@@ -546,6 +599,11 @@ async function handleProjectCreation(
       statusCode: 201,
       headers: {
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify(response),
     };

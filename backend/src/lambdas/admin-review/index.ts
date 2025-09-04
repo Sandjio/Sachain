@@ -59,13 +59,24 @@ const eventBridgeService = createEventBridgeService({
   maxRetries: 3,
 });
 
+// Helper function to get allowed origin
+const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
+  const origin = event.headers.origin ?? event.headers.Origin ?? "";
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app",
+  ];
+  return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
+};
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
   const adminUserId = extractAdminUserId(event);
   const clientIP = getClientIP(event);
   const userAgent = event.headers["User-Agent"];
-
+  const allowedOrigin = getAllowedOrigin(event);
   // Enhanced audit logging for admin access
   await createAuditLogSafe({
     userId: adminUserId,
@@ -89,7 +100,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     adminUserId,
     clientIP,
   });
-
+  // Handle CORS preflight requests
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+        "Access-Control-Max-Age": "86400",
+      },
+      body: "",
+    };
+  }
   try {
     const path = event.path;
     let result;
@@ -134,7 +159,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         statusCode: 404,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({ message: "Endpoint not found" }),
       };
@@ -212,7 +241,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: errorDetails.userMessage,
@@ -228,6 +261,7 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
   const adminUserId = extractAdminUserId(event);
   const clientIP = getClientIP(event);
   const userAgent = event.headers["User-Agent"];
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("KYC approval started", {
     operation: "KYCApproval",
@@ -482,7 +516,11 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify(response),
     };
@@ -551,6 +589,7 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
   const adminUserId = extractAdminUserId(event);
   const clientIP = getClientIP(event);
   const userAgent = event.headers["User-Agent"];
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("KYC rejection started", {
     operation: "KYCRejection",
@@ -829,7 +868,11 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify(response),
     };
@@ -898,6 +941,7 @@ async function handleGetDocuments(event: APIGatewayProxyEvent): Promise<any> {
   const adminUserId = extractAdminUserId(event);
   const clientIP = getClientIP(event);
   const userAgent = event.headers["User-Agent"];
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("Get documents request started", {
     operation: "GetDocuments",
@@ -1039,7 +1083,11 @@ async function handleGetDocuments(event: APIGatewayProxyEvent): Promise<any> {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         documents: documentsResult.items,

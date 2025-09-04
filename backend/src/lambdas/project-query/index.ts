@@ -64,9 +64,20 @@ let aggregationsCache: AggregationsCache = {
   byEntrepreneur: {},
 };
 
+// Helper function to get allowed origin
+const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
+  const origin = event.headers.origin ?? event.headers.Origin ?? "";
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app",
+  ];
+  return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
+};
 export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("Project Query Lambda triggered", {
     operation: "LambdaInvocation",
@@ -112,7 +123,12 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+        "Access-Control-Max-Age": "86400",
       },
       body: JSON.stringify({
         message: errorDetails.userMessage,
@@ -126,7 +142,7 @@ async function handleProjectQuery(event: ProjectQueryEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
   const path = event.path;
-
+  const allowedOrigin = getAllowedOrigin(event);
   logger.info("Project query started", {
     operation: "ProjectQuery",
     requestId,
@@ -183,7 +199,12 @@ async function handleProjectQuery(event: ProjectQueryEvent): Promise<any> {
         statusCode: error.statusCode,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+          "Access-Control-Max-Age": "86400",
         },
         body: JSON.stringify({
           message: error.message,

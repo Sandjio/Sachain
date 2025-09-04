@@ -268,8 +268,8 @@ export class SecurityHeaders {
       "Permissions-Policy":
         "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), speaker=()",
       "Cache-Control": "no-store, no-cache, must-revalidate, private",
-      "Pragma": "no-cache",
-      "Expires": "0",
+      Pragma: "no-cache",
+      Expires: "0",
     };
   }
 
@@ -305,7 +305,9 @@ export class RequestValidator {
   /**
    * Validate request size and structure
    */
-  static validateRequest(event: APIGatewayProxyEvent): SecurityValidationResult {
+  static validateRequest(
+    event: APIGatewayProxyEvent
+  ): SecurityValidationResult {
     const errors: string[] = [];
 
     // Check request size
@@ -316,7 +318,8 @@ export class RequestValidator {
     }
 
     // Validate headers
-    const contentType = event.headers["Content-Type"] || event.headers["content-type"];
+    const contentType =
+      event.headers["Content-Type"] || event.headers["content-type"];
     if (event.body && !contentType) {
       errors.push("Missing Content-Type header");
     }
@@ -372,7 +375,11 @@ export class RequestValidator {
         sanitizedData: sanitizedBody,
       };
     } catch (error) {
-      errors.push(`Sanitization failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      errors.push(
+        `Sanitization failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
       return { isValid: false, errors };
     }
   }
@@ -386,13 +393,16 @@ export class RequestValidator {
     }
 
     const dangerousKeys = ["__proto__", "constructor", "prototype"];
-    
+
     for (const key of Object.keys(obj)) {
       if (dangerousKeys.includes(key)) {
         return true;
       }
-      
-      if (typeof obj[key] === "object" && this.hasPrototypePollution(obj[key])) {
+
+      if (
+        typeof obj[key] === "object" &&
+        this.hasPrototypePollution(obj[key])
+      ) {
         return true;
       }
     }
@@ -416,13 +426,17 @@ export class SecurityMiddleware {
       allowedRoles?: string[];
     } = {}
   ) {
-    return async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    return async (
+      event: APIGatewayProxyEvent
+    ): Promise<APIGatewayProxyResult> => {
       try {
         // Apply rate limiting
         if (options.rateLimitConfig) {
           if (RateLimiter.isRateLimited(event, options.rateLimitConfig)) {
             return this.createErrorResponse(429, "Too Many Requests", {
-              "Retry-After": Math.ceil(options.rateLimitConfig.windowMs / 1000).toString(),
+              "Retry-After": Math.ceil(
+                options.rateLimitConfig.windowMs / 1000
+              ).toString(),
             });
           }
         }
@@ -430,18 +444,28 @@ export class SecurityMiddleware {
         // Validate request structure
         const requestValidation = RequestValidator.validateRequest(event);
         if (!requestValidation.isValid) {
-          return this.createErrorResponse(400, "Bad Request", {}, {
-            errors: requestValidation.errors,
-          });
+          return this.createErrorResponse(
+            400,
+            "Bad Request",
+            {},
+            {
+              errors: requestValidation.errors,
+            }
+          );
         }
 
         // Validate authentication if required
         if (options.requireAuth) {
           const tokenResult = extractUserIdFromToken(event);
           if (!tokenResult.success) {
-            return this.createErrorResponse(401, "Unauthorized", {}, {
-              error: tokenResult.error,
-            });
+            return this.createErrorResponse(
+              401,
+              "Unauthorized",
+              {},
+              {
+                error: tokenResult.error,
+              }
+            );
           }
         }
 
@@ -449,9 +473,14 @@ export class SecurityMiddleware {
         if (event.body) {
           const bodyValidation = RequestValidator.validateJSONBody(event.body);
           if (!bodyValidation.isValid) {
-            return this.createErrorResponse(400, "Bad Request", {}, {
-              errors: bodyValidation.errors,
-            });
+            return this.createErrorResponse(
+              400,
+              "Bad Request",
+              {},
+              {
+                errors: bodyValidation.errors,
+              }
+            );
           }
           // Replace event body with sanitized version
           event.body = JSON.stringify(bodyValidation.sanitizedData);
@@ -491,7 +520,7 @@ export class SecurityMiddleware {
     body: any = {}
   ): APIGatewayProxyResult {
     const securityHeaders = SecurityHeaders.getSecurityHeaders();
-    
+
     return {
       statusCode,
       headers: {
@@ -519,8 +548,9 @@ export class AbusePreventionService {
    */
   static detectSuspiciousActivity(event: APIGatewayProxyEvent): boolean {
     const ip = event.requestContext.identity.sourceIp;
-    const userAgent = event.headers["User-Agent"] || event.headers["user-agent"] || "";
-    
+    const userAgent =
+      event.headers["User-Agent"] || event.headers["user-agent"] || "";
+
     // Check for bot patterns
     const botPatterns = [
       /bot/i,
@@ -531,7 +561,7 @@ export class AbusePreventionService {
       /wget/i,
     ];
 
-    if (botPatterns.some(pattern => pattern.test(userAgent))) {
+    if (botPatterns.some((pattern) => pattern.test(userAgent))) {
       this.recordSuspiciousActivity(ip, "bot_user_agent");
       return true;
     }
@@ -549,7 +579,7 @@ export class AbusePreventionService {
     }
 
     this.suspiciousPatterns.set(`requests_${ip}`, requestCount + 1);
-    
+
     // Clean up old records periodically
     if (Math.random() < 0.01) {
       this.cleanup();
