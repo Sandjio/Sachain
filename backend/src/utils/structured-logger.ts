@@ -288,3 +288,7 @@ export const createDynamoDBLogger = (): StructuredLogger =>
 
 export const createProjectLogger = (): StructuredLogger =>
   StructuredLogger.getInstance("ProjectService");
+
+// Default logger instance for general use
+export const structuredLogger =
+  StructuredLogger.getInstance("HBARRechargeSystem");
