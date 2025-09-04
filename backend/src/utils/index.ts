@@ -40,6 +40,8 @@ export * from "./event-publisher";
 export * from "./eventbridge-service";
 export * from "./project-event-publisher";
 export * from "./notification-service";
+export * from "./recharge-eventbridge-service";
+export * from "./recharge-event-schemas";
 
 // Audit and compliance utilities
 export * from "./project-audit-service";

@@ -5,10 +5,10 @@
  */
 
 import { EventBridgeEvent, Context } from "aws-lambda";
-import { PaymentSuccessEvent } from "../../types/hbar-recharge";
 import { HBARConversionService } from "./conversion-service";
 import { StructuredLogger } from "../../utils/structured-logger";
 import { projectMetrics } from "../../utils/project-metrics";
+import { PaymentSuccessEvent } from "../../utils/recharge-event-schemas";
 
 // Initialize logger
 const logger = StructuredLogger.getInstance("HBARConversionHandler");
@@ -25,10 +25,7 @@ const conversionService = new HBARConversionService({
  * Lambda handler for processing Orange Money payment success events
  */
 export const handler = async (
-  event: EventBridgeEvent<
-    "Orange Money Payment Success",
-    PaymentSuccessEvent["detail"]
-  >,
+  event: EventBridgeEvent<"Orange Money Payment Success", PaymentSuccessEvent>,
   context: Context
 ): Promise<void> => {
   const startTime = Date.now();
@@ -39,6 +36,7 @@ export const handler = async (
     requestId,
     eventSource: event.source,
     eventType: event["detail-type"],
+    eventId: event.detail.eventId,
     transactionId: event.detail.transactionId,
   });
 
@@ -46,6 +44,11 @@ export const handler = async (
     // Validate event structure
     if (!event.detail || !event.detail.transactionId) {
       throw new Error("Invalid event structure: missing transaction details");
+    }
+
+    // Validate event type
+    if (event.detail.eventType !== "ORANGE_MONEY_PAYMENT_SUCCESS") {
+      throw new Error(`Unexpected event type: ${event.detail.eventType}`);
     }
 
     // Process the conversion
