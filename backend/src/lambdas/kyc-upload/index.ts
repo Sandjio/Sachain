@@ -49,7 +49,11 @@ const retry = new ExponentialBackoff({
 // Helper function to get allowed origin
 const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
   const origin = event.headers.origin ?? event.headers.Origin ?? "";
-  const allowedOrigins = ["http://localhost:5173", "http://localhost:3001"];
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app/",
+  ];
   return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
 };
 

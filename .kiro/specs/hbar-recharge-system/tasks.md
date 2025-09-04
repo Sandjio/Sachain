@@ -33,7 +33,7 @@
   - Write unit tests for HBAR transfer operations and account validation
   - _Requirements: 2.5, 2.6, 3.3, 4.5_
 
-- [ ] 5. Create HBAR recharge request handler Lambda
+- [x] 5. Create HBAR recharge request handler Lambda
 
   - Implement main recharge handler that validates user requests and initiates Orange Money payments
   - Add user authentication and authorization checks for recharge requests
