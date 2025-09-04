@@ -52,7 +52,7 @@ const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
   const allowedOrigins = [
     "http://localhost:5173",
     "http://localhost:3001",
-    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app/",
+    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app",
   ];
   return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
 };

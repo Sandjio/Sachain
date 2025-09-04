@@ -43,7 +43,7 @@
   - Write comprehensive unit tests for request validation and payment initiation
   - _Requirements: 1.1, 1.2, 1.5, 4.1, 4.2, 5.1_
 
-- [ ] 6. Create HBAR conversion handler Lambda
+- [x] 6. Create HBAR conversion handler Lambda
 
   - Implement event-driven handler that processes Orange Money payment success events
   - Add exchange rate fetching and HBAR amount calculation logic
