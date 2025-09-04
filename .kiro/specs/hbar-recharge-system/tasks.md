@@ -92,7 +92,7 @@
   - Write integration tests for event publishing and consumption
   - _Requirements: 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 11. Create DynamoDB repository for recharge transactions
+- [x] 11. Create DynamoDB repository for recharge transactions
 
   - Implement RechargeRepository class extending BaseRepository for transaction management
   - Add methods for creating, updating, and querying recharge transactions
