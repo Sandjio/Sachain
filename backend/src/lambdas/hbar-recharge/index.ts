@@ -5,7 +5,7 @@
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { v4 as uuidv4 } from "uuid";
-import { HBARRechargeService } from "./recharge-service";
+import { SecureHBARRechargeService } from "./secure-recharge-service";
 import {
   HBARRechargeRequest,
   HBARRechargeResponse,
@@ -13,10 +13,35 @@ import {
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 import { StructuredLogger } from "../../utils/structured-logger";
 
-// Initialize services
-const rechargeService = new HBARRechargeService({
+// Initialize secure services
+const rechargeService = new SecureHBARRechargeService({
   tableName: process.env.DYNAMODB_TABLE_NAME || "sachain-main-table",
   eventBusName: process.env.EVENT_BUS_NAME || "sachain-events",
+
+  // Security configuration from environment variables
+  encryptionEnabled: process.env.ENCRYPTION_ENABLED !== "false",
+  fraudDetectionEnabled: process.env.FRAUD_DETECTION_ENABLED !== "false",
+  kycVerificationEnabled: process.env.KYC_VERIFICATION_ENABLED !== "false",
+  auditLoggingEnabled: process.env.AUDIT_LOGGING_ENABLED !== "false",
+  complianceReportingEnabled:
+    process.env.COMPLIANCE_REPORTING_ENABLED !== "false",
+
+  // Thresholds from environment variables
+  kycRequiredThreshold: parseInt(
+    process.env.KYC_REQUIRED_THRESHOLD || "500000"
+  ),
+  enhancedKycThreshold: parseInt(
+    process.env.ENHANCED_KYC_THRESHOLD || "2000000"
+  ),
+  suspiciousAmountThreshold: parseInt(
+    process.env.SUSPICIOUS_AMOUNT_THRESHOLD || "2000000"
+  ),
+
+  // Rate limiting from environment variables
+  maxRequestsPerHour: parseInt(process.env.MAX_REQUESTS_PER_HOUR || "10"),
+  maxRequestsPerDay: parseInt(process.env.MAX_REQUESTS_PER_DAY || "50"),
+  maxAmountPerHour: parseInt(process.env.MAX_AMOUNT_PER_HOUR || "1000000"),
+  maxAmountPerDay: parseInt(process.env.MAX_AMOUNT_PER_DAY || "5000000"),
 });
 
 const logger = new StructuredLogger("HBARRechargeHandler");
@@ -94,8 +119,18 @@ export const handler = async (
       return createErrorResponse(403, "FORBIDDEN", "User ID mismatch");
     }
 
-    // Process the recharge request
-    const result = await rechargeService.initiateRecharge(requestBody);
+    // Extract security context from request
+    const securityContext = {
+      ipAddress: event.requestContext?.identity?.sourceIp,
+      userAgent: event.requestContext?.identity?.userAgent,
+      requestId: event.requestContext?.requestId,
+    };
+
+    // Process the secure recharge request
+    const result = await rechargeService.initiateSecureRecharge(
+      requestBody,
+      securityContext
+    );
 
     if (result.success) {
       logger.info("HBAR recharge initiated successfully", {
