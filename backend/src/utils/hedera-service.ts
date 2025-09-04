@@ -14,6 +14,7 @@ import {
   TokenInfoQuery,
   TokenNftInfoQuery,
   AccountBalanceQuery,
+  TransferTransaction,
   Hbar,
   Status,
   TokenInfo,
@@ -21,6 +22,7 @@ import {
 } from "@hashgraph/sdk";
 import { ExponentialBackoff, RetryError } from "./retry";
 import { projectMetrics } from "./project-metrics";
+import { HBARTransferParams, HBARTransferResult } from "../types/hbar-recharge";
 
 export interface HederaConfig {
   operatorId: string;
@@ -123,6 +125,9 @@ export const HederaErrorCodes = {
   INVALID_TOKEN_ID: "INVALID_TOKEN_ID",
   METADATA_VALIDATION_FAILED: "METADATA_VALIDATION_FAILED",
   RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
+  HBAR_TRANSFER_FAILED: "HBAR_TRANSFER_FAILED",
+  INSUFFICIENT_TREASURY_BALANCE: "INSUFFICIENT_TREASURY_BALANCE",
+  INVALID_HEDERA_ACCOUNT: "INVALID_HEDERA_ACCOUNT",
 } as const;
 
 export class HederaService {
@@ -272,6 +277,280 @@ export class HederaService {
           keyFormat: config.operatorKey.substring(0, 20) + "...",
           error: (error as Error).message,
         }
+      );
+    }
+  }
+
+  /**
+   * Transfer HBAR from one account to another
+   */
+  async transferHBAR(params: HBARTransferParams): Promise<HBARTransferResult> {
+    const startTime = Date.now();
+
+    try {
+      this.validateHBARTransferParams(params);
+
+      const result = await this.retry.execute(async () => {
+        // Validate accounts
+        const fromAccountId = AccountId.fromString(params.fromAccountId);
+        const toAccountId = AccountId.fromString(params.toAccountId);
+
+        // Check if sender has sufficient balance
+        const senderBalance = await this.getAccountBalance(
+          params.fromAccountId
+        );
+        const transferAmount = params.amount;
+        const estimatedFee = 0.05; // Estimated transaction fee in HBAR
+
+        if (senderBalance < transferAmount + estimatedFee) {
+          throw new HederaServiceError(
+            `Insufficient balance. Required: ${
+              transferAmount + estimatedFee
+            } HBAR, Available: ${senderBalance} HBAR`,
+            HederaErrorCodes.INSUFFICIENT_TREASURY_BALANCE,
+            402,
+            {
+              required: transferAmount + estimatedFee,
+              available: senderBalance,
+              transferAmount,
+              estimatedFee,
+            }
+          );
+        }
+
+        // Create transfer transaction
+        const transferTx = new TransferTransaction()
+          .addHbarTransfer(fromAccountId, new Hbar(-transferAmount))
+          .addHbarTransfer(toAccountId, new Hbar(transferAmount));
+
+        if (params.memo) {
+          transferTx.setTransactionMemo(params.memo);
+        }
+
+        const frozenTx = transferTx.freezeWith(this.client);
+
+        // Sign and execute transaction
+        const signedTx = await frozenTx.sign(this.operatorKey);
+        const txResponse = await signedTx.execute(this.client);
+
+        // Get receipt
+        const receipt = await txResponse.getReceipt(this.client);
+
+        if (receipt.status !== Status.Success) {
+          throw new Error(
+            `HBAR transfer failed with status: ${receipt.status.toString()}`
+          );
+        }
+
+        // Get transaction record for additional details
+        const record = await txResponse.getRecord(this.client);
+
+        return {
+          transactionId: txResponse.transactionId.toString(),
+          transactionHash: record.transactionHash.toString(),
+          consensusTimestamp: record.consensusTimestamp?.toString() || "",
+          actualCost: record.transactionFee.toString(),
+          status: "success" as const,
+        };
+      }, "transferHBAR");
+
+      const duration = Date.now() - startTime;
+
+      // Record successful HBAR transfer metrics
+      await projectMetrics.recordHederaNetworkHealth(
+        true,
+        duration,
+        "transferHBAR"
+      );
+
+      console.log(`HBAR transfer completed successfully`, {
+        from: params.fromAccountId,
+        to: params.toAccountId,
+        amount: params.amount,
+        transactionId: result.result.transactionId,
+      });
+
+      return result.result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      // Record failed HBAR transfer metrics
+      await projectMetrics.recordHederaNetworkHealth(
+        false,
+        duration,
+        "transferHBAR"
+      );
+
+      if (error instanceof RetryError) {
+        throw new HederaServiceError(
+          "Failed to transfer HBAR after multiple attempts",
+          HederaErrorCodes.HBAR_TRANSFER_FAILED,
+          503,
+          { params, attempts: error.attempts },
+          error.lastError
+        );
+      }
+
+      throw this.handleHederaError(error, "transferHBAR", params);
+    }
+  }
+
+  /**
+   * Validate Hedera account ID format and existence
+   */
+  async validateHederaAccount(accountId: string): Promise<boolean> {
+    const startTime = Date.now();
+
+    try {
+      const result = await this.retry.execute(async () => {
+        // First validate format
+        let parsedAccountId: AccountId;
+        try {
+          parsedAccountId = AccountId.fromString(accountId);
+        } catch (error) {
+          throw new HederaServiceError(
+            "Invalid Hedera account ID format",
+            HederaErrorCodes.INVALID_HEDERA_ACCOUNT,
+            400,
+            { accountId }
+          );
+        }
+
+        // Check if account exists by querying balance
+        const balanceQuery = new AccountBalanceQuery().setAccountId(
+          parsedAccountId
+        );
+        await balanceQuery.execute(this.client);
+
+        return true;
+      }, "validateHederaAccount");
+
+      const duration = Date.now() - startTime;
+      await projectMetrics.recordHederaNetworkHealth(
+        true,
+        duration,
+        "validateHederaAccount"
+      );
+
+      return result.result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await projectMetrics.recordHederaNetworkHealth(
+        false,
+        duration,
+        "validateHederaAccount"
+      );
+
+      if (error instanceof HederaServiceError) {
+        throw error;
+      }
+
+      if (error instanceof RetryError) {
+        throw new HederaServiceError(
+          "Failed to validate Hedera account after multiple attempts",
+          HederaErrorCodes.NETWORK_CONNECTION_FAILED,
+          503,
+          { accountId, attempts: error.attempts },
+          error.lastError
+        );
+      }
+
+      // Account doesn't exist or network error
+      throw new HederaServiceError(
+        "Hedera account validation failed - account may not exist",
+        HederaErrorCodes.INVALID_HEDERA_ACCOUNT,
+        404,
+        { accountId },
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Get account balance in HBAR
+   */
+  async getAccountBalance(accountId: string): Promise<number> {
+    const startTime = Date.now();
+
+    try {
+      const result = await this.retry.execute(async () => {
+        const parsedAccountId = AccountId.fromString(accountId);
+        const balanceQuery = new AccountBalanceQuery().setAccountId(
+          parsedAccountId
+        );
+        const balance = await balanceQuery.execute(this.client);
+
+        return balance.hbars.toBigNumber().toNumber();
+      }, "getAccountBalance");
+
+      const duration = Date.now() - startTime;
+      await projectMetrics.recordHederaNetworkHealth(
+        true,
+        duration,
+        "getAccountBalance"
+      );
+
+      return result.result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await projectMetrics.recordHederaNetworkHealth(
+        false,
+        duration,
+        "getAccountBalance"
+      );
+
+      if (error instanceof RetryError) {
+        throw new HederaServiceError(
+          "Failed to get account balance after multiple attempts",
+          HederaErrorCodes.NETWORK_CONNECTION_FAILED,
+          503,
+          { accountId, attempts: error.attempts },
+          error.lastError
+        );
+      }
+
+      throw this.handleHederaError(error, "getAccountBalance", { accountId });
+    }
+  }
+
+  /**
+   * Monitor treasury account balance and alert if below threshold
+   */
+  async monitorTreasuryBalance(thresholdHBAR: number = 100): Promise<{
+    balance: number;
+    isAboveThreshold: boolean;
+    threshold: number;
+  }> {
+    try {
+      const balance = await this.getAccountBalance(this.operatorId.toString());
+      const isAboveThreshold = balance >= thresholdHBAR;
+
+      if (!isAboveThreshold) {
+        console.warn(
+          `Treasury balance warning: ${balance} HBAR (threshold: ${thresholdHBAR} HBAR)`,
+          {
+            treasuryAccount: this.operatorId.toString(),
+            currentBalance: balance,
+            threshold: thresholdHBAR,
+          }
+        );
+      }
+
+      return {
+        balance,
+        isAboveThreshold,
+        threshold: thresholdHBAR,
+      };
+    } catch (error) {
+      throw new HederaServiceError(
+        "Failed to monitor treasury balance",
+        HederaErrorCodes.NETWORK_CONNECTION_FAILED,
+        503,
+        {
+          treasuryAccount: this.operatorId.toString(),
+          threshold: thresholdHBAR,
+        },
+        error as Error
       );
     }
   }
@@ -715,6 +994,82 @@ export class HederaService {
   }
 
   /**
+   * Validate HBAR transfer parameters
+   */
+  private validateHBARTransferParams(params: HBARTransferParams): void {
+    if (!params.fromAccountId || !params.toAccountId || params.amount <= 0) {
+      throw new HederaServiceError(
+        "Missing or invalid HBAR transfer parameters",
+        HederaErrorCodes.METADATA_VALIDATION_FAILED,
+        400,
+        { providedParams: Object.keys(params) }
+      );
+    }
+
+    // Validate account ID formats
+    try {
+      AccountId.fromString(params.fromAccountId);
+    } catch (error) {
+      throw new HederaServiceError(
+        "Invalid fromAccountId format",
+        HederaErrorCodes.INVALID_HEDERA_ACCOUNT,
+        400,
+        { fromAccountId: params.fromAccountId }
+      );
+    }
+
+    try {
+      AccountId.fromString(params.toAccountId);
+    } catch (error) {
+      throw new HederaServiceError(
+        "Invalid toAccountId format",
+        HederaErrorCodes.INVALID_HEDERA_ACCOUNT,
+        400,
+        { toAccountId: params.toAccountId }
+      );
+    }
+
+    // Validate transfer amount
+    if (params.amount <= 0) {
+      throw new HederaServiceError(
+        "Transfer amount must be greater than 0",
+        HederaErrorCodes.METADATA_VALIDATION_FAILED,
+        400,
+        { amount: params.amount }
+      );
+    }
+
+    if (params.amount > 1000000) {
+      throw new HederaServiceError(
+        "Transfer amount exceeds maximum limit of 1,000,000 HBAR",
+        HederaErrorCodes.METADATA_VALIDATION_FAILED,
+        400,
+        { amount: params.amount }
+      );
+    }
+
+    // Validate memo length if provided
+    if (params.memo && params.memo.length > 100) {
+      throw new HederaServiceError(
+        "Transaction memo exceeds maximum length of 100 characters",
+        HederaErrorCodes.METADATA_VALIDATION_FAILED,
+        400,
+        { memoLength: params.memo.length }
+      );
+    }
+
+    // Prevent self-transfer
+    if (params.fromAccountId === params.toAccountId) {
+      throw new HederaServiceError(
+        "Cannot transfer HBAR to the same account",
+        HederaErrorCodes.METADATA_VALIDATION_FAILED,
+        400,
+        { fromAccountId: params.fromAccountId, toAccountId: params.toAccountId }
+      );
+    }
+  }
+
+  /**
    * Validate token creation parameters
    */
   private validateTokenCreationParams(params: TokenCreationParams): void {
@@ -829,6 +1184,26 @@ export class HederaService {
         "Insufficient balance to complete transaction",
         HederaErrorCodes.INSUFFICIENT_BALANCE,
         402,
+        { operation, context, hederaStatus: errorStatus },
+        error
+      );
+    }
+
+    if (errorStatus.includes("INSUFFICIENT_ACCOUNT_BALANCE")) {
+      return new HederaServiceError(
+        "Insufficient account balance for HBAR transfer",
+        HederaErrorCodes.INSUFFICIENT_TREASURY_BALANCE,
+        402,
+        { operation, context, hederaStatus: errorStatus },
+        error
+      );
+    }
+
+    if (errorStatus.includes("INVALID_ACCOUNT_ID")) {
+      return new HederaServiceError(
+        "Invalid Hedera account ID",
+        HederaErrorCodes.INVALID_HEDERA_ACCOUNT,
+        400,
         { operation, context, hederaStatus: errorStatus },
         error
       );

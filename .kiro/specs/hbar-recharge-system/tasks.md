@@ -24,7 +24,7 @@
   - Write unit tests for exchange rate calculations and fee computations
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 4. Extend Hedera service with HBAR transfer capabilities
+- [x] 4. Extend Hedera service with HBAR transfer capabilities
 
   - Add transferHBAR method to existing HederaService class for account-to-account transfers
   - Implement Hedera account validation function to verify user account IDs
