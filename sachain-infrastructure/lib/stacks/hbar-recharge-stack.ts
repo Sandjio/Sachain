@@ -7,6 +7,7 @@ import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 import { HBARRechargeConstruct } from "../constructs/hbar-recharge";
+import { AdminDashboardConstruct } from "../constructs/admin-dashboard";
 import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
 export interface HBARRechargeStackProps extends cdk.StackProps {
@@ -35,6 +36,7 @@ export class HBARRechargeStack
   implements HBARRechargeStackOutputs
 {
   public readonly hbarRechargeConstruct: HBARRechargeConstruct;
+  public readonly adminDashboardConstruct: AdminDashboardConstruct;
 
   // Stack outputs
   public readonly rechargeTable: dynamodb.Table;
@@ -68,6 +70,19 @@ export class HBARRechargeStack
         environment: props.environment,
         table: props.table,
         eventBus: props.eventBus,
+        notificationTopic: props.notificationTopic,
+      }
+    );
+
+    // Create admin dashboard construct
+    this.adminDashboardConstruct = new AdminDashboardConstruct(
+      this,
+      "AdminDashboard",
+      {
+        environment: props.environment,
+        table: this.hbarRechargeConstruct.rechargeTable,
+        api: props.api,
+        userPool: props.userPool,
         notificationTopic: props.notificationTopic,
       }
     );
@@ -946,6 +961,26 @@ export class HBARRechargeStack
     new cdk.CfnOutput(this, "RechargeDashboardUrl", {
       value: `https://${cdk.Aws.REGION}.console.aws.amazon.com/cloudwatch/home?region=${cdk.Aws.REGION}#dashboards:name=${this.hbarRechargeConstruct.dashboard.dashboardName}`,
       description: "HBAR Recharge CloudWatch Dashboard URL",
+    });
+
+    // Export admin dashboard URL
+    new cdk.CfnOutput(this, "AdminDashboardUrl", {
+      value: `https://${cdk.Aws.REGION}.console.aws.amazon.com/cloudwatch/home?region=${cdk.Aws.REGION}#dashboards:name=${this.adminDashboardConstruct.adminDashboard.dashboardName}`,
+      description: "Admin Dashboard CloudWatch URL",
+    });
+
+    // Export admin Lambda ARN
+    new cdk.CfnOutput(this, "AdminDashboardLambdaArn", {
+      value: this.adminDashboardConstruct.adminDashboardLambda.functionArn,
+      description: "Admin Dashboard Lambda ARN",
+      exportName: `${environment}-sachain-admin-dashboard-lambda-arn`,
+    });
+
+    // Export admin alert topic ARN
+    new cdk.CfnOutput(this, "AdminAlertTopicArn", {
+      value: this.adminDashboardConstruct.adminAlertTopic.topicArn,
+      description: "Admin Alert SNS Topic ARN",
+      exportName: `${environment}-sachain-admin-alert-topic-arn`,
     });
 
     // Export alarm names for monitoring integration
