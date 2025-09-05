@@ -4,8 +4,14 @@
  */
 
 import { EventBridgeEvent, Context } from "aws-lambda";
+import { SNSClient } from "@aws-sdk/client-sns";
+import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { StructuredLogger } from "../../utils/structured-logger";
-import { NotificationService } from "../../utils/notification-service";
+import {
+  RechargeNotificationService,
+  RechargeNotificationContext,
+  RechargeNotificationPreferences,
+} from "../../utils/recharge-notification-service";
 import {
   RechargeEvent,
   ConversionCompletedEvent,
@@ -18,7 +24,12 @@ import {
 const logger = StructuredLogger.getInstance("RechargeNotificationHandler");
 
 // Initialize notification service
-const notificationService = new NotificationService({
+const notificationService = new RechargeNotificationService({
+  snsClient: new SNSClient({ region: process.env.AWS_REGION }),
+  sesClient: new SESv2Client({ region: process.env.AWS_REGION }),
+  topicArn: process.env.SNS_TOPIC_ARN || "",
+  fromEmail: process.env.FROM_EMAIL || "noreply@sachain.com",
+  replyToEmail: process.env.REPLY_TO_EMAIL,
   region: process.env.AWS_REGION,
 });
 
@@ -107,25 +118,22 @@ async function handleConversionCompleted(
   });
 
   try {
-    await notificationService.sendEmail({
-      to: await getUserEmail(event.userId),
-      subject: "HBAR Recharge Successful",
-      template: "recharge-success",
-      data: {
-        transactionId: event.transactionId,
-        xafAmount: event.xafAmount,
-        hbarAmount: event.hbarAmount,
-        exchangeRate: event.exchangeRate,
-        hederaTransactionId: event.hederaTransactionId,
-        userHederaAccountId: event.userHederaAccountId,
-        timestamp: event.timestamp,
-      },
-    });
+    const context = await getUserNotificationContext(event.userId);
+    const preferences = await getUserNotificationPreferences(event.userId);
 
-    // Also send SMS for successful recharges
-    await notificationService.sendSMS({
-      to: await getUserPhoneNumber(event.userId),
-      message: `Your HBAR recharge is complete! You received ${event.hbarAmount} HBAR. Transaction ID: ${event.transactionId}`,
+    const results =
+      await notificationService.sendConversionCompletedNotification(
+        context,
+        event,
+        preferences
+      );
+
+    logger.info("Conversion completed notification sent", {
+      operation: "ConversionCompletedNotification",
+      transactionId: event.transactionId,
+      userId: event.userId,
+      emailSuccess: results.email?.success,
+      smsSuccess: results.sms?.success,
     });
   } catch (error) {
     logger.error(
@@ -155,31 +163,28 @@ async function handleConversionFailed(
   });
 
   try {
-    const message = event.retryable
-      ? "Your HBAR recharge is being retried. We'll notify you once it's complete."
-      : "Your HBAR recharge failed. Please contact support for assistance.";
+    const context = await getUserNotificationContext(event.userId);
+    const preferences = await getUserNotificationPreferences(event.userId);
 
-    await notificationService.sendEmail({
-      to: await getUserEmail(event.userId),
-      subject: event.retryable ? "HBAR Recharge Retry" : "HBAR Recharge Failed",
-      template: event.retryable ? "recharge-retry" : "recharge-failed",
-      data: {
-        transactionId: event.transactionId,
-        xafAmount: event.xafAmount,
-        errorMessage: event.errorMessage,
-        retryable: event.retryable,
-        retryCount: event.retryCount,
-        timestamp: event.timestamp,
-      },
-    });
+    const results = await notificationService.sendConversionFailedNotification(
+      context,
+      event,
+      preferences
+    );
 
-    // Send SMS for non-retryable failures
-    if (!event.retryable) {
-      await notificationService.sendSMS({
-        to: await getUserPhoneNumber(event.userId),
-        message: `Your HBAR recharge failed. Transaction ID: ${event.transactionId}. Please contact support.`,
-      });
+    // Send admin alert for non-retryable failures
+    if (!event.retryable && process.env.ADMIN_EMAIL) {
+      await notificationService.sendAdminAlert(event, process.env.ADMIN_EMAIL);
     }
+
+    logger.info("Conversion failed notification sent", {
+      operation: "ConversionFailedNotification",
+      transactionId: event.transactionId,
+      userId: event.userId,
+      retryable: event.retryable,
+      emailSuccess: results.email?.success,
+      smsSuccess: results.sms?.success,
+    });
   } catch (error) {
     logger.error(
       "Failed to send conversion failed notification",
@@ -208,20 +213,20 @@ async function handleRechargeCompleted(
   });
 
   try {
-    await notificationService.sendEmail({
-      to: await getUserEmail(event.userId),
-      subject: "HBAR Recharge Complete",
-      template: "recharge-complete",
-      data: {
-        transactionId: event.transactionId,
-        xafAmount: event.xafAmount,
-        hbarAmount: event.hbarAmount,
-        exchangeRate: event.exchangeRate,
-        totalFees: event.totalFees,
-        processingTimeMs: event.processingTimeMs,
-        userHederaAccountId: event.userHederaAccountId,
-        timestamp: event.timestamp,
-      },
+    const context = await getUserNotificationContext(event.userId);
+    const preferences = await getUserNotificationPreferences(event.userId);
+
+    const results = await notificationService.sendRechargeCompletedNotification(
+      context,
+      event,
+      preferences
+    );
+
+    logger.info("Recharge completed notification sent", {
+      operation: "RechargeCompletedNotification",
+      transactionId: event.transactionId,
+      userId: event.userId,
+      emailSuccess: results.email?.success,
     });
   } catch (error) {
     logger.error(
@@ -249,33 +254,27 @@ async function handleRechargeFailed(event: RechargeFailedEvent): Promise<void> {
   });
 
   try {
-    const stageMessages = {
-      payment: "during payment processing",
-      conversion: "during currency conversion",
-      transfer: "during HBAR transfer",
-    };
+    const context = await getUserNotificationContext(event.userId);
+    const preferences = await getUserNotificationPreferences(event.userId);
 
-    await notificationService.sendEmail({
-      to: await getUserEmail(event.userId),
-      subject: "HBAR Recharge Failed",
-      template: "recharge-failed",
-      data: {
-        transactionId: event.transactionId,
-        xafAmount: event.xafAmount,
-        errorMessage: event.errorMessage,
-        failureStage: event.failureStage,
-        stageMessage: stageMessages[event.failureStage],
-        retryable: event.retryable,
-        timestamp: event.timestamp,
-      },
-    });
+    const results = await notificationService.sendRechargeFailedNotification(
+      context,
+      event,
+      preferences
+    );
 
-    // Send SMS for critical failures
-    await notificationService.sendSMS({
-      to: await getUserPhoneNumber(event.userId),
-      message: `Your HBAR recharge failed ${
-        stageMessages[event.failureStage]
-      }. Transaction ID: ${event.transactionId}. Please contact support.`,
+    // Send admin alert for critical failures
+    if (process.env.ADMIN_EMAIL) {
+      await notificationService.sendAdminAlert(event, process.env.ADMIN_EMAIL);
+    }
+
+    logger.info("Recharge failed notification sent", {
+      operation: "RechargeFailedNotification",
+      transactionId: event.transactionId,
+      userId: event.userId,
+      failureStage: event.failureStage,
+      emailSuccess: results.email?.success,
+      smsSuccess: results.sms?.success,
     });
   } catch (error) {
     logger.error(
@@ -291,21 +290,35 @@ async function handleRechargeFailed(event: RechargeFailedEvent): Promise<void> {
 }
 
 /**
- * Helper function to get user email (placeholder implementation)
+ * Get user notification context (email, phone, preferences)
  */
-async function getUserEmail(userId: string): Promise<string> {
-  // This would typically query the user database
-  // For now, return a placeholder
-  return `user-${userId}@example.com`;
+async function getUserNotificationContext(
+  userId: string
+): Promise<RechargeNotificationContext> {
+  // TODO: Replace with actual user repository query
+  // This would typically query the user database to get real contact information
+  return {
+    userId,
+    userEmail: `user-${userId}@example.com`, // Placeholder
+    userPhone: `+237${userId.slice(-8)}`, // Placeholder
+    userLanguage: "en",
+    userTimezone: "Africa/Douala",
+  };
 }
 
 /**
- * Helper function to get user phone number (placeholder implementation)
+ * Get user notification preferences
  */
-async function getUserPhoneNumber(userId: string): Promise<string> {
-  // This would typically query the user database
-  // For now, return a placeholder
-  return `+237${userId.slice(-8)}`;
+async function getUserNotificationPreferences(
+  userId: string
+): Promise<RechargeNotificationPreferences> {
+  // TODO: Replace with actual user preferences query
+  // This would typically query the user preferences from the database
+  return {
+    emailEnabled: true,
+    smsEnabled: true,
+    criticalOnly: false,
+  };
 }
 
 /**
@@ -336,6 +349,68 @@ export const healthCheck = async (): Promise<{
       dependencies: {
         notificationService: false,
       },
+    };
+  }
+};
+
+/**
+ * Manual notification trigger for testing and admin use
+ */
+export const sendManualNotification = async (event: {
+  userId: string;
+  type: "test" | "recharge-initiated";
+  data?: Record<string, any>;
+}): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+  try {
+    const context = await getUserNotificationContext(event.userId);
+
+    if (event.type === "test") {
+      const result = await notificationService.sendEmail({
+        to: context.userEmail || "test@example.com",
+        subject: "Test Notification",
+        template: "recharge-success",
+        data: {
+          transactionId: "TEST-" + Date.now(),
+          xafAmount: 1000,
+          hbarAmount: 10,
+          exchangeRate: 100,
+          hederaTransactionId: "0.0.123456@1234567890.123456789",
+          userHederaAccountId: "0.0.123456",
+          timestamp: new Date().toISOString(),
+          actualCost: "0.001",
+        },
+      });
+
+      return {
+        success: result.success,
+        messageId: result.messageId,
+        error: result.error?.message,
+      };
+    }
+
+    if (event.type === "recharge-initiated" && event.data) {
+      const result =
+        await notificationService.sendRechargeInitiatedNotification(
+          context,
+          event.data
+        );
+
+      return {
+        success: result.success,
+        messageId: result.messageId,
+        error: result.error?.message,
+      };
+    }
+
+    return {
+      success: false,
+      error: "Unknown notification type or missing data",
+    };
+  } catch (error) {
+    logger.error("Manual notification failed", {}, error as Error);
+    return {
+      success: false,
+      error: (error as Error).message,
     };
   }
 };
