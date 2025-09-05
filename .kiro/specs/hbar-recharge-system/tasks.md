@@ -132,7 +132,7 @@
   - Write infrastructure tests to validate CDK resource creation and configuration
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-- [ ] 15. Add API Gateway endpoints and request validation
+- [x] 15. Add API Gateway endpoints and request validation
 
   - Create API Gateway endpoints for recharge initiation and status checking
   - Implement request validation schemas for recharge API endpoints

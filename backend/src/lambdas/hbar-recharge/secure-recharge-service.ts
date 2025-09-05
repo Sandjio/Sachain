@@ -1136,6 +1136,163 @@ export class SecureHBARRechargeService {
   }
 
   /**
+   * List user transactions with pagination and filtering
+   */
+  async listUserTransactions(
+    userId: string,
+    options: {
+      limit?: number;
+      status?: string;
+      exclusiveStartKey?: string;
+    } = {}
+  ) {
+    try {
+      const transactions = await this.repository.listUserTransactions(
+        userId,
+        options
+      );
+
+      return {
+        success: true,
+        data: transactions,
+      };
+    } catch (error) {
+      this.logger.error(
+        "Failed to list user transactions",
+        {
+          operation: "ListUserTransactions",
+          userId,
+          options,
+        },
+        error as Error
+      );
+
+      return {
+        success: false,
+        error: {
+          code: RECHARGE_ERROR_CODES.DATABASE_ERROR,
+          message: "Failed to retrieve transactions",
+        },
+      };
+    }
+  }
+
+  /**
+   * Check if user has admin access for retry operations
+   */
+  async checkAdminAccess(userId: string): Promise<boolean> {
+    try {
+      // Check user role in the database
+      const user = await this.userRepo.getUserById(userId);
+      return (
+        user?.role === "admin" ||
+        user?.permissions?.includes("retry_transactions")
+      );
+    } catch (error) {
+      this.logger.error(
+        "Failed to check admin access",
+        {
+          operation: "CheckAdminAccess",
+          userId,
+        },
+        error as Error
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Retry a failed transaction (admin only)
+   */
+  async retryTransaction(transactionId: string, adminUserId: string) {
+    try {
+      // Verify admin access
+      const hasAccess = await this.checkAdminAccess(adminUserId);
+      if (!hasAccess) {
+        return {
+          success: false,
+          error: {
+            code: RECHARGE_ERROR_CODES.INSUFFICIENT_PRIVILEGES,
+            message: "Admin access required for retry operations",
+          },
+        };
+      }
+
+      // Get the transaction
+      const transaction = await this.repository.getTransactionById(
+        transactionId
+      );
+      if (!transaction) {
+        return {
+          success: false,
+          error: {
+            code: RECHARGE_ERROR_CODES.TRANSACTION_NOT_FOUND,
+            message: "Transaction not found",
+          },
+        };
+      }
+
+      // Only retry failed transactions
+      if (transaction.status !== "failed") {
+        return {
+          success: false,
+          error: {
+            code: RECHARGE_ERROR_CODES.INVALID_TRANSACTION_STATE,
+            message: "Only failed transactions can be retried",
+          },
+        };
+      }
+
+      // Update retry count and status
+      const updatedTransaction = await this.repository.updateTransactionStatus(
+        transactionId,
+        "processing",
+        {
+          retryCount: (transaction.retryCount || 0) + 1,
+          retryInitiatedBy: adminUserId,
+          retryInitiatedAt: new Date().toISOString(),
+        }
+      );
+
+      // Publish retry event
+      await this.eventPublisher.publishRetryEvent({
+        transactionId,
+        adminUserId,
+        originalUserId: transaction.userId,
+        retryCount: updatedTransaction.retryCount,
+      });
+
+      return {
+        success: true,
+        data: {
+          transactionId,
+          status: "processing",
+          retryCount: updatedTransaction.retryCount,
+          updatedAt: updatedTransaction.updatedAt,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        "Failed to retry transaction",
+        {
+          operation: "RetryTransaction",
+          transactionId,
+          adminUserId,
+        },
+        error as Error
+      );
+
+      return {
+        success: false,
+        error: {
+          code: RECHARGE_ERROR_CODES.INTERNAL_ERROR,
+          message: "Failed to retry transaction",
+        },
+      };
+    }
+  }
+
+  /**
    * Clean up sensitive data and cached keys
    */
   cleanup(): void {

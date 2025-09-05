@@ -201,6 +201,92 @@ export class RechargeRepository extends BaseRepository {
   }
 
   /**
+   * List user transactions with filtering and pagination (alias for getUserTransactions)
+   */
+  async listUserTransactions(
+    userId: string,
+    options: {
+      limit?: number;
+      status?: string;
+      exclusiveStartKey?: string;
+    } = {}
+  ): Promise<{
+    transactions: RechargeTransaction[];
+    pagination: {
+      limit: number;
+      exclusiveStartKey?: string;
+      hasMore: boolean;
+    };
+  }> {
+    const { limit = 20, status, exclusiveStartKey } = options;
+
+    let result;
+    if (status) {
+      // Query by status using GSI
+      result = await this.queryItems<RechargeTransaction>(
+        "#gsi1pk = :statusKey AND #gsi1sk >= :userId",
+        {
+          "#gsi1pk": "GSI1PK",
+          "#gsi1sk": "GSI1SK",
+        },
+        {
+          ":statusKey": `RECHARGE_STATUS#${status}`,
+          ":userId": `USER#${userId}`,
+        },
+        "GSI1", // Use GSI1 for status queries
+        {
+          limit,
+          exclusiveStartKey: exclusiveStartKey
+            ? JSON.parse(exclusiveStartKey)
+            : undefined,
+        }
+      );
+    } else {
+      // Query all user transactions
+      result = await this.getUserTransactions(
+        userId,
+        limit,
+        exclusiveStartKey ? JSON.parse(exclusiveStartKey) : undefined
+      );
+    }
+
+    return {
+      transactions: result.items,
+      pagination: {
+        limit,
+        exclusiveStartKey: result.lastEvaluatedKey
+          ? JSON.stringify(result.lastEvaluatedKey)
+          : undefined,
+        hasMore: !!result.lastEvaluatedKey,
+      },
+    };
+  }
+
+  /**
+   * Gets a transaction by ID (without requiring user ID)
+   */
+  async getTransactionById(
+    transactionId: string
+  ): Promise<RechargeTransaction | null> {
+    // Query using GSI to find transaction by ID
+    const result = await this.queryItems<RechargeTransaction>(
+      "begins_with(#sk, :transactionPrefix)",
+      {
+        "#sk": "SK",
+      },
+      {
+        ":transactionPrefix": `RECHARGE#${transactionId}`,
+      },
+      undefined, // Use main table
+      {
+        limit: 1,
+      }
+    );
+
+    return result.items.length > 0 ? result.items[0] : null;
+  }
+
+  /**
    * Gets failed transactions that need retry
    */
   async getFailedTransactionsForRetry(
