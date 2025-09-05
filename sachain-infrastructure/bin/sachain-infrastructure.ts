@@ -8,6 +8,7 @@ import {
   SecurityStack,
   LambdaStack,
   MonitoringStack,
+  HBARRechargeStack,
 } from "../lib/stacks";
 import { getEnvironmentConfig } from "../lib/config";
 import {
@@ -47,6 +48,7 @@ const stackNames = [
   `SachainSecurityStack-${environment}`,
   `SachainLambdaStack-${environment}`,
   `SachainMonitoringStack-${environment}`,
+  `SachainHBARRechargeStack-${environment}`,
 ];
 
 stackNames.forEach((stackName) => {
@@ -240,12 +242,55 @@ try {
   throw error;
 }
 
+// 5. Create HBARRechargeStack (depends on CoreStack and LambdaStack)
+let hbarRechargeStack: HBARRechargeStack;
+try {
+  const hbarRechargeDependencies = {
+    table: coreStack.table,
+    eventBus: lambdaStack.eventBus,
+    notificationTopic: lambdaStack.notificationTopic,
+    api: lambdaStack.api,
+    userPool: coreStack.userPool,
+  };
+
+  hbarRechargeStack = new HBARRechargeStack(
+    app,
+    `SachainHBARRechargeStack-${environment}`,
+    {
+      ...commonProps,
+      environment,
+      ...hbarRechargeDependencies,
+      description: `Sachain HBAR Recharge infrastructure (Lambda, DynamoDB, EventBridge) for ${environment} environment`,
+      tags: {
+        ...commonProps.tags,
+        Component: "HBAR-Recharge",
+      },
+    }
+  );
+
+  CrossStackValidator.markStackDeployed("HBARRechargeStack");
+  console.log("✓ HBARRechargeStack created successfully");
+} catch (error) {
+  const failureContext = DeploymentErrorHandler.handleDeploymentFailure(
+    "HBARRechargeStack",
+    environment,
+    error instanceof Error ? error : new Error(String(error))
+  );
+  console.error(
+    "✗ HBARRechargeStack creation failed:",
+    failureContext.errorMessage
+  );
+  throw error;
+}
+
 // Set up explicit dependencies to ensure proper deployment order (consolidated structure)
 securityStack.addDependency(coreStack);
 lambdaStack.addDependency(coreStack);
 lambdaStack.addDependency(securityStack);
 monitoringStack.addDependency(lambdaStack);
 monitoringStack.addDependency(coreStack);
+hbarRechargeStack.addDependency(coreStack);
+hbarRechargeStack.addDependency(lambdaStack);
 
 // Generate deployment report
 console.log("\n" + "=".repeat(60));

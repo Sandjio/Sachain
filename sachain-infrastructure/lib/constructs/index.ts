@@ -8,3 +8,4 @@ export * from "./monitoring";
 export * from "./security";
 export * from "./post-auth-lambda";
 export * from "./post-confirm-lambda";
+export * from "./hbar-recharge";
