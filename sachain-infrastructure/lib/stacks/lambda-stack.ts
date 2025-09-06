@@ -9,7 +9,7 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
-import { LambdaConstruct, EventBridgeConstruct } from "../constructs";
+import { LambdaConstruct, EventBridgeConstruct, AdminDashboardConstruct } from "../constructs";
 import { LambdaStackOutputs, StackDependencies } from "../interfaces";
 import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
@@ -43,11 +43,14 @@ export interface LambdaStackProps extends cdk.StackProps {
   stockMintingStatusRole: iam.Role;
   // Admin emails for event notifications
   adminEmails?: string[];
+
 }
 
 export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
   public readonly lambdaConstruct: LambdaConstruct;
   public readonly eventBridgeConstruct: EventBridgeConstruct;
+  public readonly adminDashboardConstruct: AdminDashboardConstruct;
+
 
   // LambdaStackOutputs interface implementation - Lambda functions (excluding post-auth)
   public readonly kycUploadLambda: lambda.Function;
@@ -66,6 +69,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
   public readonly kycProcessingLambdaArn: string;
   public readonly complianceLambdaArn?: string;
   public readonly api: apigateway.RestApi;
+  public readonly adminResource: apigateway.Resource;
   public readonly apiUrl: string;
   public readonly apiId: string;
   public readonly apiRootResourceId: string;
@@ -240,6 +244,7 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     this.stockMintingStatusLambda =
       this.lambdaConstruct.stockMintingStatusLambda;
     this.api = this.lambdaConstruct.api;
+    this.adminResource = this.lambdaConstruct.adminResource;
 
     // Set ARNs and identifiers for interface compliance
     this.kycUploadLambdaArn = this.kycUploadLambda.functionArn;
@@ -253,6 +258,20 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     // Add Cognito authorization to API endpoints
     this.lambdaConstruct.addCognitoAuthorization(props.userPool);
 
+    // Create admin dashboard construct
+    this.adminDashboardConstruct = new AdminDashboardConstruct(
+      this,
+      "AdminDashboard",
+      {
+        environment: props.environment,
+        table: props.table,
+        api: this.api,
+        adminResource: this.adminResource,
+        userPool: props.userPool,
+        notificationTopic: this.notificationTopic,
+      }
+    );
+
     // Configure EventBridge integrations with local lambda functions
     this.configureEventBridgeIntegrations();
 
@@ -262,6 +281,8 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     // Create stack outputs for cross-stack references
     this.createStackOutputs(props.environment);
   }
+
+
 
   private configureEventBridgeIntegrations(): void {
     // Configure event rule targets to reference local lambda functions

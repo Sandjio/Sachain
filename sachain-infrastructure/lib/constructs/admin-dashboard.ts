@@ -3,15 +3,15 @@
  * Infrastructure for admin dashboard and management tools
  */
 
-import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
-import { Construct } from 'constructs';
+import * as cdk from "aws-cdk-lib";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as sns from "aws-cdk-lib/aws-sns";
+import * as iam from "aws-cdk-lib/aws-iam";
+import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
+import { Construct } from "constructs";
 
 export interface AdminDashboardConstructProps {
   environment: string;
@@ -19,47 +19,62 @@ export interface AdminDashboardConstructProps {
   api: apigateway.RestApi;
   userPool: cognito.UserPool;
   notificationTopic: sns.Topic;
+  adminResource?: apigateway.Resource;
 }
 
 export class AdminDashboardConstruct extends Construct {
   public readonly adminDashboardLambda: lambda.Function;
   public readonly adminAlertTopic: sns.Topic;
-  public readonly adminDashboard: cloudwatch.Dashboard;
+  public adminDashboard: cloudwatch.Dashboard;
 
-  constructor(scope: Construct, id: string, props: AdminDashboardConstructProps) {
+  constructor(
+    scope: Construct,
+    id: string,
+    props: AdminDashboardConstructProps
+  ) {
     super(scope, id);
 
     // Create admin alert SNS topic
-    this.adminAlertTopic = new sns.Topic(this, 'AdminAlertTopic', {
+    this.adminAlertTopic = new sns.Topic(this, "AdminAlertTopic", {
       topicName: `sachain-admin-alerts-${props.environment}`,
-      displayName: 'Sachain Admin Alerts',
+      displayName: "Sachain Admin Alerts",
     });
 
     // Create admin dashboard Lambda
-    this.adminDashboardLambda = new lambda.Function(this, 'AdminDashboardLambda', {
-      functionName: `sachain-admin-dashboard-${props.environment}`,
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('../../backend/src/lambdas/admin-dashboard'),
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
-      environment: {
-        DYNAMODB_TABLE_NAME: props.table.tableName,
-        COGNITO_USER_POOL_ID: props.userPool.userPoolId,
-        COGNITO_CLIENT_ID: '', // Will be set after client creation
-        ADMIN_ALERT_TOPIC_ARN: this.adminAlertTopic.topicArn,
-        ADMIN_EMAIL_ADDRESSES: process.env.ADMIN_EMAIL_ADDRESSES || '',
-        ADMIN_EMAIL_FROM: process.env.ADMIN_EMAIL_FROM || 'noreply@sachain.com',
-        TREASURY_LOW_BALANCE_THRESHOLD: process.env.TREASURY_LOW_BALANCE_THRESHOLD || '1000',
-        TREASURY_CRITICAL_BALANCE_THRESHOLD: process.env.TREASURY_CRITICAL_BALANCE_THRESHOLD || '100',
-        PLATFORM_FEE_PERCENTAGE: process.env.PLATFORM_FEE_PERCENTAGE || '2',
-        ORANGE_MONEY_FEE_PERCENTAGE: process.env.ORANGE_MONEY_FEE_PERCENTAGE || '1',
-        HEDERA_ACCOUNT_ID: process.env.HEDERA_ACCOUNT_ID || '',
-        HEDERA_PRIVATE_KEY: process.env.HEDERA_PRIVATE_KEY || '',
-        HEDERA_NETWORK: process.env.HEDERA_NETWORK || 'testnet',
-      },
-      tracing: lambda.Tracing.ACTIVE,
-    });
+    this.adminDashboardLambda = new lambda.Function(
+      this,
+      "AdminDashboardLambda",
+      {
+        functionName: `sachain-admin-dashboard-${props.environment}`,
+        runtime: lambda.Runtime.NODEJS_18_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          "../backend/src/lambdas/admin-dashboard"
+        ),
+        timeout: cdk.Duration.seconds(30),
+        memorySize: 512,
+        environment: {
+          DYNAMODB_TABLE_NAME: props.table.tableName,
+          COGNITO_USER_POOL_ID: props.userPool.userPoolId,
+          COGNITO_CLIENT_ID: "", // Will be set after client creation
+          ADMIN_ALERT_TOPIC_ARN: this.adminAlertTopic.topicArn,
+          ADMIN_EMAIL_ADDRESSES: process.env.ADMIN_EMAIL_ADDRESSES || "",
+          ADMIN_EMAIL_FROM:
+            process.env.ADMIN_EMAIL_FROM || "noreply@sachain.com",
+          TREASURY_LOW_BALANCE_THRESHOLD:
+            process.env.TREASURY_LOW_BALANCE_THRESHOLD || "1000",
+          TREASURY_CRITICAL_BALANCE_THRESHOLD:
+            process.env.TREASURY_CRITICAL_BALANCE_THRESHOLD || "100",
+          PLATFORM_FEE_PERCENTAGE: process.env.PLATFORM_FEE_PERCENTAGE || "2",
+          ORANGE_MONEY_FEE_PERCENTAGE:
+            process.env.ORANGE_MONEY_FEE_PERCENTAGE || "1",
+          HEDERA_ACCOUNT_ID: process.env.HEDERA_ACCOUNT_ID || "",
+          HEDERA_PRIVATE_KEY: process.env.HEDERA_PRIVATE_KEY || "",
+          HEDERA_NETWORK: process.env.HEDERA_NETWORK || "testnet",
+        },
+        tracing: lambda.Tracing.ACTIVE,
+      }
+    );
 
     // Grant permissions
     this.grantPermissions(props);
@@ -71,8 +86,8 @@ export class AdminDashboardConstruct extends Construct {
     this.createAdminDashboard(props);
 
     // Add tags
-    cdk.Tags.of(this).add('Component', 'AdminDashboard');
-    cdk.Tags.of(this).add('Environment', props.environment);
+    cdk.Tags.of(this).add("Component", "AdminDashboard");
+    cdk.Tags.of(this).add("Environment", props.environment);
   }
 
   private grantPermissions(props: AdminDashboardConstructProps): void {
@@ -87,8 +102,8 @@ export class AdminDashboardConstruct extends Construct {
     this.adminDashboardLambda.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-        resources: ['*'],
+        actions: ["ses:SendEmail", "ses:SendRawEmail"],
+        resources: ["*"],
       })
     );
 
@@ -97,11 +112,11 @@ export class AdminDashboardConstruct extends Construct {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
-          'cloudwatch:GetMetricStatistics',
-          'cloudwatch:ListMetrics',
-          'cloudwatch:GetMetricData',
+          "cloudwatch:GetMetricStatistics",
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricData",
         ],
-        resources: ['*'],
+        resources: ["*"],
       })
     );
 
@@ -109,8 +124,8 @@ export class AdminDashboardConstruct extends Construct {
     this.adminDashboardLambda.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: ['events:PutEvents'],
-        resources: ['*'],
+        actions: ["events:PutEvents"],
+        resources: ["*"],
       })
     );
   }
@@ -119,7 +134,7 @@ export class AdminDashboardConstruct extends Construct {
     // Create admin authorizer
     const adminAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(
       this,
-      'AdminAuthorizer',
+      "AdminAuthorizer",
       {
         cognitoUserPools: [props.userPool],
         authorizerName: `sachain-admin-authorizer-${props.environment}`,
@@ -127,113 +142,158 @@ export class AdminDashboardConstruct extends Construct {
     );
 
     // Create request validators
-    const requestValidator = new apigateway.RequestValidator(this, 'AdminRequestValidator', {
-      restApi: props.api,
-      validateRequestBody: true,
-      validateRequestParameters: true,
-      requestValidatorName: `admin-request-validator-${props.environment}`,
-    });
+    const requestValidator = new apigateway.RequestValidator(
+      this,
+      "AdminRequestValidator",
+      {
+        restApi: props.api,
+        validateRequestBody: true,
+        validateRequestParameters: true,
+        requestValidatorName: `admin-request-validator-${props.environment}`,
+      }
+    );
 
-    // Create admin resource
-    const adminResource = props.api.root.addResource('admin');
+    // Use existing admin resource or create new one
+    const adminResource = props.adminResource || props.api.root.addResource("admin");
 
     // Dashboard endpoints
-    const dashboardResource = adminResource.addResource('dashboard');
-    
+    const dashboardResource = adminResource.addResource("dashboard");
+
     // GET /admin/dashboard/metrics
-    const metricsResource = dashboardResource.addResource('metrics');
-    metricsResource.addMethod('GET', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    const metricsResource = dashboardResource.addResource("metrics");
+    metricsResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // GET /admin/dashboard/health
-    const healthResource = dashboardResource.addResource('health');
-    healthResource.addMethod('GET', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    const healthResource = dashboardResource.addResource("health");
+    healthResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // Transaction management endpoints
-    const transactionsResource = adminResource.addResource('transactions');
-    
+    const transactionsResource = adminResource.addResource("transactions");
+
     // GET /admin/transactions
-    transactionsResource.addMethod('GET', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-      requestParameters: {
-        'method.request.querystring.status': false,
-        'method.request.querystring.userId': false,
-        'method.request.querystring.dateFrom': false,
-        'method.request.querystring.dateTo': false,
-        'method.request.querystring.limit': false,
-        'method.request.querystring.exclusiveStartKey': false,
-      },
-    });
+    transactionsResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+        requestParameters: {
+          "method.request.querystring.status": false,
+          "method.request.querystring.userId": false,
+          "method.request.querystring.dateFrom": false,
+          "method.request.querystring.dateTo": false,
+          "method.request.querystring.limit": false,
+          "method.request.querystring.exclusiveStartKey": false,
+        },
+      }
+    );
 
     // GET /admin/transactions/{transactionId}
-    const transactionResource = transactionsResource.addResource('{transactionId}');
-    transactionResource.addMethod('GET', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-      requestParameters: {
-        'method.request.path.transactionId': true,
-      },
-    });
+    const transactionResource =
+      transactionsResource.addResource("{transactionId}");
+    transactionResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+        requestParameters: {
+          "method.request.path.transactionId": true,
+        },
+      }
+    );
 
     // POST /admin/transactions/{transactionId}/retry
-    const retryResource = transactionResource.addResource('retry');
-    retryResource.addMethod('POST', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-      requestValidator: requestValidator,
-      requestParameters: {
-        'method.request.path.transactionId': true,
-      },
-    });
+    const retryResource = transactionResource.addResource("retry");
+    retryResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+        requestValidator: requestValidator,
+        requestParameters: {
+          "method.request.path.transactionId": true,
+        },
+      }
+    );
 
     // Treasury management endpoints
-    const treasuryResource = adminResource.addResource('treasury');
-    
+    const treasuryResource = adminResource.addResource("treasury");
+
     // GET /admin/treasury/balance
-    const balanceResource = treasuryResource.addResource('balance');
-    balanceResource.addMethod('GET', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    const balanceResource = treasuryResource.addResource("balance");
+    balanceResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // GET /admin/treasury/alerts
-    const alertsResource = treasuryResource.addResource('alerts');
-    alertsResource.addMethod('GET', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    const alertsResource = treasuryResource.addResource("alerts");
+    alertsResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // Dispute management endpoints
-    const disputesResource = adminResource.addResource('disputes');
-    disputesResource.addMethod('GET', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    const disputesResource = adminResource.addResource("disputes");
+    disputesResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // Reporting endpoints
-    const reportsResource = adminResource.addResource('reports');
-    
+    const reportsResource = adminResource.addResource("reports");
+
     // POST /admin/reports/compliance
-    const complianceResource = reportsResource.addResource('compliance');
-    complianceResource.addMethod('POST', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-      requestValidator: requestValidator,
-    });
+    const complianceResource = reportsResource.addResource("compliance");
+    complianceResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+        requestValidator: requestValidator,
+      }
+    );
 
     // POST /admin/reports/financial
-    const financialResource = reportsResource.addResource('financial');
-    financialResource.addMethod('POST', new apigateway.LambdaIntegration(this.adminDashboardLambda), {
-      authorizer: adminAuthorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-      requestValidator: requestValidator,
-    });
+    const financialResource = reportsResource.addResource("financial");
+    financialResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(this.adminDashboardLambda),
+      {
+        authorizer: adminAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+        requestValidator: requestValidator,
+      }
+    );
 
     // Add CORS to all admin endpoints
     this.addCorsToResource(adminResource);
@@ -244,11 +304,11 @@ export class AdminDashboardConstruct extends Construct {
       allowOrigins: apigateway.Cors.ALL_ORIGINS,
       allowMethods: apigateway.Cors.ALL_METHODS,
       allowHeaders: [
-        'Content-Type',
-        'Authorization',
-        'X-Amz-Date',
-        'X-Api-Key',
-        'X-Amz-Security-Token',
+        "Content-Type",
+        "Authorization",
+        "X-Amz-Date",
+        "X-Api-Key",
+        "X-Amz-Security-Token",
       ],
       maxAge: cdk.Duration.hours(1),
     });
@@ -262,94 +322,94 @@ export class AdminDashboardConstruct extends Construct {
   }
 
   private createAdminDashboard(props: AdminDashboardConstructProps): void {
-    this.adminDashboard = new cloudwatch.Dashboard(this, 'AdminDashboard', {
+    this.adminDashboard = new cloudwatch.Dashboard(this, "AdminDashboard", {
       dashboardName: `sachain-admin-dashboard-${props.environment}`,
     });
 
     // Lambda metrics
     const lambdaMetrics = [
       new cloudwatch.Metric({
-        namespace: 'AWS/Lambda',
-        metricName: 'Invocations',
+        namespace: "AWS/Lambda",
+        metricName: "Invocations",
         dimensionsMap: {
           FunctionName: this.adminDashboardLambda.functionName,
         },
-        statistic: 'Sum',
+        statistic: "Sum",
       }),
       new cloudwatch.Metric({
-        namespace: 'AWS/Lambda',
-        metricName: 'Errors',
+        namespace: "AWS/Lambda",
+        metricName: "Errors",
         dimensionsMap: {
           FunctionName: this.adminDashboardLambda.functionName,
         },
-        statistic: 'Sum',
+        statistic: "Sum",
       }),
       new cloudwatch.Metric({
-        namespace: 'AWS/Lambda',
-        metricName: 'Duration',
+        namespace: "AWS/Lambda",
+        metricName: "Duration",
         dimensionsMap: {
           FunctionName: this.adminDashboardLambda.functionName,
         },
-        statistic: 'Average',
+        statistic: "Average",
       }),
     ];
 
     // API Gateway metrics
     const apiMetrics = [
       new cloudwatch.Metric({
-        namespace: 'AWS/ApiGateway',
-        metricName: '4XXError',
+        namespace: "AWS/ApiGateway",
+        metricName: "4XXError",
         dimensionsMap: {
           ApiName: props.api.restApiName,
         },
-        statistic: 'Sum',
+        statistic: "Sum",
       }),
       new cloudwatch.Metric({
-        namespace: 'AWS/ApiGateway',
-        metricName: '5XXError',
+        namespace: "AWS/ApiGateway",
+        metricName: "5XXError",
         dimensionsMap: {
           ApiName: props.api.restApiName,
         },
-        statistic: 'Sum',
+        statistic: "Sum",
       }),
     ];
 
     // DynamoDB metrics
     const dynamoMetrics = [
       new cloudwatch.Metric({
-        namespace: 'AWS/DynamoDB',
-        metricName: 'ConsumedReadCapacityUnits',
+        namespace: "AWS/DynamoDB",
+        metricName: "ConsumedReadCapacityUnits",
         dimensionsMap: {
           TableName: props.table.tableName,
         },
-        statistic: 'Sum',
+        statistic: "Sum",
       }),
       new cloudwatch.Metric({
-        namespace: 'AWS/DynamoDB',
-        metricName: 'ConsumedWriteCapacityUnits',
+        namespace: "AWS/DynamoDB",
+        metricName: "ConsumedWriteCapacityUnits",
         dimensionsMap: {
           TableName: props.table.tableName,
         },
-        statistic: 'Sum',
+        statistic: "Sum",
       }),
     ];
 
     // Add widgets to dashboard
     this.adminDashboard.addWidgets(
       new cloudwatch.GraphWidget({
-        title: 'Admin Lambda Metrics',
+        title: "Admin Lambda Metrics",
         left: lambdaMetrics,
         width: 12,
         height: 6,
       }),
       new cloudwatch.GraphWidget({
-        title: 'API Gateway Errors',
+        title: "API Gateway Errors",
         left: apiMetrics,
         width: 12,
         height: 6,
       }),
       new cloudwatch.GraphWidget({
-        title: 'DynamoDB Capacity',
+        title: "DynamoDB Capacity",
         left: dynamoMetrics,
         width: 24,
         height: 6,

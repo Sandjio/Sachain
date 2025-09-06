@@ -37,9 +37,9 @@ export class LambdaConstruct extends Construct {
   public readonly stockMintingStatusLambda: lambda.Function;
   public readonly omPaymentsLambda: lambda.Function;
   public readonly api: apigateway.RestApi;
+  public readonly adminResource: apigateway.Resource;
   private cognitoAuthorizer?: apigateway.CognitoUserPoolsAuthorizer;
   private kycResource: apigateway.Resource;
-  private adminResource: apigateway.Resource;
 
   constructor(scope: Construct, id: string, props: LambdaConstructProps) {
     super(scope, id);
