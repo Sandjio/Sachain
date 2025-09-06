@@ -1,6 +1,7 @@
 
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import { useAuthStore } from "@/store/authStore";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,31 +18,60 @@ import { ArrowLeft } from "lucide-react";
 
 export default function TabAuthWrapper() {
   const router = useRouter();
-  const { tab: queryTab, role: queryRole } = router.query;
 
-  const [role, setRole] = useState<"startup" | "investor" | null>(null);
-  const [tab, setTab] = useState<"login" | "signup">("signup");
+  // Normalize possible array query param for tab and role
+  const queryTabParam = router.query.tab;
+  const queryTab = Array.isArray(queryTabParam) ? queryTabParam[0] : queryTabParam;
 
+  const queryRoleParam = router.query.role;
+  const queryRole = Array.isArray(queryRoleParam) ? queryRoleParam[0] : queryRoleParam;
+
+  // Initialize tab state from query or default to signup
+  const initialTab = queryTab === "login" || queryTab === "signup" ? queryTab : "signup";
+  const [tab, setTab] = useState<"login" | "signup">(initialTab);
+
+  const role = useAuthStore((state) => state.user?.role) as "startup" | "investor" | undefined;
+  const setRole = useAuthStore((state) => state.setRole);
   const translate = useTranslate("getStartedModal");
 
+  // Sync the role from query param to Zustand store, if different or not set
+  useEffect(() => {
+    if (queryRole === "startup" || queryRole === "investor") {
+      if (role !== queryRole) {
+        setRole(queryRole);
+      }
+    }
+  }, [queryRole, role, setRole]);
+
+  // Sync tab state from query parameter, but only once router is ready
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (queryTab === "login" || queryTab === "signup") {
+      setTab(queryTab);
+    }
+  }, [queryTab, router.isReady]);
+
+  // Called when user changes tabs, updates the URL query param with shallow routing
+  const handleTabChange = (value: "login" | "signup") => {
+    setTab(value);
+    router.replace(
+      {
+        pathname: router.pathname,
+        query: { ...router.query, tab: value },
+      },
+      undefined,
+      { shallow: true }
+    );
+  };
+
+  // Handle back button to clear role and tab, then push home
   const handleBack = () => {
-    setRole(null);
+    //setRole(null); // Make sure your setRole supports null to clear role
     setTab("signup");
     router.push("/");
   };
 
-  useEffect(() => {
-    if (queryRole === "startup" || queryRole === "investor") setRole(queryRole);
-    if (queryTab === "login" || queryTab === "signup") setTab(queryTab);
-  }, [queryRole, queryTab]);
 
-  if (!role) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -99,7 +129,7 @@ export default function TabAuthWrapper() {
           <CardContent>
             <Tabs
               value={tab}
-              onValueChange={(value) => setTab(value as "login" | "signup")}
+              onValueChange={(value) => handleTabChange(value as "login" | "signup")}
               className="w-full"
             >
               <TabsList className="grid grid-cols-2 w-full">
@@ -108,11 +138,11 @@ export default function TabAuthWrapper() {
               </TabsList>
 
               <TabsContent value="login" className="mt-6">
-                <LoginForm role={role} />
+                <LoginForm />
               </TabsContent>
 
               <TabsContent value="signup" className="mt-6">
-                <SignupFormWizard role={role} />
+                <SignupFormWizard />
               </TabsContent>
             </Tabs>
           </CardContent>

@@ -1,415 +1,4 @@
 
-// import { useState } from "react";
-// import SignupStep1 from "./SignupStep1";
-// import SignupStep2 from "./SignupStep2";
-// import Step4Success from "./Step4Success";
-// import { useSignup } from "@/features/auth/hook/useSignup";
-
-// export type SignupData = {
-//   givenName?: string;
-//   familyName?: string;
-//   email?: string;
-//   password?: string;
-//   confirmPassword?: string;
-//   code?: string;
-//   role?: "startup" | "investor";
-// };
-
-// interface SignupFormWizardProps {
-//   role: "startup" | "investor";
-// }
-
-// export default function SignupFormWizard({ role }: SignupFormWizardProps) {
-//   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-//   const [formData, setFormData] = useState<SignupData>({});
-//   const { signup, confirm, loading, error } = useSignup(role);
-
-//   // Step 1 → Step 2
-//   const handleStep1Next = async (data: {
-//     firstName: string;
-//     lastName: string;
-//     email: string;
-//     password: string;
-//     confirmPassword: string;
-//   }) => {
-//     setFormData({ ...formData, ...data, role }); // store role from modal
-//     try {
-//       await signup({
-//         password: data.password,
-//         email: data.email,
-//         givenName: data.firstName,
-//         familyName: data.lastName,
-//         role: role,
-//       });
-//       setStep(2);
-//     } catch (err) {
-//       console.error("Signup failed:", err);
-//     }
-//   };
-
-//   // Step 2 → Step 3
-//   const handleStep2Verify = async ({ code }: { code: string }) => {
-//     try {
-//       await confirm({ email: formData.email!, code });
-//       setStep(3);
-//     } catch (err) {
-//       console.error("Confirmation failed:", err);
-//     }
-//   };
-
-//   // Step 3 → Step 4 (now just success, no ID upload)
-//   const handleStep3Next = () => {
-//     setStep(4);
-//   };
-
-//   const handleClose = () => {
-//     setFormData({});
-//     setStep(1);
-//   };
-
-//   return (
-//     <div>
-//       {step === 1 && <SignupStep1 onNext={handleStep1Next} loading={loading} />}
-//       {step === 2 && (
-//         <SignupStep2
-//           onVerify={handleStep2Verify}
-//           onBack={() => setStep(1)}
-//           loading={loading}
-//         />
-//       )}
-//       {step === 3 && (
-//         <div className="flex flex-col items-center gap-3 mt-4">
-//           <p>All done! Click next to continue.</p>
-//           <button
-//             onClick={handleStep3Next}
-//             className="px-4 py-2 bg-blue-600 text-white rounded"
-//           >
-//             Next
-//           </button>
-//         </div>
-//       )}
-//       {step === 4 && <Step4Success role={role} onClose={handleClose} />}
-//       {error && <p className="text-red-500">{error}</p>}
-//     </div>
-//   );
-// }
-
-
-// import { useState } from "react";
-// import SignupStep1 from "./SignupStep1";
-// import SignupStep2 from "./SignupStep2";
-// import Step4Success from "./Step4Success";
-// import { useSignup } from "@/features/auth/hook/useSignup";
-// import { useAuthStore } from "@/store/authStore"; // store user + tokens
-
-// export type SignupData = {
-//   givenName?: string;
-//   familyName?: string;
-//   email?: string;
-//   password?: string;
-//   confirmPassword?: string;
-//   code?: string;
-//   role?: "startup" | "investor";
-// };
-
-// interface SignupFormWizardProps {
-//   role: "startup" | "investor";
-// }
-
-// export default function SignupFormWizard({ role }: SignupFormWizardProps) {
-//   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-//   const [formData, setFormData] = useState<SignupData>({});
-//   const { signup, confirm, loading, error } = useSignup(role);
-//   const { login } = useAuthStore(); // to save tokens
-
-//   // Step 1 → Step 2
-//   const handleStep1Next = async (data: {
-//     firstName: string;
-//     lastName: string;
-//     email: string;
-//     password: string;
-//     confirmPassword: string;
-//   }) => {
-//     setFormData({ ...formData, ...data, role });
-//     try {
-//       await signup({
-//         password: data.password,
-//         email: data.email,
-//         givenName: data.firstName,
-//         familyName: data.lastName,
-//         role: role,
-//       });
-//       setStep(2);
-//     } catch (err) {
-//       console.error("Signup failed:", err);
-//     }
-//   };
-
-//   // Step 2 → Step 3 (auto-login)
-//   const handleStep2Verify = async ({ code }: { code: string }) => {
-//     try {
-//       const result = await confirm({
-//         email: formData.email!,
-//         code,
-//       });
-
-//       // Save tokens in store for auto-login
-//       if (result.tokens) {
-//         login({ email: formData.email!, givenName: formData.givenName!, familyName: formData.familyName!, role }, result.tokens);
-//       }
-
-//       setStep(3);
-//     } catch (err) {
-//       console.error("Confirmation failed:", err);
-//     }
-//   };
-
-//   // Step 3 → Step 4 (success)
-//   const handleStep3Next = () => {
-//     setStep(4);
-//   };
-
-//   const handleClose = () => {
-//     setFormData({});
-//     setStep(1);
-//   };
-
-//   return (
-//     <div>
-//       {step === 1 && <SignupStep1 onNext={handleStep1Next} loading={loading} />}
-//       {step === 2 && (
-//         <SignupStep2
-//           onVerify={handleStep2Verify}
-//           onBack={() => setStep(1)}
-//           loading={loading}
-//         />
-//       )}
-//       {step === 3 && (
-//         <div className="flex flex-col items-center gap-3 mt-4">
-//           <p>All done! Click next to continue.</p>
-//           <button
-//             onClick={handleStep3Next}
-//             className="px-4 py-2 bg-blue-600 text-white rounded"
-//           >
-//             Next
-//           </button>
-//         </div>
-//       )}
-//       {step === 4 && <Step4Success role={role} onClose={handleClose} />}
-//       {error && <p className="text-red-500">{error}</p>}
-//     </div>
-//   );
-// }
-
-
-// src/components/auth/signup/SignupFormWizard.tsx
-// import { useState } from "react";
-// import SignupStep1 from "./SignupStep1";
-// import SignupStep2 from "./SignupStep2";
-// import SignupStep3 from "./SignupStep3";
-// import Step4Success from "./Step4Success";
-// import { useSignup } from "@/features/auth/hook/useSignup";
-// import { useAuthStore } from "@/store/authStore"; // for storing tokens
-
-// export type SignupData = {
-//   givenName?: string;
-//   familyName?: string;
-//   email?: string;
-//   password?: string;
-//   confirmPassword?: string;
-//   code?: string;
-//   role?: "startup" | "investor";
-// };
-
-// interface SignupFormWizardProps {
-//   role: "startup" | "investor";
-// }
-
-// export default function SignupFormWizard({ role }: SignupFormWizardProps) {
-//   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-//   const [formData, setFormData] = useState<SignupData>({});
-//   const { signup, confirm, loading, error } = useSignup(role);
-//   const { login } = useAuthStore();
-
-//   // Step 1 → Step 2: Signup
-//   const handleStep1Next = async (data: {
-//     firstName: string;
-//     lastName: string;
-//     email: string;
-//     password: string;
-//     confirmPassword: string;
-//   }) => {
-//     setFormData({ ...formData, ...data, role });
-
-//     try {
-//       await signup({
-//         email: data.email,
-//         password: data.password,
-//         givenName: data.firstName,
-//         familyName: data.lastName,
-//         role,
-//       });
-//       setStep(2); // move to verification
-//     } catch (err) {
-//       console.error("Signup failed:", err);
-//     }
-//   };
-
-//   // Step 2 → Step 3: Confirm verification & auto-login
-//   const handleStep2Verify = async ({ code }: { code: string }) => {
-//     try {
-//       const result = await confirm({
-//         email: formData.email!,
-//         code,
-//         password: formData.password!, // for auto-login
-//       });
-
-//       // Store user and tokens
-//       if (result.tokens) {
-//         login(
-//           {
-//             email: formData.email!,
-//             givenName: formData.givenName!,
-//             familyName: formData.familyName!,
-//             role: role,
-//           },
-//           result.tokens
-//         );
-//       }
-
-//       setStep(3); // move to KYC file upload
-//     } catch (err) {
-//       console.error("Verification or auto-login failed:", err);
-//     }
-//   };
-
-//   // Step 3 → Step 4: After KYC upload
-//   const handleStep3Next = () => setStep(4);
-
-//   const handleClose = () => {
-//     setFormData({});
-//     setStep(1);
-//   };
-
-//   return (
-//     <div>
-//       {step === 1 && <SignupStep1 onNext={handleStep1Next} loading={loading} />}
-//       {step === 2 && (
-//         <SignupStep2
-//           onVerify={handleStep2Verify}
-//           onBack={() => setStep(1)}
-//           loading={loading}
-//         />
-//       )}
-//       {step === 3 && (
-//         <SignupStep3 role={role} onNext={handleStep3Next} onBack={() => setStep(2)} />
-//       )}
-//       {step === 4 && <Step4Success role={role} onClose={handleClose} />}
-//       {error && <p className="text-red-500">{error}</p>}
-//     </div>
-//   );
-// }
-
-
-
-// src/components/auth/signup/SignupFormWizard.tsx
-// import { useState } from "react";
-// import SignupStep1 from "./SignupStep1";
-// import SignupStep2 from "./SignupStep2";
-// import SignupStep3 from "./SignupStep3";
-// import Step4Success from "./Step4Success";
-// import { useSignup } from "@/features/auth/hook/useSignup";
-// import { useAuthStore } from "@/store/authStore";
-
-// export type SignupData = {
-//   givenName?: string;
-//   familyName?: string;
-//   email?: string;
-//   password?: string;
-//   confirmPassword?: string;
-//   code?: string;
-//   role?: "startup" | "investor";
-// };
-
-// interface SignupFormWizardProps {
-//   role: "startup" | "investor";
-// }
-
-// export default function SignupFormWizard({ role }: SignupFormWizardProps) {
-//   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-//   const [formData, setFormData] = useState<SignupData>({});
-//   const { signup, confirm, loading, error } = useSignup(role);
-//   const { user } = useAuthStore(); // get logged in user after auto-login
-
-//   // Step 1 → Step 2
-//   const handleStep1Next = async (data: {
-//     firstName: string;
-//     lastName: string;
-//     email: string;
-//     password: string;
-//     confirmPassword: string;
-//   }) => {
-//     setFormData({ ...formData, ...data, role });
-//     try {
-//       await signup({
-//         email: data.email,
-//         password: data.password,
-//         givenName: data.firstName,
-//         familyName: data.lastName,
-//         role,
-//       });
-//       setStep(2);
-//     } catch (err) {
-//       console.error("Signup failed:", err);
-//     }
-//   };
-
-//   // Step 2 → Step 3 (confirm & auto-login)
-//   const handleStep2Verify = async ({ code }: { code: string }) => {
-//     try {
-//       await confirm({ email: formData.email!, code });
-//       setStep(3); // move to KYC upload
-//     } catch (err) {
-//       console.error("Confirmation failed:", err);
-//     }
-//   };
-
-//   // Step 3 → Step 4 (success)
-//   const handleStep3Next = () => {
-//     setStep(4);
-//   };
-
-//   // Reset wizard
-//   const handleClose = () => {
-//     setFormData({});
-//     setStep(1);
-//   };
-
-//   return (
-//     <div>
-//       {step === 1 && <SignupStep1 onNext={handleStep1Next} loading={loading} />}
-//       {step === 2 && (
-//         <SignupStep2
-//           onVerify={handleStep2Verify}
-//           onBack={() => setStep(1)}
-//           loading={loading}
-//         />
-//       )}
-//       {step === 3 && (
-//         <SignupStep3
-//           role={user?.role || role} // role from user after auto-login
-//           onBack={() => setStep(2)}
-//           onNext={handleStep3Next}
-//         />
-//       )}
-//       {step === 4 && <Step4Success role={role} onClose={handleClose} />}
-//       {error && <p className="text-red-500">{error}</p>}
-//     </div>
-//   );
-// }
-
-
-
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -428,19 +17,20 @@ export type SignupData = {
   password?: string;
   confirmPassword?: string;
   code?: string;
-  role?: "startup" | "investor";
 };
 
-interface SignupFormWizardProps {
-  role: "startup" | "investor";
-}
-
-export default function SignupFormWizard({ role }: SignupFormWizardProps) {
+export default function SignupFormWizard() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [formData, setFormData] = useState<SignupData>({});
-  const { signup, confirm, loading, error } = useSignup(role);
-  const { user } = useAuthStore(); // logged-in user after auto-login
+  const { signup, confirm, loading, error } = useSignup();
+  const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
 
+  if (!user?.role) {
+    return <p>Please select your role before signing up.</p>;
+  }
+
+  const role = user.role;
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
 
@@ -459,16 +49,30 @@ export default function SignupFormWizard({ role }: SignupFormWizardProps) {
     password: string;
     confirmPassword: string;
   }) => {
-    setFormData({ ...formData, ...data, role });
+    setFormData({ ...formData, ...data });
     try {
       await signup({
         email: data.email,
         password: data.password,
         givenName: data.firstName,
         familyName: data.lastName,
+        role
+      });
+
+      setUser({
+        givenName: data.firstName,
+        familyName: data.lastName,
+        email: data.email,
         role,
       });
       setStep(2);
+
+      console.log("User signed up successfully:", {
+        givenName: data.firstName,
+        familyName: data.lastName,
+        email: data.email,
+        role,
+      });
     } catch (err) {
       console.error("Signup failed:", err);
     }
@@ -506,13 +110,13 @@ export default function SignupFormWizard({ role }: SignupFormWizardProps) {
       case 3:
         return (
           <SignupStep3
-            role={user?.role || role}
+            role={role}
             onBack={() => setStep(2)}
             onNext={handleStep3Next}
           />
         );
       case 4:
-        return <Step4Success role={role} onClose={handleClose} />;
+        return <Step4Success onClose={handleClose} />;
       default:
         return null;
     }

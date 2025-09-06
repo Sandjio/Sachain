@@ -1,85 +1,8 @@
-// import { useState } from "react";
-// import { cognitoLogin } from "@/features/auth/core/cognitoProvider";
-// import { LoginPayload } from "../types/authTypes";
-// import { useAuthStore } from "@/store/authStore";
+import { useState } from 'react';
+import { cognitoSignIn } from '@/features/auth/core/cognitoProvider';
+import type { AuthUser } from '../types/authTypes';
+import { useAuthStore } from '@/store/authStore';
 
-// export function useLogin() {
-//   const [isLoading, setIsLoading] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-//   const { login: saveToStore } = useAuthStore();
-
-//   const login = async (params: LoginPayload) => {
-//     setIsLoading(true);
-//     setError(null);
-//     try {
-//       const { user, tokens } = await cognitoLogin(params);
-
-//       // save user and tokens
-//       saveToStore(user, tokens);
-
-//       return { ok: true, user, tokens };
-//     } catch (err: any) {
-//       setError(err.message || "Login failed");
-//       throw err;
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-//   return { login, isLoading, error };
-// }
-
-// import { useState } from "react";
-// import { cognitoSignIn } from "@/features/auth/core/cognitoProvider";
-// import type { AuthUser } from "../types/authTypes";
-// import { useAuthStore } from "@/store/authStore";
-
-// export function useLogin() {
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-
-//   const loginToStore = useAuthStore((s) => s.login);
-
-//   const login = async ({ email, password }: { email: string; password: string }) => {
-//     setLoading(true);
-//     setError(null);
-
-//     try {
-//       // 1. Call Cognito sign in
-//       const tokens = await cognitoSignIn({ email, password });
-//       console.log("Cognito tokens:", tokens.idToken);
-
-//       // 2. Get minimal user object (you might extend this)
-//       const user: AuthUser = {
-//         email,
-//         givenName: "", // optional, can be fetched from Cognito attributes
-//         familyName: "",
-//         role: "startup", // TODO: fetch role attribute from Cognito
-//       };
-
-//       // 3. Save user + tokens to global store
-//       loginToStore(user, tokens);
-
-//       return { ok: true, tokens };
-//     } catch (err: any) {
-//       setError(err.message || "Login failed");
-//       throw err;
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return { login, loading, error };
-// }
-
-
-
-import { useState } from "react";
-import { cognitoSignIn } from "@/features/auth/core/cognitoProvider";
-import type { AuthUser } from "../types/authTypes";
-import { useAuthStore } from "@/store/authStore";
-
-// Define interfaces for better type safety
 interface LoginCredentials {
   email: string;
   password: string;
@@ -90,7 +13,6 @@ interface LoginResult {
   tokens: unknown;
 }
 
-// Helper function to safely extract error message
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -101,44 +23,86 @@ function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
     return String((error as { message: unknown }).message);
   }
-  return "Login failed";
+  return 'Login failed';
+}
+
+// Helper to decode JWT and parse ID token payload
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(function (c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
 }
 
 export function useLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const loginToStore = useAuthStore((s) => s.login);
 
-  const login = async ({ email, password }: LoginCredentials): Promise<LoginResult> => {
+  const login = async ({
+    email,
+    password,
+  }: LoginCredentials): Promise<LoginResult> => {
     setLoading(true);
     setError(null);
+    setIsSuccess(false);
 
     try {
-      // 1. Call Cognito sign in
       const tokens = await cognitoSignIn({ email, password });
-      console.log("Cognito tokens:", tokens.idToken);
+      console.log('Cognito tokens:', tokens.idToken);
 
-      // 2. Get minimal user object (you might extend this)
+      // Decode ID token to extract user info including role
+      const idTokenPayload = parseJwt(tokens.idToken);
+
+      // Extract role from token payload; fallback safe default or throw error
+      const userRole =
+        idTokenPayload?.['custom:userType'] ||
+        (Array.isArray(idTokenPayload?.['cognito:groups'])
+          ? idTokenPayload['cognito:groups'][0]
+          : undefined) ||
+        idTokenPayload?.role;
+
+      if (!userRole) {
+        throw new Error('User role not found in token.');
+      }
+
       const user: AuthUser = {
         email,
-        givenName: "", // optional, can be fetched from Cognito attributes
-        familyName: "",
-        role: "startup", // TODO: fetch role attribute from Cognito
+        givenName: idTokenPayload?.given_name || '',
+        familyName: idTokenPayload?.family_name || '',
+        role: userRole,
       };
 
-      // 3. Save user + tokens to global store
       loginToStore(user, tokens);
+
+      setIsSuccess(true);
 
       return { ok: true, tokens };
     } catch (err: unknown) {
-      const errorMessage = getErrorMessage(err);
-      setError(errorMessage);
+      setError(getErrorMessage(err));
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  return { login, loading, error };
+  const resetStates = () => {
+    setError(null);
+    setIsSuccess(false);
+  };
+
+  return { login, loading, error, isSuccess, resetStates };
 }
