@@ -5,7 +5,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import { CognitoConstruct } from "../constructs/cognito";
 import { EnvironmentType } from "../types";
 
-export interface S3StackProps extends StackProps {
+export interface CognitoStackProps extends StackProps {
   environment: EnvironmentType;
   postAuthLambda?: lambda.Function;
   postAddUserToGroupLambda?: lambda.Function;
@@ -14,7 +14,7 @@ export interface S3StackProps extends StackProps {
 export class CognitoStack extends Stack {
   public readonly cognito: CognitoConstruct;
 
-  constructor(scope: Construct, id: string, props: S3StackProps) {
+  constructor(scope: Construct, id: string, props: CognitoStackProps) {
     super(scope, id, props);
 
     const cognitoConstruct = new CognitoConstruct(this, "SachainCognito", {
