@@ -7,7 +7,7 @@ import { Construct } from "constructs";
 import * as path from "path";
 
 export interface PostAuthLambdaConstructProps {
-  table: dynamodb.Table;
+  table: dynamodb.ITable;
   environment: string;
   postAuthRole?: iam.Role;
 }

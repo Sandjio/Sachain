@@ -103,17 +103,17 @@ try {
 let securityStack: SecurityStack;
 try {
   const securityDependencies = {
-    table: coreStack.table,
+    table: coreStack.table as cdk.aws_dynamodb.Table,
     documentBucket: coreStack.documentBucket,
     projectImagesBucket: coreStack.projectImagesBucket,
     encryptionKey: coreStack.encryptionKey,
     userPool: coreStack.userPool,
   };
 
-  // CrossStackValidator.validateStackDeployment(
-  //   "SecurityStack",
-  //   securityDependencies
-  // );
+  CrossStackValidator.validateStackDeployment(
+    "SecurityStack",
+    securityDependencies
+  );
 
   securityStack = new SecurityStack(
     app,
@@ -150,7 +150,7 @@ let lambdaStack: LambdaStack;
 try {
   const lambdaDependencies = {
     // Core resources (now includes auth)
-    table: coreStack.table,
+    table: coreStack.table as cdk.aws_dynamodb.Table,
     documentBucket: coreStack.documentBucket,
     projectImagesBucket: coreStack.projectImagesBucket,
     encryptionKey: coreStack.encryptionKey,
@@ -246,7 +246,7 @@ try {
 let hbarRechargeStack: HBARRechargeStack;
 try {
   const hbarRechargeDependencies = {
-    table: coreStack.table,
+    table: coreStack.table as cdk.aws_dynamodb.Table,
     eventBus: lambdaStack.eventBus,
     notificationTopic: lambdaStack.notificationTopic,
     api: lambdaStack.api,

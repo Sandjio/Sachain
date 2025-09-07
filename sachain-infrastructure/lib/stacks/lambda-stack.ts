@@ -9,7 +9,11 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
-import { LambdaConstruct, EventBridgeConstruct, AdminDashboardConstruct } from "../constructs";
+import {
+  LambdaConstruct,
+  EventBridgeConstruct,
+  AdminDashboardConstruct,
+} from "../constructs";
 import { LambdaStackOutputs, StackDependencies } from "../interfaces";
 import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
@@ -43,14 +47,12 @@ export interface LambdaStackProps extends cdk.StackProps {
   stockMintingStatusRole: iam.Role;
   // Admin emails for event notifications
   adminEmails?: string[];
-
 }
 
 export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
   public readonly lambdaConstruct: LambdaConstruct;
   public readonly eventBridgeConstruct: EventBridgeConstruct;
   public readonly adminDashboardConstruct: AdminDashboardConstruct;
-
 
   // LambdaStackOutputs interface implementation - Lambda functions (excluding post-auth)
   public readonly kycUploadLambda: lambda.Function;
@@ -281,8 +283,6 @@ export class LambdaStack extends cdk.Stack implements LambdaStackOutputs {
     // Create stack outputs for cross-stack references
     this.createStackOutputs(props.environment);
   }
-
-
 
   private configureEventBridgeIntegrations(): void {
     // Configure event rule targets to reference local lambda functions

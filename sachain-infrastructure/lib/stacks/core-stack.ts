@@ -1,20 +1,21 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import {
-  DynamoDBConstruct,
-  S3Construct,
-  CognitoConstruct,
+  // DynamoDBConstruct,
+  // S3Construct,
+  // CognitoConstruct,
   PostAuthLambdaConstruct,
   PostConfirmLambdaConstruct,
 } from "../constructs";
 import { CoreStackOutputs } from "../interfaces";
+import { EnvironmentType } from "../types";
 
 export interface CoreStackProps extends cdk.StackProps {
-  environment: string;
+  environment: EnvironmentType;
   postAuthRole?: cdk.aws_iam.Role;
 }
 
-export class CoreStack extends cdk.Stack implements CoreStackOutputs {
+export class CoreStack extends cdk.Stack {
   public readonly dynamoDBConstruct: DynamoDBConstruct;
   public readonly s3Construct: S3Construct;
   public readonly cognitoConstruct: CognitoConstruct;
@@ -22,7 +23,7 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
   public readonly postConfirmLambdaConstruct: PostConfirmLambdaConstruct;
 
   // CoreStackOutputs interface implementation
-  public readonly table: cdk.aws_dynamodb.Table;
+  public readonly table: cdk.aws_dynamodb.Table | cdk.aws_dynamodb.TableV2;
   public readonly tableName: string;
   public readonly tableArn: string;
   public readonly documentBucket: cdk.aws_s3.Bucket;
@@ -57,9 +58,9 @@ export class CoreStack extends cdk.Stack implements CoreStackOutputs {
     cdk.Tags.of(this).add("Component", "Core");
 
     // Create DynamoDB table for Single Table Design
-    this.dynamoDBConstruct = new DynamoDBConstruct(this, "DynamoDB", {
-      environment: props.environment,
-    });
+    // this.dynamoDBConstruct = new DynamoDBConstruct(this, "DynamoDB", {
+    //   environment: props.environment,
+    // });
 
     // Create S3 bucket for encrypted document storage
     this.s3Construct = new S3Construct(this, "S3", {
