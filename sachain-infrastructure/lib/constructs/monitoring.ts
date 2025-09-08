@@ -37,9 +37,7 @@ export class MonitoringConstruct extends Construct {
     }
 
     // CloudWatch dashboard
-    this.dashboard = new cloudwatch.Dashboard(this, "KYCDashboard", {
-      dashboardName: `sachain-kyc-dashboard-${props.environment}`,
-    });
+    this.dashboard = new cloudwatch.Dashboard(this, "KYCDashboard", {});
 
     // Log groups and alarms for Lambda functions
     this.alarms = [];
