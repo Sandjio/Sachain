@@ -349,8 +349,8 @@ export class SecurityConstruct extends Construct {
         effect: iam.Effect.ALLOW,
         actions: ["ses:SendEmail"],
         resources: [
-          `arn:aws:ses:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:identity/emmasandjio.com`,
-          `arn:aws:ses:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:configuration-set/my-first-configuration-set`,
+          `arn:aws:ses:us-east-1:${cdk.Aws.ACCOUNT_ID}:identity/emmasandjio.com`,
+          `arn:aws:ses:us-east-1:${cdk.Aws.ACCOUNT_ID}:configuration-set/my-first-configuration-set`,
         ],
       })
     );

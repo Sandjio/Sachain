@@ -6,7 +6,7 @@ import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const sesClient = new SESv2Client({ region: process.env.AWS_REGION });
+const sesClient = new SESv2Client({ region: "us-east-1" });
 
 // Environment variables
 const TABLE_NAME = process.env.TABLE_NAME!;
