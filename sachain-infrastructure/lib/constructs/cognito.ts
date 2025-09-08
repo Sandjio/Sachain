@@ -13,8 +13,8 @@ import { Construct } from "constructs";
 import { EnvironmentType } from "../types";
 
 export interface CognitoConstructProps {
-  postAuthLambda?: lambda.Function;
-  postAddUserToGroupLambda?: lambda.Function;
+  postAuthLambda?: lambda.IFunction;
+  postAddUserToGroupLambda?: lambda.IFunction;
   environment: EnvironmentType;
 }
 
