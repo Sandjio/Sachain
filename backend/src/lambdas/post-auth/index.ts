@@ -168,7 +168,7 @@ export const handler = async (
     const userType =
       (event.request.userAttributes["custom:user_type"] as
         | "entrepreneur"
-        | "investor") || "entrepreneur";
+        | "investor") || "investor";
 
     // Create user profile record using Single Table Design
     const userProfile: UserReference = {
