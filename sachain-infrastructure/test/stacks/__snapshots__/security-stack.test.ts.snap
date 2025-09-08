@@ -1,0 +1,1234 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SecurityStack matches snapshot 1`] = `
+{
+  "Outputs": {
+    "AdminReviewRoleArn": {
+      "Description": "Admin Review Lambda Role ARN",
+      "Export": {
+        "Name": "dev-sachain-security-admin-review-role-arn",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "SecurityAdminReviewLambdaRole7F4D3F91",
+          "Arn",
+        ],
+      },
+    },
+    "KycProcessingRoleArn": {
+      "Description": "KYC Processing Lambda Role ARN",
+      "Export": {
+        "Name": "dev-sachain-security-kyc-processing-role-arn",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "SecurityKycProcessingLambdaRole9C363F94",
+          "Arn",
+        ],
+      },
+    },
+    "KycUploadRoleArn": {
+      "Description": "KYC Upload Lambda Role ARN",
+      "Export": {
+        "Name": "dev-sachain-security-kyc-upload-role-arn",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "SecurityKycUploadLambdaRoleD3EF75D7",
+          "Arn",
+        ],
+      },
+    },
+    "ProjectCreationRoleArn": {
+      "Description": "Project Creation Lambda Role ARN",
+      "Export": {
+        "Name": "dev-sachain-security-project-creation-role-arn",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "SecurityProjectCreationLambdaRole0C0A9192",
+          "Arn",
+        ],
+      },
+    },
+    "StockMintingRoleArn": {
+      "Description": "Stock Minting Lambda Role ARN",
+      "Export": {
+        "Name": "dev-sachain-security-stock-minting-role-arn",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "SecurityStockMintingLambdaRole7186DFA9",
+          "Arn",
+        ],
+      },
+    },
+    "StockMintingStatusRoleArn": {
+      "Description": "Stock Minting Status Lambda Role ARN",
+      "Export": {
+        "Name": "dev-sachain-security-stock-minting-status-role-arn",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "SecurityStockMintingStatusLambdaRoleB7888F1E",
+          "Arn",
+        ],
+      },
+    },
+    "UserNotificationRoleArn": {
+      "Description": "User Notification Lambda Role ARN",
+      "Export": {
+        "Name": "dev-sachain-security-user-notification-role-arn",
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "SecurityUserNotificationLambdaRole128C66A5",
+          "Arn",
+        ],
+      },
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "SecurityAdminReviewLambdaRole7F4D3F91": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Least-privilege role for Admin Review Lambda",
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Component",
+            "Value": "Security",
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev",
+          },
+          {
+            "Key": "Project",
+            "Value": "Sachain",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SecurityAdminReviewLambdaRoleDefaultPolicyEA0DD8D0": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+              ],
+              "Condition": {
+                "ForAllValues:StringLike": {
+                  "dynamodb:LeadingKeys": [
+                    "USER#*",
+                    "AUDIT#*",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "DynamoDBAdminOperations",
+            },
+            {
+              "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::ImportValue": "InfraStack2:ExportsOutputFnGetAttTestBucket560B80BCArnA29F078C",
+                    },
+                    "/kyc-documents/*",
+                  ],
+                ],
+              },
+              "Sid": "S3ReadKycDocuments",
+            },
+            {
+              "Action": "events:PutEvents",
+              "Condition": {
+                "StringEquals": {
+                  "events:source": "sachain.kyc",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:events:*:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":event-bus/*",
+                  ],
+                ],
+              },
+              "Sid": "EventBridgePutEvents",
+            },
+            {
+              "Action": "cloudwatch:PutMetricData",
+              "Condition": {
+                "StringEquals": {
+                  "cloudwatch:namespace": "Sachain/AdminReview",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "CloudWatchMetrics",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "XRayTracing",
+            },
+            {
+              "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:UpdateAssumeRolePolicy",
+              ],
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "PreventPrivilegeEscalation",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SecurityAdminReviewLambdaRoleDefaultPolicyEA0DD8D0",
+        "Roles": [
+          {
+            "Ref": "SecurityAdminReviewLambdaRole7F4D3F91",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SecurityKycProcessingLambdaRole9C363F94": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Least-privilege role for KYC Processing Lambda",
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Component",
+            "Value": "Security",
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev",
+          },
+          {
+            "Key": "Project",
+            "Value": "Sachain",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SecurityKycProcessingLambdaRoleDefaultPolicy19D2D9D1": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:Query",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "DynamoDBKycProcessing",
+            },
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:sns:*:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":*",
+                  ],
+                ],
+              },
+              "Sid": "SNSPublish",
+            },
+            {
+              "Action": "cloudwatch:PutMetricData",
+              "Condition": {
+                "StringEquals": {
+                  "cloudwatch:namespace": "Sachain/KYCProcessing",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "CloudWatchMetrics",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "XRayTracing",
+            },
+            {
+              "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:UpdateAssumeRolePolicy",
+              ],
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "PreventPrivilegeEscalation",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SecurityKycProcessingLambdaRoleDefaultPolicy19D2D9D1",
+        "Roles": [
+          {
+            "Ref": "SecurityKycProcessingLambdaRole9C363F94",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SecurityKycUploadLambdaRoleD3EF75D7": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Least-privilege role for KYC Upload Lambda",
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Component",
+            "Value": "Security",
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev",
+          },
+          {
+            "Key": "Project",
+            "Value": "Sachain",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SecurityKycUploadLambdaRoleDefaultPolicyE314AA7A": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:Query",
+              ],
+              "Condition": {
+                "ForAllValues:StringLike": {
+                  "dynamodb:LeadingKeys": [
+                    "USER#*",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "DynamoDBKycOperations",
+            },
+            {
+              "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:PutObjectTagging",
+                "s3:GetObjectVersion",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    {
+                      "Fn::ImportValue": "InfraStack2:ExportsOutputFnGetAttTestBucket560B80BCArnA29F078C",
+                    },
+                    "/kyc-documents/*",
+                  ],
+                ],
+              },
+              "Sid": "S3KycDocuments",
+            },
+            {
+              "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+              ],
+              "Condition": {
+                "StringLike": {
+                  "s3:prefix": [
+                    "kyc-documents/*",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::ImportValue": "InfraStack2:ExportsOutputFnGetAttTestBucket560B80BCArnA29F078C",
+              },
+              "Sid": "S3BucketOperations",
+            },
+            {
+              "Action": "events:PutEvents",
+              "Condition": {
+                "StringEquals": {
+                  "events:source": "sachain.kyc",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:events:*:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":event-bus/*",
+                  ],
+                ],
+              },
+              "Sid": "EventBridgePutEvents",
+            },
+            {
+              "Action": "cloudwatch:PutMetricData",
+              "Condition": {
+                "StringEquals": {
+                  "cloudwatch:namespace": "Sachain/KYCUpload",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "CloudWatchMetrics",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "XRayTracing",
+            },
+            {
+              "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:UpdateAssumeRolePolicy",
+              ],
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "PreventPrivilegeEscalation",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SecurityKycUploadLambdaRoleDefaultPolicyE314AA7A",
+        "Roles": [
+          {
+            "Ref": "SecurityKycUploadLambdaRoleD3EF75D7",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SecurityProjectCreationLambdaRole0C0A9192": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Least-privilege role for Project Creation Lambda",
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Component",
+            "Value": "Security",
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev",
+          },
+          {
+            "Key": "Project",
+            "Value": "Sachain",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SecurityProjectCreationLambdaRoleDefaultPolicyFBF24DD0": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+              ],
+              "Condition": {
+                "ForAllValues:StringLike": {
+                  "dynamodb:LeadingKeys": [
+                    "USER#*",
+                    "PROJECT#*",
+                    "AUDIT#*",
+                    "COMPLIANCE#*",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "DynamoDBProjectOperations",
+            },
+            {
+              "Action": "events:PutEvents",
+              "Condition": {
+                "StringEquals": {
+                  "events:source": "sachain.projects",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:events:*:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":event-bus/*",
+                  ],
+                ],
+              },
+              "Sid": "EventBridgePutEvents",
+            },
+            {
+              "Action": "cloudwatch:PutMetricData",
+              "Condition": {
+                "StringEquals": {
+                  "cloudwatch:namespace": "Sachain/Projects",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "CloudWatchMetrics",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "XRayTracing",
+            },
+            {
+              "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:UpdateAssumeRolePolicy",
+              ],
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "PreventPrivilegeEscalation",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SecurityProjectCreationLambdaRoleDefaultPolicyFBF24DD0",
+        "Roles": [
+          {
+            "Ref": "SecurityProjectCreationLambdaRole0C0A9192",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SecurityStockMintingLambdaRole7186DFA9": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Least-privilege role for Stock Minting Lambda",
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Component",
+            "Value": "Security",
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev",
+          },
+          {
+            "Key": "Project",
+            "Value": "Sachain",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SecurityStockMintingLambdaRoleDefaultPolicy1DF6EE4E": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:Query",
+                "dynamodb:BatchWriteItem",
+              ],
+              "Condition": {
+                "ForAllValues:StringLike": {
+                  "dynamodb:LeadingKeys": [
+                    "USER#*",
+                    "PROJECT#*",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "DynamoDBStockMintingOperations",
+            },
+            {
+              "Action": "events:PutEvents",
+              "Condition": {
+                "StringEquals": {
+                  "events:source": "sachain.stock-minting",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:events:*:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":event-bus/*",
+                  ],
+                ],
+              },
+              "Sid": "EventBridgeStockMintingEvents",
+            },
+            {
+              "Action": "cloudwatch:PutMetricData",
+              "Condition": {
+                "StringEquals": {
+                  "cloudwatch:namespace": [
+                    "Sachain/StockMinting",
+                    "Sachain/Projects",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "CloudWatchStockMintingMetrics",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "XRayTracing",
+            },
+            {
+              "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:UpdateAssumeRolePolicy",
+              ],
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "PreventPrivilegeEscalation",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SecurityStockMintingLambdaRoleDefaultPolicy1DF6EE4E",
+        "Roles": [
+          {
+            "Ref": "SecurityStockMintingLambdaRole7186DFA9",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SecurityStockMintingStatusLambdaRoleB7888F1E": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Least-privilege role for Stock Minting Status Lambda",
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Component",
+            "Value": "Security",
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev",
+          },
+          {
+            "Key": "Project",
+            "Value": "Sachain",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SecurityStockMintingStatusLambdaRoleDefaultPolicyC1353A3E": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:Query",
+              ],
+              "Condition": {
+                "ForAllValues:StringLike": {
+                  "dynamodb:LeadingKeys": [
+                    "USER#*",
+                    "PROJECT#*",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "DynamoDBStockMintingStatusOperations",
+            },
+            {
+              "Action": "cloudwatch:PutMetricData",
+              "Condition": {
+                "StringEquals": {
+                  "cloudwatch:namespace": "Sachain/StockMintingStatus",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "CloudWatchStockMintingStatusMetrics",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "XRayTracing",
+            },
+            {
+              "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:UpdateAssumeRolePolicy",
+              ],
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "PreventPrivilegeEscalation",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SecurityStockMintingStatusLambdaRoleDefaultPolicyC1353A3E",
+        "Roles": [
+          {
+            "Ref": "SecurityStockMintingStatusLambdaRoleB7888F1E",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "SecurityUserNotificationLambdaRole128C66A5": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Least-privilege role for User Notification Lambda",
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Component",
+            "Value": "Security",
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev",
+          },
+          {
+            "Key": "Project",
+            "Value": "Sachain",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "SecurityUserNotificationLambdaRoleDefaultPolicy86338DFB": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:Query",
+              ],
+              "Condition": {
+                "ForAllValues:StringLike": {
+                  "dynamodb:LeadingKeys": [
+                    "USER#*",
+                  ],
+                },
+                "StringEquals": {
+                  "dynamodb:Select": [
+                    "ALL_ATTRIBUTES",
+                  ],
+                },
+              },
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::ImportValue": "InfraStack:ExportsOutputFnGetAttTestTable5769773AArnE52393BA",
+                      },
+                      "/index/*",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "DynamoDBReadUserProfiles",
+            },
+            {
+              "Action": "ses:SendEmail",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:ses:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":identity/emmasandjio.com",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:ses:",
+                      {
+                        "Ref": "AWS::Region",
+                      },
+                      ":",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":configuration-set/my-first-configuration-set",
+                    ],
+                  ],
+                },
+              ],
+              "Sid": "SESNotification",
+            },
+            {
+              "Action": "cloudwatch:PutMetricData",
+              "Condition": {
+                "StringEquals": {
+                  "cloudwatch:namespace": "Sachain/UserNotification",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "CloudWatchMetrics",
+            },
+            {
+              "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+              "Sid": "XRayTracing",
+            },
+            {
+              "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:UpdateAssumeRolePolicy",
+              ],
+              "Effect": "Deny",
+              "Resource": "*",
+              "Sid": "PreventPrivilegeEscalation",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SecurityUserNotificationLambdaRoleDefaultPolicy86338DFB",
+        "Roles": [
+          {
+            "Ref": "SecurityUserNotificationLambdaRole128C66A5",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;

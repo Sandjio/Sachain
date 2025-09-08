@@ -3,51 +3,16 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import * as kms from "aws-cdk-lib/aws-kms";
 import { Construct } from "constructs";
+import { EnvironmentType } from "../types";
 
 export interface SecurityConstructProps {
-  environment: string;
-  table: dynamodb.Table;
-  documentBucket: s3.Bucket;
-  encryptionKey: kms.Key;
-}
-
-export interface LambdaSecurityConfig {
-  functionName: string;
-  permissions: {
-    dynamodb?: {
-      read?: boolean;
-      write?: boolean;
-      stream?: boolean;
-    };
-    s3?: {
-      read?: boolean;
-      write?: boolean;
-      delete?: boolean;
-    };
-    sns?: {
-      publish?: boolean;
-    };
-    eventbridge?: {
-      putEvents?: boolean;
-    };
-    kms?: {
-      encrypt?: boolean;
-      decrypt?: boolean;
-    };
-    cloudwatch?: {
-      putMetrics?: boolean;
-      createLogGroup?: boolean;
-    };
-    xray?: {
-      tracing?: boolean;
-    };
-  };
+  environment: EnvironmentType;
+  table: dynamodb.ITable;
+  sachainBucket: s3.Bucket;
 }
 
 export class SecurityConstruct extends Construct {
-  // public readonly postAuthRole: iam.Role;
   public readonly kycUploadRole: iam.Role;
   public readonly adminReviewRole: iam.Role;
   public readonly userNotificationRole: iam.Role;
@@ -57,17 +22,15 @@ export class SecurityConstruct extends Construct {
   public readonly stockMintingStatusRole: iam.Role;
   public readonly omPaymentsRole: iam.Role;
 
-  private readonly table: dynamodb.Table;
+  private readonly table: dynamodb.ITable;
   private readonly documentBucket: s3.Bucket;
-  private readonly encryptionKey: kms.Key;
   private readonly environment: string;
 
   constructor(scope: Construct, id: string, props: SecurityConstructProps) {
     super(scope, id);
 
     this.table = props.table;
-    this.documentBucket = props.documentBucket;
-    this.encryptionKey = props.encryptionKey;
+    this.documentBucket = props.sachainBucket;
     this.environment = props.environment;
 
     // Create least-privilege IAM roles for each Lambda function
@@ -80,16 +43,12 @@ export class SecurityConstruct extends Construct {
     this.stockMintingRole = this.createStockMintingRole();
     this.stockMintingStatusRole = this.createStockMintingStatusRole();
 
-    // Add resource-based policies
-    this.addResourceBasedPolicies();
-
     // Add cross-service access controls
     this.addCrossServiceAccessControls();
   }
 
   private createKycUploadRole(): iam.Role {
     const role = new iam.Role(this, "KycUploadLambdaRole", {
-      roleName: `sachain-kyc-upload-lambda-role-${this.environment}`,
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Least-privilege role for KYC Upload Lambda",
       managedPolicies: [
@@ -132,13 +91,6 @@ export class SecurityConstruct extends Construct {
           "s3:GetObjectVersion",
         ],
         resources: [this.documentBucket.arnForObjects("kyc-documents/*")],
-        conditions: {
-          StringEquals: {
-            "s3:x-amz-server-side-encryption": "aws:kms",
-            // "s3:x-amz-server-side-encryption-aws-kms-key-id":
-            //   this.encryptionKey.keyArn,
-          },
-        },
       })
     );
 
@@ -157,27 +109,6 @@ export class SecurityConstruct extends Construct {
       })
     );
 
-    // KMS permissions for encryption/decryption
-    role.addToPolicy(
-      new iam.PolicyStatement({
-        sid: "KMSOperations",
-        effect: iam.Effect.ALLOW,
-        actions: [
-          "kms:Encrypt",
-          "kms:Decrypt",
-          "kms:ReEncrypt*",
-          "kms:GenerateDataKey*",
-          "kms:DescribeKey",
-        ],
-        resources: [this.encryptionKey.keyArn],
-        conditions: {
-          StringEquals: {
-            "kms:ViaService": `s3.${cdk.Aws.REGION}.amazonaws.com`,
-          },
-        },
-      })
-    );
-
     // EventBridge permissions for publishing upload events
     // Using wildcard for event bus to avoid circular dependency
     role.addToPolicy(
@@ -185,9 +116,7 @@ export class SecurityConstruct extends Construct {
         sid: "EventBridgePutEvents",
         effect: iam.Effect.ALLOW,
         actions: ["events:PutEvents"],
-        resources: [
-          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
-        ],
+        resources: [`arn:aws:events:*:${cdk.Aws.ACCOUNT_ID}:event-bus/*`],
         conditions: {
           StringEquals: {
             "events:source": "sachain.kyc",
@@ -226,7 +155,6 @@ export class SecurityConstruct extends Construct {
 
   private createKycProcessingRole(): iam.Role {
     const role = new iam.Role(this, "KycProcessingLambdaRole", {
-      roleName: `sachain-kyc-processing-lambda-role-${this.environment}`,
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Least-privilege role for KYC Processing Lambda",
       managedPolicies: [
@@ -266,10 +194,7 @@ export class SecurityConstruct extends Construct {
         sid: "SNSPublish",
         effect: iam.Effect.ALLOW,
         actions: ["sns:Publish"],
-        resources: [
-          `arn:aws:sns:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:sachain-kyc-admin-notifications-*`,
-          `arn:aws:sns:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:sachain-user-notifications-*`,
-        ],
+        resources: [`arn:aws:sns:*:${cdk.Aws.ACCOUNT_ID}:*`],
       })
     );
 
@@ -303,7 +228,6 @@ export class SecurityConstruct extends Construct {
 
   private createAdminReviewRole(): iam.Role {
     const role = new iam.Role(this, "AdminReviewLambdaRole", {
-      roleName: `sachain-admin-review-lambda-role-${this.environment}`,
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Least-privilege role for Admin Review Lambda",
       managedPolicies: [
@@ -344,21 +268,6 @@ export class SecurityConstruct extends Construct {
       })
     );
 
-    // KMS permissions for decryption
-    role.addToPolicy(
-      new iam.PolicyStatement({
-        sid: "KMSDecrypt",
-        effect: iam.Effect.ALLOW,
-        actions: ["kms:Decrypt", "kms:DescribeKey"],
-        resources: [this.encryptionKey.keyArn],
-        conditions: {
-          StringEquals: {
-            "kms:ViaService": `s3.${cdk.Aws.REGION}.amazonaws.com`,
-          },
-        },
-      })
-    );
-
     // EventBridge permissions for publishing status changes
     // Using wildcard for event bus to avoid circular dependency
     role.addToPolicy(
@@ -366,9 +275,7 @@ export class SecurityConstruct extends Construct {
         sid: "EventBridgePutEvents",
         effect: iam.Effect.ALLOW,
         actions: ["events:PutEvents"],
-        resources: [
-          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
-        ],
+        resources: [`arn:aws:events:*:${cdk.Aws.ACCOUNT_ID}:event-bus/*`],
         conditions: {
           StringEquals: {
             "events:source": "sachain.kyc",
@@ -407,7 +314,6 @@ export class SecurityConstruct extends Construct {
 
   private createUserNotificationRole(): iam.Role {
     const role = new iam.Role(this, "UserNotificationLambdaRole", {
-      roleName: `sachain-user-notification-lambda-role-${this.environment}`,
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Least-privilege role for User Notification Lambda",
       managedPolicies: [
@@ -479,7 +385,6 @@ export class SecurityConstruct extends Construct {
 
   private createProjectCreationRole(): iam.Role {
     const role = new iam.Role(this, "ProjectCreationLambdaRole", {
-      roleName: `sachain-project-creation-lambda-role-${this.environment}`,
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Least-privilege role for Project Creation Lambda",
       managedPolicies: [
@@ -523,9 +428,7 @@ export class SecurityConstruct extends Construct {
         sid: "EventBridgePutEvents",
         effect: iam.Effect.ALLOW,
         actions: ["events:PutEvents"],
-        resources: [
-          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
-        ],
+        resources: [`arn:aws:events:*:${cdk.Aws.ACCOUNT_ID}:event-bus/*`],
         conditions: {
           StringEquals: {
             "events:source": "sachain.projects",
@@ -564,7 +467,6 @@ export class SecurityConstruct extends Construct {
 
   private createStockMintingRole(): iam.Role {
     const role = new iam.Role(this, "StockMintingLambdaRole", {
-      roleName: `sachain-stock-minting-lambda-role-${this.environment}`,
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Least-privilege role for Stock Minting Lambda",
       managedPolicies: [
@@ -601,9 +503,7 @@ export class SecurityConstruct extends Construct {
         sid: "EventBridgeStockMintingEvents",
         effect: iam.Effect.ALLOW,
         actions: ["events:PutEvents"],
-        resources: [
-          `arn:aws:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-bus/sachain-kyc-events-*`,
-        ],
+        resources: [`arn:aws:events:*:${cdk.Aws.ACCOUNT_ID}:event-bus/*`],
         conditions: {
           StringEquals: {
             "events:source": "sachain.stock-minting",
@@ -645,7 +545,6 @@ export class SecurityConstruct extends Construct {
 
   private createStockMintingStatusRole(): iam.Role {
     const role = new iam.Role(this, "StockMintingStatusLambdaRole", {
-      roleName: `sachain-stock-minting-status-lambda-role-${this.environment}`,
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       description: "Least-privilege role for Stock Minting Status Lambda",
       managedPolicies: [
@@ -698,18 +597,6 @@ export class SecurityConstruct extends Construct {
     return role;
   }
 
-  private addResourceBasedPolicies(): void {
-    // Note: Resource-based policies that reference IAM roles from this construct
-    // would create circular dependencies between stacks. Instead, we rely on
-    // identity-based policies (IAM role policies) to grant access to resources.
-    // The S3 bucket, KMS key, SNS topic, and EventBridge bus already have basic
-    // security policies in their respective constructs. Additional resource-based
-    // policies can be added later if needed for cross-account access, but they
-    // should not reference roles from this same construct to avoid circular dependencies.
-    // All access control is handled through the identity-based policies in the
-    // individual role creation methods above.
-  }
-
   private addCrossServiceAccessControls(): void {
     // Add conditions to prevent privilege escalation
     const preventPrivilegeEscalation = new iam.PolicyStatement({
@@ -738,33 +625,6 @@ export class SecurityConstruct extends Construct {
     ].forEach((role) => {
       role.addToPolicy(preventPrivilegeEscalation);
     });
-
-    // Note: Time-based access controls can be added later if needed
-    // The following is commented out to avoid IAM policy parsing issues
-    /*
-    const timeBasedAccess = new iam.PolicyStatement({
-      sid: "TimeBasedAccess",
-      effect: iam.Effect.DENY,
-      actions: [
-        "dynamodb:DeleteItem",
-        "dynamodb:DeleteTable",
-        "s3:DeleteObject",
-        "s3:DeleteBucket",
-      ],
-      resources: ["*"],
-      conditions: {
-        DateGreaterThan: {
-          "aws:CurrentTime": "2024-01-01T23:59:59Z",
-        },
-        DateLessThan: {
-          "aws:CurrentTime": "2024-01-01T06:00:00Z",
-        },
-      },
-    });
-    this.adminReviewRole.addToPolicy(timeBasedAccess);
-    */
-
-    // Note: IP-based restrictions can be added later with actual IP ranges if needed
   }
 
   /**
