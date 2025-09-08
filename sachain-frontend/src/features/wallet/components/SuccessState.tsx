@@ -1,18 +1,18 @@
 interface SuccessStateProps {
   walletName: string | null;
+  walletDetails?: { accountId: string; balance: string } | null;
   onContinue: () => void;
 }
 
-export default function SuccessState({ walletName, onContinue }: SuccessStateProps) {
+export default function SuccessState({ walletName, walletDetails, onContinue }: SuccessStateProps) {
   return (
-    <div className="p-6 text-center">
-      <div className="mx-auto mb-6 w-24 h-24 rounded-full bg-green-500 flex items-center justify-center text-white text-6xl animate-bounce">
-        ✓
-      </div>
-      <h3 className="text-2xl font-extrabold mb-4">Wallet Connected!</h3>
-      <p className="mb-6 text-gray-600">Your {walletName ?? "wallet"} has been successfully connected.</p>
-      <button className="btn btn-primary px-8 py-3 font-semibold" onClick={onContinue}>
-        Continue to Dashboard
+    <div className="text-center p-6">
+      <h3 className="text-xl font-semibold">Successfully connected {walletName}</h3>
+      {walletDetails && (
+        <p className="mt-2">Account: {walletDetails.accountId} <br /> Balance: {walletDetails.balance} HBAR</p>
+      )}
+      <button onClick={onContinue} className="mt-6 px-4 py-2 bg-[#123962] text-white rounded">
+        Continue
       </button>
     </div>
   );
