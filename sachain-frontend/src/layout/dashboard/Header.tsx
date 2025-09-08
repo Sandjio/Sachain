@@ -1,9 +1,18 @@
-
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Bell, Mail, Settings, Menu, Sun, Moon } from "lucide-react";
-import { useAuthStore } from "@/store/authStore";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import ConnectWalletDialog from '@/features/wallet/components/ConnectWalletDialog';
+import {
+  Search,
+  Bell,
+  Mail,
+  Settings,
+  Menu,
+  Sun,
+  Moon,
+  Wallet,
+} from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
 
 interface HeaderProps {
   onMobileMenuToggle?: () => void;
@@ -13,18 +22,24 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
   const [isDark, setIsDark] = useState(false);
   const user = useAuthStore((state) => state.user);
 
+
   const toggleTheme = () => setIsDark(!isDark);
 
-  const userName = user ? `${user.givenName || ""} ${user.familyName || ""}`.trim() : "Guest";
+  const userName = user
+    ? `${user.givenName || ''} ${user.familyName || ''}`.trim()
+    : 'Guest';
 
   const userInitials =
     user?.givenName?.[0]?.toUpperCase() ||
     user?.email?.[0]?.toUpperCase() ||
-    "U";
+    'U';
 
-  const userRole = user?.role ?? ""; // empty if undefined
+  const userRole = user?.role ?? ''; // empty if undefined
+
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   return (
+    <>
     <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
       <div className="flex items-center justify-between">
         {/* Left side - Mobile menu + Search */}
@@ -51,6 +66,17 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
 
         {/* Right side - Actions + User */}
         <div className="flex items-center gap-2 sm:gap-4">
+          {/* Connect Wallet Button */}
+          <Button
+            className="bg-[#123962] hover:bg-[#0f2f52] text-white flex items-center gap-2 m-1"
+            size="sm"
+            onClick={() => setWalletModalOpen(true)}
+
+          >
+            <Wallet className="h-4 w-4" />
+            <span className="hidden sm:inline">Connect Wallet</span>
+          </Button>
+
           {/* Theme Toggle */}
           <Button
             variant="ghost"
@@ -58,7 +84,11 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             onClick={toggleTheme}
             className="text-gray-500 hover:text-gray-700 hidden sm:flex"
           >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {isDark ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
           </Button>
 
           {/* Notifications */}
@@ -92,15 +122,21 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
           {/* User Profile */}
           <div className="flex items-center gap-3 pl-2 border-l border-gray-200">
             <div className="w-8 h-8 bg-[#90A5FB] rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-semibold">{userInitials}</span>
+              <span className="text-white text-sm font-semibold">
+                {userInitials}
+              </span>
             </div>
             <div className="hidden md:block">
               <p className="text-sm font-medium text-gray-900">{userName}</p>
-              {userRole && <p className="text-xs text-gray-500 capitalize">{userRole}</p>}
+              {userRole && (
+                <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+              )}
             </div>
           </div>
         </div>
       </div>
     </header>
+    <ConnectWalletDialog open={walletModalOpen} onOpenChange={setWalletModalOpen} />
+    </>
   );
 }
