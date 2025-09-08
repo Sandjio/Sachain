@@ -113,7 +113,7 @@ export class SecurityConstruct extends Construct {
     // Using wildcard for event bus to avoid circular dependency
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "EventBridgePutEvents",
+        sid: "KycUploadEventBridgePutEvents",
         effect: iam.Effect.ALLOW,
         actions: ["events:PutEvents"],
         resources: [`arn:aws:events:*:${cdk.Aws.ACCOUNT_ID}:event-bus/*`],
@@ -128,7 +128,7 @@ export class SecurityConstruct extends Construct {
     // CloudWatch metrics permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "CloudWatchMetrics",
+        sid: "KycUploadCloudWatchMetrics",
         effect: iam.Effect.ALLOW,
         actions: ["cloudwatch:PutMetricData"],
         resources: ["*"],
@@ -143,7 +143,7 @@ export class SecurityConstruct extends Construct {
     // X-Ray tracing permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "XRayTracing",
+        sid: "KycUploadXRayTracing",
         effect: iam.Effect.ALLOW,
         actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
         resources: ["*"],
@@ -201,7 +201,7 @@ export class SecurityConstruct extends Construct {
     // CloudWatch metrics permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "CloudWatchMetrics",
+        sid: "KycProcessingCloudWatchMetrics",
         effect: iam.Effect.ALLOW,
         actions: ["cloudwatch:PutMetricData"],
         resources: ["*"],
@@ -216,7 +216,7 @@ export class SecurityConstruct extends Construct {
     // X-Ray tracing permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "XRayTracing",
+        sid: "KycProcessingXRayTracing",
         effect: iam.Effect.ALLOW,
         actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
         resources: ["*"],
@@ -272,7 +272,7 @@ export class SecurityConstruct extends Construct {
     // Using wildcard for event bus to avoid circular dependency
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "EventBridgePutEvents",
+        sid: "AdminReviewEventBridgePutEvents",
         effect: iam.Effect.ALLOW,
         actions: ["events:PutEvents"],
         resources: [`arn:aws:events:*:${cdk.Aws.ACCOUNT_ID}:event-bus/*`],
@@ -287,7 +287,7 @@ export class SecurityConstruct extends Construct {
     // CloudWatch metrics permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "CloudWatchMetrics",
+        sid: "AdminReviewCloudWatchMetrics",
         effect: iam.Effect.ALLOW,
         actions: ["cloudwatch:PutMetricData"],
         resources: ["*"],
@@ -302,7 +302,7 @@ export class SecurityConstruct extends Construct {
     // X-Ray tracing permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "XRayTracing",
+        sid: "AdminReviewXRayTracing",
         effect: iam.Effect.ALLOW,
         actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
         resources: ["*"],
@@ -358,7 +358,7 @@ export class SecurityConstruct extends Construct {
     // CloudWatch metrics permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "CloudWatchMetrics",
+        sid: "UserNotificationCloudWatchMetrics",
         effect: iam.Effect.ALLOW,
         actions: ["cloudwatch:PutMetricData"],
         resources: ["*"],
@@ -373,7 +373,7 @@ export class SecurityConstruct extends Construct {
     // X-Ray tracing permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "XRayTracing",
+        sid: "UserNotificationXRayTracing",
         effect: iam.Effect.ALLOW,
         actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
         resources: ["*"],
@@ -425,7 +425,7 @@ export class SecurityConstruct extends Construct {
     // Using wildcard for event bus to avoid circular dependency
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "EventBridgePutEvents",
+        sid: "ProjectCreationEventBridgePutEvents",
         effect: iam.Effect.ALLOW,
         actions: ["events:PutEvents"],
         resources: [`arn:aws:events:*:${cdk.Aws.ACCOUNT_ID}:event-bus/*`],
@@ -440,7 +440,7 @@ export class SecurityConstruct extends Construct {
     // CloudWatch metrics permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "CloudWatchMetrics",
+        sid: "ProjectCreationCloudWatchMetrics",
         effect: iam.Effect.ALLOW,
         actions: ["cloudwatch:PutMetricData"],
         resources: ["*"],
@@ -455,7 +455,7 @@ export class SecurityConstruct extends Construct {
     // X-Ray tracing permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "XRayTracing",
+        sid: "ProjectCreationXRayTracing",
         effect: iam.Effect.ALLOW,
         actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
         resources: ["*"],
@@ -533,7 +533,7 @@ export class SecurityConstruct extends Construct {
     // X-Ray tracing permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "XRayTracing",
+        sid: "StockMintingXRayTracing",
         effect: iam.Effect.ALLOW,
         actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
         resources: ["*"],
@@ -587,7 +587,7 @@ export class SecurityConstruct extends Construct {
     // X-Ray tracing permissions
     role.addToPolicy(
       new iam.PolicyStatement({
-        sid: "XRayTracing",
+        sid: "StockMintingStatusXRayTracing",
         effect: iam.Effect.ALLOW,
         actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
         resources: ["*"],
@@ -599,31 +599,32 @@ export class SecurityConstruct extends Construct {
 
   private addCrossServiceAccessControls(): void {
     // Add conditions to prevent privilege escalation
-    const preventPrivilegeEscalation = new iam.PolicyStatement({
-      sid: "PreventPrivilegeEscalation",
-      effect: iam.Effect.DENY,
-      actions: [
-        "iam:CreateRole",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy",
-        "iam:PutRolePolicy",
-        "iam:DeleteRolePolicy",
-        "iam:UpdateAssumeRolePolicy",
-      ],
-      resources: ["*"],
-    });
+    const roles = [
+      { role: this.kycUploadRole, name: "KycUpload" },
+      { role: this.adminReviewRole, name: "AdminReview" },
+      { role: this.userNotificationRole, name: "UserNotification" },
+      { role: this.kycProcessingRole, name: "KycProcessing" },
+      { role: this.projectCreationRole, name: "ProjectCreation" },
+      { role: this.stockMintingRole, name: "StockMinting" },
+      { role: this.stockMintingStatusRole, name: "StockMintingStatus" },
+    ];
 
-    // Add to all roles
-    [
-      this.kycUploadRole,
-      this.adminReviewRole,
-      this.userNotificationRole,
-      this.kycProcessingRole,
-      this.projectCreationRole,
-      this.stockMintingRole,
-      this.stockMintingStatusRole,
-    ].forEach((role) => {
-      role.addToPolicy(preventPrivilegeEscalation);
+    roles.forEach(({ role, name }) => {
+      role.addToPolicy(
+        new iam.PolicyStatement({
+          sid: `PreventPrivilegeEscalation${name}`,
+          effect: iam.Effect.DENY,
+          actions: [
+            "iam:CreateRole",
+            "iam:AttachRolePolicy",
+            "iam:DetachRolePolicy",
+            "iam:PutRolePolicy",
+            "iam:DeleteRolePolicy",
+            "iam:UpdateAssumeRolePolicy",
+          ],
+          resources: ["*"],
+        })
+      );
     });
   }
 
