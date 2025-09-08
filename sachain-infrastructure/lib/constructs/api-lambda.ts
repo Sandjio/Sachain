@@ -7,25 +7,26 @@ import * as sns from "aws-cdk-lib/aws-sns";
 import * as events from "aws-cdk-lib/aws-events";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
-import { SecurityConstruct } from "./security";
 import * as path from "path";
 
-export interface LambdaConstructProps {
-  table: dynamodb.Table;
+import { SecurityConstruct } from "./security";
+
+export interface ApiLambdaConstructProps {
+  table: dynamodb.ITable;
   documentBucket?: s3.Bucket;
   projectImagesBucket?: s3.Bucket;
-  encryptionKey?: import("aws-cdk-lib/aws-kms").Key;
   notificationTopic?: sns.Topic;
   eventBus?: events.EventBus;
   environment: string;
   securityConstruct?: SecurityConstruct;
-  stockMintingRole?: import("aws-cdk-lib/aws-iam").Role;
-  stockMintingStatusRole?: import("aws-cdk-lib/aws-iam").Role;
-  omPaymentsRole?: import("aws-cdk-lib/aws-iam").Role;
+  stockMintingRole?: iam.Role;
+  stockMintingStatusRole?: iam.Role;
+  omPaymentsRole?: iam.Role;
 }
 
-export class LambdaConstruct extends Construct {
+export class ApiLambdaConstruct extends Construct {
   public readonly kycUploadLambda: lambda.Function;
   public readonly adminReviewLambda: lambda.Function;
   public readonly userNotificationLambda: lambda.Function;
@@ -41,12 +42,11 @@ export class LambdaConstruct extends Construct {
   private cognitoAuthorizer?: apigateway.CognitoUserPoolsAuthorizer;
   private kycResource: apigateway.Resource;
 
-  constructor(scope: Construct, id: string, props: LambdaConstructProps) {
+  constructor(scope: Construct, id: string, props: ApiLambdaConstructProps) {
     super(scope, id);
 
     // KYC Upload Lambda
     this.kycUploadLambda = new NodejsFunction(this, "KYCUploadLambda", {
-      functionName: `sachain-kyc-upload-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "handler",
       entry: path.join(
@@ -77,7 +77,7 @@ export class LambdaConstruct extends Construct {
         PROJECT_IMAGES_BUCKET_NAME: props.projectImagesBucket?.bucketName || "",
         EVENT_BUS_NAME: props.eventBus?.eventBusName || "",
         ENVIRONMENT: props.environment,
-        KMS_KEY_ID: props.encryptionKey?.keyId || "",
+        // KMS_KEY_ID: props.encryptionKey?.keyId || "",
       },
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
@@ -86,7 +86,6 @@ export class LambdaConstruct extends Construct {
 
     // KYC Processing Lambda
     this.kycProcessingLambda = new NodejsFunction(this, "KYCProcessingLambda", {
-      functionName: `sachain-kyc-processing-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "handler",
       entry: path.join(
@@ -121,7 +120,6 @@ export class LambdaConstruct extends Construct {
 
     // Admin Review Lambda
     this.adminReviewLambda = new NodejsFunction(this, "AdminReviewLambda", {
-      functionName: `sachain-admin-review-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "handler",
       entry: path.join(
@@ -158,7 +156,6 @@ export class LambdaConstruct extends Construct {
       this,
       "UserNotificationLambda",
       {
-        functionName: `sachain-user-notification-${props.environment}`,
         runtime: lambda.Runtime.NODEJS_20_X,
         handler: "handler",
         entry: path.join(
@@ -197,7 +194,6 @@ export class LambdaConstruct extends Construct {
       this,
       "ProjectCreationLambda",
       {
-        functionName: `sachain-project-creation-${props.environment}`,
         runtime: lambda.Runtime.NODEJS_20_X,
         handler: "handler",
         entry: path.join(
@@ -232,7 +228,6 @@ export class LambdaConstruct extends Construct {
 
     // Project Query Lambda
     this.projectQueryLambda = new NodejsFunction(this, "ProjectQueryLambda", {
-      functionName: `sachain-project-query-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "handler",
       entry: path.join(
@@ -267,7 +262,6 @@ export class LambdaConstruct extends Construct {
       this,
       "ProjectManagementLambda",
       {
-        functionName: `sachain-project-management-${props.environment}`,
         runtime: lambda.Runtime.NODEJS_20_X,
         handler: "handler",
         entry: path.join(
@@ -302,7 +296,6 @@ export class LambdaConstruct extends Construct {
 
     // Stock Minting Lambda
     this.stockMintingLambda = new NodejsFunction(this, "StockMintingLambda", {
-      functionName: `sachain-stock-minting-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "handler",
       entry: path.join(
@@ -352,7 +345,6 @@ export class LambdaConstruct extends Construct {
       this,
       "StockMintingStatusLambda",
       {
-        functionName: `sachain-stock-minting-status-${props.environment}`,
         runtime: lambda.Runtime.NODEJS_20_X,
         handler: "handler",
         entry: path.join(
@@ -387,7 +379,6 @@ export class LambdaConstruct extends Construct {
 
     // Orange Money Payments Lambda
     this.omPaymentsLambda = new NodejsFunction(this, "OMPaymentsLambda", {
-      functionName: `sachain-om-payments-${props.environment}`,
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "handler",
       entry: path.join(
@@ -426,8 +417,6 @@ export class LambdaConstruct extends Construct {
       binaryMediaTypes: ["*/*"],
       deployOptions: {
         stageName: props.environment,
-        loggingLevel: apigateway.MethodLoggingLevel.INFO,
-        dataTraceEnabled: true,
         metricsEnabled: true,
       },
     });
