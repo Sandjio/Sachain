@@ -536,6 +536,9 @@ export class LambdaConstruct extends Construct {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    // Add OPTIONS method without authorization (handled by Lambda)
+    projectsResource.addMethod("OPTIONS", projectCreationIntegration);
+
     // GET /projects - List projects with query parameters
     projectsResource.addMethod("GET", projectQueryIntegration, {
       authorizer: this.cognitoAuthorizer,
@@ -554,6 +557,9 @@ export class LambdaConstruct extends Construct {
 
     // Add project-specific endpoints
     const projectIdResource = projectsResource.addResource("{projectId}");
+
+    // OPTIONS
+    projectIdResource.addMethod("OPTIONS", projectQueryIntegration);
 
     // GET /projects/{projectId} - Get single project
     projectIdResource.addMethod("GET", projectQueryIntegration, {
@@ -580,8 +586,14 @@ export class LambdaConstruct extends Construct {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    // OPTIONS
+    projectStatusResource.addMethod("OPTIONS", projectManagementIntegration);
+
     // Add stock minting endpoints
     const mintStocksResource = projectIdResource.addResource("mint-stocks");
+
+    // OPTIONS
+    mintStocksResource.addMethod("OPTIONS", stockMintingIntegration);
 
     // POST /projects/{projectId}/mint-stocks
     mintStocksResource.addMethod("POST", stockMintingIntegration, {
