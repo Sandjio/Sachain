@@ -21,9 +21,7 @@ export function useManualWalletConnect(): UseManualWalletConnectReturn {
     process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY!
   );
 
-  /**
-   * Validates the given account ID by querying balance
-   */
+  
   const startValidation = async (): Promise<string | null> => {
     setError(null);
 

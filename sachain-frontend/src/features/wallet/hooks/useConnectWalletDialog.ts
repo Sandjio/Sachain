@@ -1,40 +1,47 @@
+import { useState, useEffect } from 'react';
 
-import { useState, useEffect } from "react";
-
-export type WalletFlow = "connect" | "create";
+export type WalletFlow = 'connect' | 'create';
 
 export interface ConnectedAccount {
   accountId: string;
   balance: string;
+  publicKey?: string;
+  privateKey?: string;
 }
 
 const steps = [
-  "Wallet detected",
-  "Requesting connection...",
-  "Verify account",
-  "Complete setup",
+  'Wallet detected',
+  'Requesting connection...',
+  'Verify account',
+  'Complete setup',
 ];
 
-export function useConnectWalletDialog(open: boolean, onOpenChange: (open: boolean) => void) {
-  const [state, setState] = useState<"selection" | "connecting" | "success" | "error">("selection");
+export function useConnectWalletDialog(
+  open: boolean,
+  onOpenChange: (open: boolean) => void
+) {
+  const [state, setState] = useState<
+    'selection' | 'connecting' | 'success' | 'error'
+  >('selection');
   const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
-  const [flow, setFlow] = useState<WalletFlow>("connect");
+  const [flow, setFlow] = useState<WalletFlow>('connect');
   const [showManualConnect, setShowManualConnect] = useState(false);
-  const [connectedAccount, setConnectedAccount] = useState<ConnectedAccount | null>(null);
-  const [pendingConnectedAccount, setPendingConnectedAccount] = useState<ConnectedAccount | null>(null);
+  const [connectedAccount, setConnectedAccount] =
+    useState<ConnectedAccount | null>(null);
+  const [pendingConnectedAccount, setPendingConnectedAccount] =
+    useState<ConnectedAccount | null>(null);
 
   // Reset modal state when closed
   useEffect(() => {
     if (!open) reset();
   }, [open]);
 
-  // Reset helper
   const reset = () => {
-    setState("selection");
+    setState('selection');
     setSelectedWallet(null);
     setCurrentStep(0);
-    setFlow("connect");
+    setFlow('connect');
     setShowManualConnect(false);
     setConnectedAccount(null);
     setPendingConnectedAccount(null);
@@ -43,22 +50,22 @@ export function useConnectWalletDialog(open: boolean, onOpenChange: (open: boole
 
   // Reset on flow change to 'create'
   useEffect(() => {
-    if (flow === "create") {
-      setState("selection");
+    if (flow === 'create') {
+      setState('selection');
       setSelectedWallet(null);
       setShowManualConnect(false);
     }
   }, [flow]);
 
-  // Step progression and finalization of connection verification
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (state === "connecting") {
+    if (state === 'connecting') {
       if (currentStep < steps.length) {
         timer = setTimeout(() => setCurrentStep((prev) => prev + 1), 1200);
       } else {
         timer = setTimeout(() => {
-          setState("success");
+          setState('success');
           if (pendingConnectedAccount) {
             setConnectedAccount(pendingConnectedAccount);
             setPendingConnectedAccount(null);
@@ -76,21 +83,44 @@ export function useConnectWalletDialog(open: boolean, onOpenChange: (open: boole
     setShowManualConnect(true);
   };
 
-  // When ManualWalletConnect validates account and balance successfully
+
   const handleAccountValidated = (accountId: string, balance: string) => {
     setPendingConnectedAccount({ accountId, balance });
     setShowManualConnect(false);
-    setState("connecting");
+    setState('connecting');
   };
 
-  const handleWalletCreated = (publicKey: string) => {
-    setFlow("connect");
-    setSelectedWallet(publicKey);
-    setState("success");
+
+  const handleWalletCreated = (
+    accountId: string,
+    publicKey?: string,
+    privateKey?: string
+
+  ) => {
+    // Create a connected account object with the new wallet details
+    const newAccount: ConnectedAccount = {
+      accountId,
+      balance: '1.00', // Initial funding amount
+      publicKey,
+      privateKey,
+    };
+
+    // Set the connected account and mark as successful
+    setConnectedAccount(newAccount);
+    setSelectedWallet('Created Wallet');
+    setState('success');
+
+    // Don't change flow here - let the component handle that
+  };
+
+  // New helper to transition from create success back to connect flow
+  const handleContinueFromCreate = () => {
+    setFlow('connect');
+    // Keep the success state and connected account to show in connect flow
   };
 
   const handleRetry = () => {
-    setState("selection");
+    setState('selection');
     setSelectedWallet(null);
     setShowManualConnect(false);
   };
@@ -107,9 +137,11 @@ export function useConnectWalletDialog(open: boolean, onOpenChange: (open: boole
     showManualConnect,
     connectedAccount,
     setFlow,
+    setShowManualConnect: setShowManualConnect,
     handleConnect,
     handleAccountValidated,
     handleWalletCreated,
+    handleContinueFromCreate,
     handleRetry,
     handleClose,
   };
