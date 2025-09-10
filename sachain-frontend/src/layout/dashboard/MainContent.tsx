@@ -16,6 +16,7 @@ function capitalize(str: string) {
 export function MainContent({ children, title, subtitle, actions }: MainContentProps) {
   const user = useAuthStore((state) => state.user);
   const role = user?.role;
+  const userName = user?.givenName || user?.familyName || "";
 
   return (
     <main className="flex-1 overflow-y-auto bg-gray-50">
@@ -27,7 +28,7 @@ export function MainContent({ children, title, subtitle, actions }: MainContentP
               <div>
                 {title && (
                   <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {title} {role ? `• ${capitalize(role)}` : ""}
+                    Welcome, {userName}
                   </h1>
                 )}
                 {subtitle && <p className="mt-1 text-sm text-gray-600">{subtitle}</p>}

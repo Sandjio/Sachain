@@ -1,15 +1,12 @@
 // src/pages/dashboards/startup.tsx
-import RequireAuth from "@/components/auth/RequireAuth";
-import {DashboardLayout} from "@/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function StartupDashboard() {
   return (
-    <RequireAuth roles={["startup", "admin"]}>
-      <DashboardLayout role="startup">
+     <>
         <div className="grid gap-6 md:grid-cols-3">
           <Card>
-            <CardHeader><CardTitle>Campaign Status</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Campaign Startupppp</CardTitle></CardHeader>
             <CardContent className="text-sm text-muted-foreground">Draft</CardContent>
           </Card>
           <Card>
@@ -32,7 +29,6 @@ export default function StartupDashboard() {
             <CardContent className="text-sm text-muted-foreground">No messages.</CardContent>
           </Card>
         </div>
-      </DashboardLayout>
-    </RequireAuth>
+     </>
   );
 }

@@ -8,6 +8,7 @@ import {
   PieChart,
   Calendar,
   MessageCircle,
+  User2Icon
 } from "lucide-react";
 
 export interface NavItem {
@@ -30,7 +31,9 @@ export const navConfig: Record<string, NavItem[]> = {
   ],
   startup: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "projects", label: "Projets", icon: PieChart },
-    { id: "transactions", label: "Transactions", icon: CreditCard },
+    { id: "projects", label: "Projects", icon: PieChart },
+    { id: "transactions", label: "Funds Raised", icon: CreditCard },
+    { id: "wallet", label: "Wallet Management", icon: LayoutDashboard },
+    { id: "profile", label: "Profile", icon: User2Icon },
   ],
 };
