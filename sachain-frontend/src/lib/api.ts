@@ -94,6 +94,7 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
   console.log("📤 Request headers:", headers);
   console.log("📤 Request options:", options);
+  console.log("📤 token:", tokens?.accessToken);
 
   try {
     const res = await fetch(baseUrl + url, {
