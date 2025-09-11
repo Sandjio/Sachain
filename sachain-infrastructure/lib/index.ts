@@ -13,8 +13,5 @@ export * from "./constructs";
 // Configuration exports
 export * from "./config";
 
-// Interface exports
-export * from "./interfaces";
-
 // Utility exports
 export * from "./utils";

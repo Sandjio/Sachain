@@ -15,15 +15,15 @@ import { SecurityConstruct } from "./security";
 
 export interface ApiLambdaConstructProps {
   table: dynamodb.ITable;
-  documentBucket?: s3.Bucket;
-  projectImagesBucket?: s3.Bucket;
-  notificationTopic?: sns.Topic;
-  eventBus?: events.EventBus;
+  documentBucket?: s3.IBucket;
+  projectImagesBucket?: s3.IBucket;
+  notificationTopic?: sns.ITopic;
+  eventBus?: events.IEventBus;
   environment: string;
   securityConstruct?: SecurityConstruct;
-  stockMintingRole?: iam.Role;
-  stockMintingStatusRole?: iam.Role;
-  omPaymentsRole?: iam.Role;
+  stockMintingRole?: iam.IRole;
+  stockMintingStatusRole?: iam.IRole;
+  omPaymentsRole?: iam.IRole;
 }
 
 export class ApiLambdaConstruct extends Construct {
@@ -37,6 +37,7 @@ export class ApiLambdaConstruct extends Construct {
   public readonly stockMintingLambda: lambda.Function;
   public readonly stockMintingStatusLambda: lambda.Function;
   public readonly omPaymentsLambda: lambda.Function;
+  public readonly omCallBackLambda: lambda.Function;
   public readonly api: apigateway.RestApi;
   public readonly adminResource: apigateway.Resource;
   private cognitoAuthorizer?: apigateway.CognitoUserPoolsAuthorizer;
@@ -410,6 +411,36 @@ export class ApiLambdaConstruct extends Construct {
       tracing: lambda.Tracing.ACTIVE,
     });
 
+    this.omCallBackLambda = new NodejsFunction(this, "OMCallBackLamba", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/om-callback/index.ts"
+      ),
+      role: props.securityConstruct?.omPaymentsRole,
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: [
+          "aws-lambda",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/lib-dynamodb",
+          "@aws-sdk/client-cloudwatch",
+        ],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
+      environment: {
+        TABLE_NAME: props.table.tableName,
+        ENVIRONMENT: props.environment,
+      },
+      timeout: cdk.Duration.minutes(2),
+      memorySize: 512,
+      tracing: lambda.Tracing.ACTIVE,
+    });
+
     // Create unified API Gateway
     this.api = new apigateway.RestApi(this, "SachainApi", {
       restApiName: `sachain-api-${props.environment}`,
@@ -487,6 +518,12 @@ export class ApiLambdaConstruct extends Construct {
       { proxy: true }
     );
 
+    // Orange Money Callback Integration
+    const omCallbackIntegration = new apigateway.LambdaIntegration(
+      this.omCallBackLambda,
+      { proxy: true }
+    );
+
     // Add KYC endpoints with authorization
     const uploadResource = this.kycResource.addResource("upload");
     uploadResource.addMethod("POST", kycUploadIntegration, {
@@ -544,6 +581,9 @@ export class ApiLambdaConstruct extends Construct {
     // Add project-specific endpoints
     const projectIdResource = projectsResource.addResource("{projectId}");
 
+    // Create recharge resource
+    const rechargeResource = this.api.root.addResource("hbar-recharge");
+
     // GET /projects/{projectId} - Get single project
     projectIdResource.addMethod("GET", projectQueryIntegration, {
       authorizer: this.cognitoAuthorizer,
@@ -591,5 +631,9 @@ export class ApiLambdaConstruct extends Construct {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
+
+    // Orange Money Callback URL
+    const omCallbackResource = omPaymentsResource.addResource("callback");
+    omCallbackResource.addMethod("POST", omCallbackIntegration);
   }
 }

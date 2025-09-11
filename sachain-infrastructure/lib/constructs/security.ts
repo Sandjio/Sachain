@@ -9,7 +9,7 @@ import { EnvironmentType } from "../types";
 export interface SecurityConstructProps {
   environment: EnvironmentType;
   table: dynamodb.ITable;
-  sachainBucket: s3.Bucket;
+  sachainBucket: s3.IBucket;
 }
 
 export class SecurityConstruct extends Construct {
@@ -23,7 +23,7 @@ export class SecurityConstruct extends Construct {
   public readonly omPaymentsRole: iam.Role;
 
   private readonly table: dynamodb.ITable;
-  private readonly documentBucket: s3.Bucket;
+  private readonly documentBucket: s3.IBucket;
   private readonly environment: string;
 
   constructor(scope: Construct, id: string, props: SecurityConstructProps) {
@@ -418,6 +418,15 @@ export class SecurityConstruct extends Construct {
             ],
           },
         },
+      })
+    );
+    // Add GSI3 query permissions for project status queries
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "DynamoDBGSI3ProjectQueries",
+        effect: iam.Effect.ALLOW,
+        actions: ["dynamodb:Query"],
+        resources: [`${this.table.tableArn}/index/GSI3`],
       })
     );
 

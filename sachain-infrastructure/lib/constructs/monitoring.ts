@@ -8,7 +8,7 @@ import * as snsSubscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 import { Construct } from "constructs";
 
 export interface MonitoringConstructProps {
-  lambdaFunctions: lambda.Function[];
+  lambdaFunctions: lambda.IFunction[];
   environment: string;
   alertEmail?: string;
   logRetentionDays?: logs.RetentionDays;
@@ -98,7 +98,7 @@ export class MonitoringConstruct extends Construct {
     });
   }
 
-  private createLambdaAlarms(func: lambda.Function, index: number): void {
+  private createLambdaAlarms(func: lambda.IFunction, index: number): void {
     // Error rate alarm
     const errorAlarm = new cloudwatch.Alarm(this, `ErrorAlarm${index}`, {
       alarmName: `${func.functionName}-ErrorRate`,
@@ -434,7 +434,7 @@ export class MonitoringConstruct extends Construct {
     this.alarms.push(getDocumentsErrorAlarm);
   }
 
-  private createDashboardWidgets(lambdaFunctions: lambda.Function[]): void {
+  private createDashboardWidgets(lambdaFunctions: lambda.IFunction[]): void {
     // Lambda metrics widgets
     const lambdaErrorWidget = new cloudwatch.GraphWidget({
       title: "Lambda Errors",

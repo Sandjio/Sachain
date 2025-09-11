@@ -90,12 +90,12 @@ export class DynamoDBConstruct extends Construct {
 
     // GSI3: For querying projects by status and creation date
     // Access pattern: Get all projects with specific status, ordered by creation date
-    // this.table.addGlobalSecondaryIndex({
-    //   indexName: "GSI3",
-    //   partitionKey: { name: "GSI3PK", type: dynamodb.AttributeType.STRING },
-    //   sortKey: { name: "GSI3SK", type: dynamodb.AttributeType.STRING },
-    //   projectionType: dynamodb.ProjectionType.ALL,
-    // });
+    this.table.addGlobalSecondaryIndex({
+      indexName: "GSI3",
+      partitionKey: { name: "GSI3PK", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "GSI3SK", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
 
     // GSI4: For querying stocks by owner wallet address
     // Access pattern: Get all stocks owned by specific wallet address
