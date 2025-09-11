@@ -20,14 +20,12 @@ import {
   sanitizeProjectInput,
 } from "../../utils/project-validation";
 import {
-  SecurityMiddleware,
   AbusePreventionService,
 } from "../../utils/security-hardening";
 import {
   APISecurityValidator,
   SecurityConfigs,
 } from "../../utils/api-security-validator";
-import { CORSMiddleware } from "../../utils/cors-security";
 import {
   CreateProjectRequest,
   CreateProjectResponse,
@@ -86,17 +84,7 @@ const projectAuditService = new ProjectAuditService(
   logger
 );
 
-// Apply security middleware with CORS support
-const secureHandler = SecurityMiddleware.secureHandler(
-  CORSMiddleware.withCORS(handleProjectCreationWithSecurity),
-  {
-    rateLimitConfig: {
-      windowMs: 60 * 1000, // 1 minute
-      maxRequests: 10, // 10 project creations per minute per user
-    },
-    requireAuth: true,
-  }
-);
+
 
 // Helper function to get allowed origin
 const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
@@ -166,7 +154,7 @@ export const handler: APIGatewayProxyHandler = async (event, context) => {
       requestId: context.awsRequestId,
     });
 
-    const result = await secureHandler(event);
+    const result = await handleProjectCreationWithSecurity(event);
 
     console.log("Handler completed successfully", {
       requestId: context.awsRequestId,
