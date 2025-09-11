@@ -57,7 +57,6 @@ STACKS=(
     "SachainMonitoringStack-$ENVIRONMENT"
     "SachainLambdaStack-$ENVIRONMENT"
     "SachainSecurityStack-$ENVIRONMENT"
-    "SachainCoreStack-$ENVIRONMENT"
 )
 
 # Lambda function names

@@ -1,12 +1,21 @@
+/**
+ * CognitoConstruct sets up an Amazon Cognito User Pool with standard configurations.
+ * It includes password policies, custom attributes, user groups, and OAuth settings.
+ * The construct also integrates Lambda triggers for post-authentication and post-confirmation events.
+ * This setup ensures a secure and flexible authentication system for the Sachain application.
+ */
+
 import * as cdk from "aws-cdk-lib";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 
+import { EnvironmentType } from "../types";
+
 export interface CognitoConstructProps {
-  postAuthLambda?: lambda.Function;
-  postAddUserToGroupLambda?: lambda.Function;
-  environment: string;
+  postAuthLambda?: lambda.IFunction;
+  postAddUserToGroupLambda?: lambda.IFunction;
+  environment: EnvironmentType;
 }
 
 export class CognitoConstruct extends Construct {
@@ -16,11 +25,9 @@ export class CognitoConstruct extends Construct {
   constructor(scope: Construct, id: string, props: CognitoConstructProps) {
     super(scope, id);
 
-    // Task 3.1: Configure User Pool with password policies and security settings
-    this.userPool = new cognito.UserPool(this, "UserPool", {
-      userPoolName: `sachain-user-pool-${props.environment}`,
+    this.userPool = new cognito.UserPool(this, "SachainUserPool", {
       selfSignUpEnabled: true,
-      signInCaseSensitive: false,
+      signInCaseSensitive: true,
 
       // Email verification configuration
       signInAliases: {
@@ -141,7 +148,6 @@ export class CognitoConstruct extends Construct {
       precedence: 0,
     });
 
-    // Task 3.2: Create User Pool Client and configure authentication flow
     this.userPoolClient = new cognito.UserPoolClient(this, "UserPoolClient", {
       userPool: this.userPool,
       userPoolClientName: `sachain-client-${props.environment}`,
@@ -193,7 +199,7 @@ export class CognitoConstruct extends Construct {
           givenName: true,
           familyName: true,
         })
-        .withCustomAttributes("userType", "kycStatus"),
+        .withCustomAttributes("userType"),
 
       writeAttributes: new cognito.ClientAttributes()
         .withStandardAttributes({
@@ -201,7 +207,7 @@ export class CognitoConstruct extends Construct {
           givenName: true,
           familyName: true,
         })
-        .withCustomAttributes("userType", "kycStatus"),
+        .withCustomAttributes("userType"),
 
       // Generate secret for server-side applications
       generateSecret: false,

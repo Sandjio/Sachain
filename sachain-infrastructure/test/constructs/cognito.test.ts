@@ -25,7 +25,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       const construct = new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -44,7 +44,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -68,7 +68,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -86,7 +86,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -103,24 +103,18 @@ describe("CognitoConstruct", () => {
           {
             // AttributeDataType: "String",
             Name: "given_name",
-            Required: false,
+            Required: true,
             Mutable: true,
           },
           {
             // AttributeDataType: "String",
             Name: "family_name",
-            Required: false,
+            Required: true,
             Mutable: true,
           },
           {
             AttributeDataType: "String",
             Name: "userType",
-            Mutable: true,
-            // DeveloperOnlyAttribute: false,
-          },
-          {
-            AttributeDataType: "String",
-            Name: "kycStatus",
             Mutable: true,
             // DeveloperOnlyAttribute: false,
           },
@@ -181,7 +175,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -196,7 +190,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -220,7 +214,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       const construct = new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       // Assert - Verify the construct is created successfully
@@ -232,7 +226,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -248,7 +242,7 @@ describe("CognitoConstruct", () => {
   describe("Cognito Domain", () => {
     test("should configure Cognito domain with NEWER_MANAGED_LOGIN version", () => {
       new CognitoConstruct(stack, "TestCognitoDomain", {
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);

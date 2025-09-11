@@ -302,13 +302,11 @@ if [ ! -f "$DEPLOY_CONFIG" ]; then
   "region": "$REGION",
   "profile": "$PROFILE",
   "stackNames": [
-    "SachainCoreStack-$ENVIRONMENT",
     "SachainSecurityStack-$ENVIRONMENT",
     "SachainLambdaStack-$ENVIRONMENT",
     "SachainMonitoringStack-$ENVIRONMENT"
   ],
   "deploymentOrder": [
-    "SachainCoreStack-$ENVIRONMENT",
     "SachainSecurityStack-$ENVIRONMENT",
     "SachainLambdaStack-$ENVIRONMENT",
     "SachainMonitoringStack-$ENVIRONMENT"

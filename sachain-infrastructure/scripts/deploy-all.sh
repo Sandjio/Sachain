@@ -60,7 +60,6 @@ npx cdk bootstrap aws://$ACCOUNT_ID/$REGION --profile $PROFILE
 
 # Deploy stacks in order
 STACKS=(
-    "SachainCoreStack-$ENVIRONMENT"
     "SachainSecurityStack-$ENVIRONMENT"
     "SachainLambdaStack-$ENVIRONMENT"
     "SachainMonitoringStack-$ENVIRONMENT"

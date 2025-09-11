@@ -15,10 +15,10 @@ import { Construct } from "constructs";
 
 export interface AdminDashboardConstructProps {
   environment: string;
-  table: dynamodb.Table;
-  api: apigateway.RestApi;
-  userPool: cognito.UserPool;
-  notificationTopic: sns.Topic;
+  table: dynamodb.ITable;
+  api: apigateway.IRestApi;
+  userPool: cognito.IUserPool;
+  notificationTopic: sns.ITopic;
   adminResource?: apigateway.Resource;
 }
 
@@ -48,9 +48,7 @@ export class AdminDashboardConstruct extends Construct {
         functionName: `sachain-admin-dashboard-${props.environment}`,
         runtime: lambda.Runtime.NODEJS_18_X,
         handler: "index.handler",
-        code: lambda.Code.fromAsset(
-          "../backend/src/lambdas/admin-dashboard"
-        ),
+        code: lambda.Code.fromAsset("../backend/src/lambdas/admin-dashboard"),
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
         environment: {
@@ -154,7 +152,8 @@ export class AdminDashboardConstruct extends Construct {
     );
 
     // Use existing admin resource or create new one
-    const adminResource = props.adminResource || props.api.root.addResource("admin");
+    const adminResource =
+      props.adminResource || props.api.root.addResource("admin");
 
     // Dashboard endpoints
     const dashboardResource = adminResource.addResource("dashboard");
@@ -322,9 +321,7 @@ export class AdminDashboardConstruct extends Construct {
   }
 
   private createAdminDashboard(props: AdminDashboardConstructProps): void {
-    this.adminDashboard = new cloudwatch.Dashboard(this, "AdminDashboard", {
-      dashboardName: `sachain-admin-dashboard-${props.environment}`,
-    });
+    this.adminDashboard = new cloudwatch.Dashboard(this, "AdminDashboard", {});
 
     // Lambda metrics
     const lambdaMetrics = [
