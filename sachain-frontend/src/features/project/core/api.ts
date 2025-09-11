@@ -1,52 +1,29 @@
-// import apiFetch from "@/lib/api";
-// import type { CreateProjectPayload, CreatedProjectResponse, Project } from "./types";
+import { useAuthStore } from '@/store/authStore';
 
-// export const getProjects = async (): Promise<Project[]> => {
-//   return apiFetch<Project[]>("/projects");
-// };
+const API_URL = process.env.NEXT_PUBLIC_KYC_API_BASE;
 
-// export const createProject = async (
-//   payload: CreateProjectPayload,
-// ): Promise<CreatedProjectResponse> => {
-//   return apiFetch<CreatedProjectResponse>("/projects", {
-//     method: "POST",
-//     body: JSON.stringify(payload),
-//   });
-// };
+export async function createProject(payload: any) {
+  const tokens = useAuthStore.getState().tokens;
 
-// features/projects/api/projectApi.ts
-import apiFetch from "@/lib/api";
-import type { CreateProjectPayload, CreatedProjectResponse, Project } from "./types";
+  if (!tokens?.idToken) {
+    throw new Error('No token available — user is not authenticated.');
+  }
 
-export const getProjects = async (): Promise<Project[]> => {
-  return apiFetch<Project[]>("/projects");
-};
-
-export const createProject = async (
-  payload: CreateProjectPayload,
-): Promise<CreatedProjectResponse> => {
-  return apiFetch<CreatedProjectResponse>("/projects", {
-    method: "POST",
+  const res = await fetch(`${API_URL}/projects`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${tokens.idToken}`,
+    },
     body: JSON.stringify(payload),
   });
-};
 
-// Alternative: Hook-based version for better React integration
-// export const useProjectApi = () => {
-//   const { apiFetch } = useApi();
+  console.log(payload);
 
-//   const getProjects = async (): Promise<Project[]> => {
-//     return apiFetch<Project[]>("/projects");
-//   };
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`API error: ${res.status} - ${errorText}`);
+  }
 
-//   const createProject = async (
-//     payload: CreateProjectPayload,
-//   ): Promise<CreatedProjectResponse> => {
-//     return apiFetch<CreatedProjectResponse>("/projects", {
-//       method: "POST",
-//       body: JSON.stringify(payload),
-//     });
-//   };
-
-//   return { getProjects, createProject };
-// };
+  return res.json();
+}

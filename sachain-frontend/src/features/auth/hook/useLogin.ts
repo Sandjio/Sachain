@@ -67,6 +67,8 @@ export function useLogin() {
       // Decode ID token to extract user info including role
       const idTokenPayload = parseJwt(tokens.idToken);
 
+      console.log("User ID:", idTokenPayload?.sub); // Cognito user ID to display
+
       // Extract role from token payload; fallback safe default or throw error
       const userRole =
         idTokenPayload?.['custom:userType'] ||

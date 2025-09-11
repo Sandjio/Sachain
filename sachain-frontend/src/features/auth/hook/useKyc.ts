@@ -37,6 +37,7 @@ export function useKyc() {
     setLoading(true);
     setError(null);
 
+
     try {
       // Check if we have tokens
       if (!tokens?.idToken) {
@@ -44,6 +45,8 @@ export function useKyc() {
       }
       
       console.log("Using ID Token:", tokens.idToken);
+
+   
       
       const res = await uploadKycDocument({
         idToken: tokens.idToken,
@@ -52,6 +55,10 @@ export function useKyc() {
       });
 
       return res;
+
+      console.log("Document ID:", res.documentId);
+      console.log("Upload successful:", res);
+      
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
       setError(errorMessage);
