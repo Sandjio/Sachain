@@ -503,16 +503,6 @@ export class SecurityConstruct extends Construct {
           "dynamodb:Scan",
         ],
         resources: [this.table.tableArn, `${this.table.tableArn}/index/*`],
-        conditions: {
-          "ForAllValues:StringLike": {
-            "dynamodb:LeadingKeys": [
-              "USER#*",
-              "PROJECT#*",
-              "AUDIT#*",
-              "COMPLIANCE#*",
-            ],
-          },
-        },
       })
     );
 
