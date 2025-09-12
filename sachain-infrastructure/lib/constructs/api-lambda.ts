@@ -489,10 +489,10 @@ export class ApiLambdaConstruct extends Construct {
     );
 
     // Project Query Integration
-    const projectQueryIntegration = new apigateway.LambdaIntegration(
-      this.projectQueryLambda,
-      { proxy: true }
-    );
+    // const projectQueryIntegration = new apigateway.LambdaIntegration(
+    //   this.projectQueryLambda,
+    //   { proxy: true }
+    // );
 
     // Project Management Integration
     const projectManagementIntegration = new apigateway.LambdaIntegration(
@@ -566,7 +566,7 @@ export class ApiLambdaConstruct extends Construct {
     projectsResource.addMethod("OPTIONS", projectCreationIntegration);
 
     // GET /projects - List projects with query parameters
-    projectsResource.addMethod("GET", projectQueryIntegration, {
+    projectsResource.addMethod("GET", projectManagementIntegration, {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
       requestParameters: {
@@ -585,10 +585,12 @@ export class ApiLambdaConstruct extends Construct {
     const projectIdResource = projectsResource.addResource("{projectId}");
 
     // OPTIONS
-    projectIdResource.addMethod("OPTIONS", projectQueryIntegration);
+    // projectIdResource.addMethod("OPTIONS", projectQueryIntegration);
+
+    projectIdResource.addMethod("OPTIONS", projectManagementIntegration);
 
     // GET /projects/{projectId} - Get single project
-    projectIdResource.addMethod("GET", projectQueryIntegration, {
+    projectIdResource.addMethod("GET", projectManagementIntegration, {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
