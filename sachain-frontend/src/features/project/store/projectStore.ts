@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Project, CreateProjectPayload } from "../core/types";
+import type { Project, ProjectPayload } from "../core/types";
 import * as api from "../core/api";
 
 interface ProjectState {
@@ -8,7 +8,7 @@ interface ProjectState {
   error: string | null;
 
   fetchProjects: () => Promise<void>;
-  createProject: (payload: CreateProjectPayload) => Promise<Project | void>;
+  createProject: (payload: ProjectPayload) => Promise<Project | void>;
   resetError: () => void;
 }
 

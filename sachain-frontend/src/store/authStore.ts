@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined") { // Ensure we're in a browser environment
       localStorage.removeItem("auth_user");
       localStorage.removeItem("auth_tokens");
     }
@@ -39,19 +39,19 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setRole: (role) => {
     set((state) => {
-      if (role !== "startup" && role !== "investor") return {};
+      if (role !== "startup" && role !== "investor") return {}; //if invalid role, do nothing
 
       let updatedUser: AuthUser;
 
       if (state.user) {
-        updatedUser = { ...state.user, role };
+        updatedUser = { ...state.user, role }; // update existing user role 
       } else {
         // Create a new user with blank email but set role
         updatedUser = { email: "", role };
       }
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("auth_user", JSON.stringify(updatedUser));
+        localStorage.setItem("auth_user", JSON.stringify(updatedUser)); // persist updated user with new role in localStorage
       }
 
       return { user: updatedUser };
