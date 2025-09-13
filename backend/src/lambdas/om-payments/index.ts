@@ -26,7 +26,12 @@ function jsonResponse(statusCode: number, body: any): APIGatewayProxyResult {
 }
 
 function validatePayload(payload: any): { valid: boolean; missing?: string[] } {
-  const required = ["customerNumber", "amount", "description"];
+  const required = [
+    "customerNumber",
+    "amount",
+    "description",
+    "idempotencyKey",
+  ];
   const missing = required.filter((k) => !payload[k]);
   return { valid: missing.length === 0, missing };
 }
@@ -35,9 +40,8 @@ function validatePayload(payload: any): { valid: boolean; missing?: string[] } {
 class OrangeMoneyClient {
   private accessToken?: string;
 
-  async fetchAccessToken(): Promise<string> {
-    console.info("Fetching Orange Money access token.");
-
+  private async ensureAccessToken() {
+    if (this.accessToken) return;
     const basic = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString(
       "base64"
     );
@@ -50,22 +54,19 @@ class OrangeMoneyClient {
       body: "grant_type=client_credentials",
     });
 
-    if (!resp.ok) {
+    if (!resp.ok)
       throw new Error(
         `Failed to fetch access token: ${resp.status} ${await resp.text()}`
       );
-    }
 
     const data = await resp.json();
     this.accessToken = data?.access_token;
-
     if (!this.accessToken)
       throw new Error("Missing access_token in Orange response");
-    return this.accessToken;
   }
 
   async fetchPayToken(): Promise<string> {
-    if (!this.accessToken) await this.fetchAccessToken();
+    await this.ensureAccessToken();
 
     const resp = await fetch(ORANGE_INIT_URL, {
       method: "POST",
@@ -77,16 +78,14 @@ class OrangeMoneyClient {
       body: JSON.stringify({}),
     });
 
-    if (!resp.ok) {
+    if (!resp.ok)
       throw new Error(
         `Failed to fetch payToken: ${resp.status} ${await resp.text()}`
       );
-    }
 
     const data = await resp.json();
     const payToken = data?.data?.payToken;
     if (!payToken) throw new Error("Missing payToken in Orange response");
-
     return payToken;
   }
 
@@ -99,7 +98,7 @@ class OrangeMoneyClient {
       orderId: string;
     }
   ) {
-    if (!this.accessToken) await this.fetchAccessToken();
+    await this.ensureAccessToken();
 
     const body = {
       ...payload,
@@ -119,10 +118,8 @@ class OrangeMoneyClient {
       body: JSON.stringify(body),
     });
 
-    if (!resp.ok) {
+    if (!resp.ok)
       throw new Error(`Payment failed: ${resp.status} ${await resp.text()}`);
-    }
-
     return resp.json();
   }
 }
@@ -135,13 +132,12 @@ export const handler = async (
     path: event.path,
     method: event.httpMethod,
   });
+
   const tokenResult = extractUserIdFromToken(event);
-  if (!tokenResult.success) {
+  if (!tokenResult.success)
     return jsonResponse(401, { message: tokenResult.error || "Invalid token" });
-  }
 
   const userId = tokenResult.userId!;
-
   if (!event.body) return jsonResponse(400, { message: "Missing body" });
 
   let payload: any;
@@ -160,12 +156,24 @@ export const handler = async (
       message: `Missing fields: ${missing!.join(", ")}`,
     });
 
-  const orderId = crypto.randomUUID().replace(/-/g, "").substring(0, 20);
+  const idempotencyKey = payload.idempotencyKey;
+  const orderId = idempotencyKey;
+
   const paymentRepo = new PaymentRepository({
     tableName: process.env.TABLE_NAME!,
   });
 
   try {
+    // Check if already exists (idempotency)
+    const existing = await paymentRepo.getPayment(userId, orderId);
+    if (existing) {
+      console.info("Idempotent request - returning existing payment");
+      return jsonResponse(200, {
+        message: "Payment already initiated",
+        result: existing,
+      });
+    }
+
     // Save initiation
     await paymentRepo.createPaymentInitiation({
       userId,
@@ -186,7 +194,6 @@ export const handler = async (
     });
 
     // Update payment with Orange Money response data
-
     await paymentRepo.updatePaymentStatus(userId, orderId, {
       status: "pending",
       payToken: result.data.payToken,

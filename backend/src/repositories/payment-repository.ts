@@ -82,4 +82,16 @@ export class PaymentRepository extends BaseRepository {
       values
     );
   }
+
+  async getPayment(
+    userId: string,
+    orderId: string
+  ): Promise<PaymentInitiation | null> {
+    const result = await this.getItem<PaymentInitiation>(
+      `USER#${userId}`,
+      `PAYMENT#${orderId}`
+    );
+
+    return result ?? null;
+  }
 }
