@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 
-import { PaymentRepository } from "../../repositories/";
+import { PaymentRepository, UserRepository } from "../../repositories/";
 import { extractUserIdFromToken } from "../../utils/jwt-utils";
 
 const ORANGE_TOKEN_URL = "https://omdeveloper.orange.cm/oauth2/token";
@@ -31,6 +31,7 @@ function validatePayload(payload: any): { valid: boolean; missing?: string[] } {
     "amount",
     "description",
     "idempotencyKey",
+    "walletAddress",
   ];
   const missing = required.filter((k) => !payload[k]);
   return { valid: missing.length === 0, missing };
@@ -163,6 +164,10 @@ export const handler = async (
     tableName: process.env.TABLE_NAME!,
   });
 
+  const userRepo = new UserRepository({
+    tableName: process.env.TABLE_NAME!,
+  });
+
   try {
     // Check if already exists (idempotency)
     const existing = await paymentRepo.getPayment(userId, orderId);
@@ -181,6 +186,12 @@ export const handler = async (
       customerNumber: payload.customerNumber,
       amount: Number(payload.amount),
       description: payload.description,
+    });
+
+    // Save the wallet Address
+    await userRepo.updateUserProfile({
+      userId,
+      walletAddress: payload.walletAddress,
     });
 
     // Process payment

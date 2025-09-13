@@ -16,6 +16,7 @@ export interface UserProfile {
   lastName?: string;
   userType: "entrepreneur" | "investor";
   kycStatus: "not_started" | "pending" | "approved" | "rejected";
+  walletAddress?: string;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
@@ -113,6 +114,7 @@ export interface UpdateUserProfileInput {
   lastName?: string;
   kycStatus?: "not_started" | "pending" | "approved" | "rejected";
   lastLoginAt?: string;
+  walletAddress?: string;
 }
 
 export interface UpdateKYCDocumentInput {
