@@ -94,4 +94,18 @@ export class PaymentRepository extends BaseRepository {
 
     return result ?? null;
   }
+
+  async getPaymentByPayToken(
+    payToken: string
+  ): Promise<PaymentInitiation | null> {
+    const result = await this.queryItems<PaymentInitiation>(
+      "#payToken = :payToken",
+      { "#payToken": "payToken" },
+      { ":payToken": payToken },
+      "PayTokenIndex",
+      { limit: 1 }
+    );
+
+    return result.items.length > 0 ? result.items[0] : null;
+  }
 }

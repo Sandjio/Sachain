@@ -1,4 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+import { PaymentRepository } from "../../repositories/";
+
+const paymentRepo = new PaymentRepository({
+  tableName: process.env.TABLE_NAME!,
+});
 
 export const handler = async (
   event: APIGatewayProxyEvent
@@ -24,7 +29,7 @@ export const handler = async (
       bodyString = Buffer.from(event.body, "base64").toString("utf8");
     }
 
-    let payload;
+    let payload: any;
     try {
       payload = JSON.parse(bodyString);
     } catch {
@@ -35,14 +40,38 @@ export const handler = async (
       };
     }
 
-    // Log the entire callback payload
     console.info("Received Orange Money Callback Payload:", payload);
 
-    // You might later add verification & persistence here
+    const { payToken, status, txnid } = payload;
+
+    if (!payToken) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: "Missing payToken" }),
+      };
+    }
+
+    // Lookup payment by payToken
+    const payment = await paymentRepo.getPaymentByPayToken(payToken);
+    if (!payment) {
+      console.warn("No matching payment found for payToken", { payToken });
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ message: "Payment not found" }),
+      };
+    }
+
+    // Update status based on Orange Money response
+    const newStatus = status === "SUCCESSFULL" ? "completed" : "failed";
+
+    await paymentRepo.updatePaymentStatus(payment.userId, payment.orderId, {
+      status: newStatus,
+      orangeMoneyTransactionId: txnid,
+    });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Callback received" }),
+      body: JSON.stringify({ message: "Payment updated", status: newStatus }),
     };
   } catch (err: any) {
     console.error("Unhandled error in callback handler", {

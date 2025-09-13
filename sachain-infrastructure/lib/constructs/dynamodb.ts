@@ -97,6 +97,12 @@ export class DynamoDBConstruct extends Construct {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    this.table.addGlobalSecondaryIndex({
+      indexName: "PayTokenIndex",
+      partitionKey: { name: "payToken", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // GSI4: For querying stocks by owner wallet address
     // Access pattern: Get all stocks owned by specific wallet address
     // this.table.addGlobalSecondaryIndex({
