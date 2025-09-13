@@ -35,6 +35,7 @@ export class EventBridgeConstruct extends Construct {
     // Add email subscriptions for admin notifications
     const defaultAdminEmails = props.adminEmails || [
       `sandjioemmanuel@protonmail.com`,
+      "joanchacha01@gmail.com",
     ];
 
     defaultAdminEmails.forEach((email, index) => {
