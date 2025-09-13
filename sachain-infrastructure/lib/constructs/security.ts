@@ -42,6 +42,7 @@ export class SecurityConstruct extends Construct {
     this.projectCreationRole = this.createProjectCreationRole();
     this.stockMintingRole = this.createStockMintingRole();
     this.stockMintingStatusRole = this.createStockMintingStatusRole();
+    this.omPaymentsRole = this.createOmPaymentRole();
 
     // Add cross-service access controls
     this.addCrossServiceAccessControls();
@@ -596,6 +597,39 @@ export class SecurityConstruct extends Construct {
     return role;
   }
 
+  private createOmPaymentRole(): iam.Role {
+    const role = new iam.Role(this, "OmPaymentLambdaRole", {
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      description: "Least-privilege role for Om Payment Lambda",
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSLambdaBasicExecutionRole"
+        ),
+      ],
+    });
+
+    // DynamoDB permissions - read project data, stock NFTs, and transactions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "DynamoDBOmPaymentOperations",
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+        ],
+        resources: [this.table.tableArn, `${this.table.tableArn}/index/*`],
+        // conditions: {
+        //   "ForAllValues:StringLike": {
+        //     "dynamodb:LeadingKeys": ["USER#*", "PROJECT#*"],
+        //   },
+        // },
+      })
+    );
+    return role;
+  }
+
   private addCrossServiceAccessControls(): void {
     // Add conditions to prevent privilege escalation
     const roles = [
@@ -606,6 +640,7 @@ export class SecurityConstruct extends Construct {
       { role: this.projectCreationRole, name: "ProjectCreation" },
       { role: this.stockMintingRole, name: "StockMinting" },
       { role: this.stockMintingStatusRole, name: "StockMintingStatus" },
+      { role: this.omPaymentsRole, name: "OmPayment" },
     ];
 
     roles.forEach(({ role, name }) => {

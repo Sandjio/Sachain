@@ -50,7 +50,6 @@ export * from "./compliance-service";
 
 // Retry and recovery utilities
 export * from "./retry";
-export * from "./integration-error-retry";
 
 // Exchange rate utilities
 export * from "./exchange-rate-service";

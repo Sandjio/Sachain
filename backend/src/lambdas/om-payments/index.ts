@@ -1,143 +1,133 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 
+import { PaymentRepository } from "../../repositories/";
+import { extractUserIdFromToken } from "../../utils/jwt-utils";
+
 const ORANGE_TOKEN_URL = "https://omdeveloper.orange.cm/oauth2/token";
 const ORANGE_INIT_URL =
   "https://omdeveloper-gateway.orange.cm/omapi/1.0.2/mp/init";
 const ORANGE_PAY_URL =
   "https://omdeveloper-gateway.orange.cm/omapi/1.0.2/mp/pay";
 
-//
-// Hardcoded credentials (per your request).
-//
 const CLIENT_ID = "cClHc8BNN9e4nbO4Zeq002DtJdca";
 const CLIENT_SECRET = "YXCUfQYo1bFLz0GY3gjZMbCuYB4a";
 const X_AUTH_TOKEN = "YWRtaW46YWRtaW4=";
 const CHANNEL_USER_MSISDN = "691301143";
 const PIN = "2222";
 const NOTIF_URL =
-  "https://58p4mccn08.execute-api.us-east-2.amazonaws.com/dev/om-payments/callback";
+  "https://hev5at4o19.execute-api.us-east-1.amazonaws.com/dev/om-payments/callback";
 
-async function fetchAccessToken(): Promise<string> {
-  console.info("Fetching Orange Money access token.");
-
-  const basic = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
-
-  const resp = await fetch(ORANGE_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${basic}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
-
-  console.debug("Access token response status", resp.status);
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error("Failed to fetch access token", {
-      status: resp.status,
-      body: text,
-    });
-    throw new Error(`Failed to fetch access token: ${resp.status}`);
-  }
-
-  const data = await resp.json();
-  const token = data?.access_token;
-  if (!token) {
-    console.error("Access token missing in response", data);
-    throw new Error("Missing access_token in Orange response");
-  }
-
-  console.info("Access token acquired.");
-  return token;
-}
-
-async function fetchPayToken(accessToken: string): Promise<string> {
-  console.info("Fetching payToken.");
-
-  const resp = await fetch(ORANGE_INIT_URL, {
-    method: "POST",
-    headers: {
-      "WSO2-Authorization": `Bearer ${accessToken}`,
-      "X-AUTH-TOKEN": X_AUTH_TOKEN,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({}), // empty object per spec
-  });
-
-  console.debug("Init response status", resp.status);
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error("Failed to fetch payToken", {
-      status: resp.status,
-      body: text,
-    });
-    throw new Error(`Failed to fetch payToken: ${resp.status}`);
-  }
-
-  const data = await resp.json();
-  console.debug("Init response body", data);
-  const payToken = data?.data?.payToken;
-  if (!payToken) {
-    console.error("payToken missing in response", data);
-    throw new Error("Missing payToken in Orange response");
-  }
-
-  console.info("payToken acquired.");
-  return payToken;
-}
-
-async function makePayment(
-  accessToken: string,
-  payToken: string,
-  payload: {
-    subscriberMsisdn: string;
-    amount: string | number;
-    description: string;
-    orderId: string;
-  }
-) {
-  console.info("Making payment request.");
-
-  const body = {
-    subscriberMsisdn: payload.subscriberMsisdn,
-    channelUserMsisdn: CHANNEL_USER_MSISDN,
-    amount: payload.amount,
-    description: payload.description,
-    orderId: payload.orderId,
-    pin: PIN,
-    payToken,
-    notifUrl: NOTIF_URL,
-  };
-
-  const resp = await fetch(ORANGE_PAY_URL, {
-    method: "POST",
-    headers: {
-      "WSO2-Authorization": `Bearer ${accessToken}`,
-      "X-AUTH-TOKEN": X_AUTH_TOKEN,
-      "Content-Type": "application/json",
-    },
+// ---- Utilities ----
+function jsonResponse(statusCode: number, body: any): APIGatewayProxyResult {
+  return {
+    statusCode,
     body: JSON.stringify(body),
-  });
-
-  console.debug("Payment response status", resp.status);
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error("Payment request failed", {
-      status: resp.status,
-      body: text,
-    });
-    throw new Error(`Payment failed: ${resp.status}`);
-  }
-
-  const data = await resp.json();
-  console.info("Payment request completed.");
-  return data;
+  };
 }
 
+function validatePayload(payload: any): { valid: boolean; missing?: string[] } {
+  const required = ["customerNumber", "amount", "description"];
+  const missing = required.filter((k) => !payload[k]);
+  return { valid: missing.length === 0, missing };
+}
+
+// ---- Orange Money Client ----
+class OrangeMoneyClient {
+  private accessToken?: string;
+
+  async fetchAccessToken(): Promise<string> {
+    console.info("Fetching Orange Money access token.");
+
+    const basic = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString(
+      "base64"
+    );
+    const resp = await fetch(ORANGE_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${basic}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "grant_type=client_credentials",
+    });
+
+    if (!resp.ok) {
+      throw new Error(
+        `Failed to fetch access token: ${resp.status} ${await resp.text()}`
+      );
+    }
+
+    const data = await resp.json();
+    this.accessToken = data?.access_token;
+
+    if (!this.accessToken)
+      throw new Error("Missing access_token in Orange response");
+    return this.accessToken;
+  }
+
+  async fetchPayToken(): Promise<string> {
+    if (!this.accessToken) await this.fetchAccessToken();
+
+    const resp = await fetch(ORANGE_INIT_URL, {
+      method: "POST",
+      headers: {
+        "WSO2-Authorization": `Bearer ${this.accessToken}`,
+        "X-AUTH-TOKEN": X_AUTH_TOKEN,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!resp.ok) {
+      throw new Error(
+        `Failed to fetch payToken: ${resp.status} ${await resp.text()}`
+      );
+    }
+
+    const data = await resp.json();
+    const payToken = data?.data?.payToken;
+    if (!payToken) throw new Error("Missing payToken in Orange response");
+
+    return payToken;
+  }
+
+  async makePayment(
+    payToken: string,
+    payload: {
+      subscriberMsisdn: string;
+      amount: number;
+      description: string;
+      orderId: string;
+    }
+  ) {
+    if (!this.accessToken) await this.fetchAccessToken();
+
+    const body = {
+      ...payload,
+      channelUserMsisdn: CHANNEL_USER_MSISDN,
+      pin: PIN,
+      payToken,
+      notifUrl: NOTIF_URL,
+    };
+
+    const resp = await fetch(ORANGE_PAY_URL, {
+      method: "POST",
+      headers: {
+        "WSO2-Authorization": `Bearer ${this.accessToken}`,
+        "X-AUTH-TOKEN": X_AUTH_TOKEN,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      throw new Error(`Payment failed: ${resp.status} ${await resp.text()}`);
+    }
+
+    return resp.json();
+  }
+}
+
+// ---- Lambda Handler ----
 export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
@@ -145,62 +135,68 @@ export const handler = async (
     path: event.path,
     method: event.httpMethod,
   });
+  const tokenResult = extractUserIdFromToken(event);
+  if (!tokenResult.success) {
+    return jsonResponse(401, { message: tokenResult.error || "Invalid token" });
+  }
 
+  const userId = tokenResult.userId!;
+
+  if (!event.body) return jsonResponse(400, { message: "Missing body" });
+
+  let payload: any;
   try {
-    if (!event.body) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: "Missing body" }),
-      };
-    }
+    const bodyString = event.isBase64Encoded
+      ? Buffer.from(event.body, "base64").toString("utf8")
+      : event.body;
+    payload = JSON.parse(bodyString);
+  } catch {
+    return jsonResponse(400, { message: "Invalid JSON", raw: event.body });
+  }
 
-    let parsed;
-    console.debug("Raw event.body", event.body);
-
-    try {
-      let bodyString = event.body;
-
-      // If body is base64 encoded
-      if (event.isBase64Encoded) {
-        console.debug("Decoding base64 body");
-        bodyString = Buffer.from(event.body, "base64").toString("utf8");
-      }
-      parsed = JSON.parse(bodyString);
-    } catch {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: "Invalid JSON", raw: event.body }),
-      };
-    }
-
-    const required = ["customerNumber", "amount", "description", "orderId"];
-    const missing = required.filter((k) => !parsed[k]);
-    if (missing.length) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({
-          message: `Missing fields: ${missing.join(", ")}`,
-        }),
-      };
-    }
-
-    // Flow
-    const accessToken = await fetchAccessToken();
-    const payToken = await fetchPayToken(accessToken);
-    const result = await makePayment(accessToken, payToken, {
-      subscriberMsisdn: parsed.customerNumber,
-      amount: parsed.amount,
-      description: parsed.description,
-      orderId: parsed.orderId,
+  const { valid, missing } = validatePayload(payload);
+  if (!valid)
+    return jsonResponse(400, {
+      message: `Missing fields: ${missing!.join(", ")}`,
     });
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: "Payment initiated", result }),
-    };
+  const orderId = crypto.randomUUID().replace(/-/g, "").substring(0, 20);
+  const paymentRepo = new PaymentRepository({
+    tableName: process.env.TABLE_NAME!,
+  });
+
+  try {
+    // Save initiation
+    await paymentRepo.createPaymentInitiation({
+      userId,
+      orderId,
+      customerNumber: payload.customerNumber,
+      amount: Number(payload.amount),
+      description: payload.description,
+    });
+
+    // Process payment
+    const omClient = new OrangeMoneyClient();
+    const payToken = await omClient.fetchPayToken();
+    const result = await omClient.makePayment(payToken, {
+      subscriberMsisdn: payload.customerNumber,
+      amount: Number(payload.amount),
+      description: payload.description,
+      orderId,
+    });
+
+    // Update payment with Orange Money response data
+
+    await paymentRepo.updatePaymentStatus(userId, orderId, {
+      status: "pending",
+      payToken: result.data.payToken,
+      orangeMoneyTransactionId: result.data.txnid,
+    });
+
+    return jsonResponse(200, { message: "Payment initiated", result });
   } catch (err: any) {
-    console.error("Unhandled error", { message: err?.message });
-    return { statusCode: 502, body: JSON.stringify({ error: err?.message }) };
+    console.error("Unhandled error", err);
+    return jsonResponse(502, { error: err?.message || "Payment failed" });
   }
 };
 

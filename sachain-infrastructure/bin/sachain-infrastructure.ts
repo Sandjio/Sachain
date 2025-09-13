@@ -88,6 +88,7 @@ try {
       projectCreationRole: securityStack.projectCreationRole,
       stockMintingRole: securityStack.stockMintingRole,
       stockMintingStatusRole: securityStack.stockMintingStatusRole,
+      omPaymentsRole: securityStack.omPaymentsRole,
       // env,
     }
   );

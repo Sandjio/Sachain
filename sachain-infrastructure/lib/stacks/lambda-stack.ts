@@ -30,6 +30,7 @@ export interface LambdaStackProps extends cdk.StackProps {
   projectCreationRole: iam.IRole;
   stockMintingRole: iam.IRole;
   stockMintingStatusRole: iam.IRole;
+  omPaymentsRole: iam.IRole;
   // Admin emails for event notifications
   adminEmails?: string[];
 }
@@ -116,6 +117,7 @@ export class LambdaStack extends cdk.Stack {
       projectCreationRole: props.projectCreationRole,
       stockMintingRole: stockMintingRole,
       stockMintingStatusRole: stockMintingStatusRole,
+      omPaymentsRole: props.omPaymentsRole,
     };
 
     // Create Lambda construct with all dependencies (excluding post-auth lambda)

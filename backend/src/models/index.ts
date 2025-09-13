@@ -122,3 +122,24 @@ export interface UpdateKYCDocumentInput {
   reviewedBy?: string;
   reviewComments?: string;
 }
+
+export interface PaymentInitiation {
+  PK: string; // USER#${userId}
+  SK: string; // PAYMENT#${orderId}
+  orderId: string;
+  userId: string;
+  customerNumber: string;
+  amount: number;
+  description: string;
+  status: "initiated" | "pending" | "completed" | "failed";
+  orangeMoneyTransactionId?: string;
+  payToken?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+
+  // GSI1 for status queries
+  GSI1PK: string; // PAYMENT_STATUS#${status}
+  GSI1SK: string; // ${createdAt}
+}

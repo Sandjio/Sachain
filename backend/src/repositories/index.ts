@@ -7,3 +7,4 @@ export * from "./audit-log-repository";
 export * from "./project-repository";
 export * from "./stock-repository";
 export * from "./recharge-repository";
+export * from "./payment-repository";

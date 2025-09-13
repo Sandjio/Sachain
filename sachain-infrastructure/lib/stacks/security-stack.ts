@@ -37,6 +37,7 @@ export class SecurityStack extends cdk.Stack {
   public readonly stockMintingRoleArn: string;
   public readonly stockMintingStatusRoleArn: string;
   public readonly complianceRoleArn?: string;
+  public readonly omPaymentsRole: iam.Role;
 
   constructor(scope: Construct, id: string, props: SecurityStackProps) {
     super(scope, id, props);
@@ -62,6 +63,7 @@ export class SecurityStack extends cdk.Stack {
     this.projectCreationRole = this.securityConstruct.projectCreationRole;
     this.stockMintingRole = this.securityConstruct.stockMintingRole;
     this.stockMintingStatusRole = this.securityConstruct.stockMintingStatusRole;
+    this.omPaymentsRole = this.securityConstruct.omPaymentsRole;
 
     // Set role ARNs for interface compliance
     this.kycUploadRoleArn = this.kycUploadRole.roleArn;
