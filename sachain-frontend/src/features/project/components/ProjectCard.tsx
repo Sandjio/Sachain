@@ -155,6 +155,7 @@ interface Project {
 interface ProjectCardProps {
   project: Project;
   onViewDetails?: (projectId: string) => void;
+  onEdit?: (projectId: string) => void;
 }
 
 const statusColors = {

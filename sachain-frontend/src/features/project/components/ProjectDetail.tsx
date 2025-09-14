@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { getProjectById } from "@/features/project/core/api";
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { getProjectById } from '@/features/project/core/api';
 
 interface Project {
   projectId: string;
   name: string;
-  status: "draft" | "live";
+  status: 'draft' | 'live';
   category: string;
   description: string;
   targetFundingGoal: number;
@@ -18,34 +18,39 @@ interface Project {
 interface ProjectDetailViewProps {
   projectId: string;
   onBack: () => void; // callback to go back to projects list
+  onEdit: (projectId: string) => void; // optional callback to edit project
 }
 
 const statusColors = {
-  live: "bg-green-500 text-white",
-  draft: "bg-yellow-500 text-white",
+  live: 'bg-green-500 text-white',
+  draft: 'bg-yellow-500 text-white',
 };
 
-export function ProjectDetailView({ projectId, onBack }: ProjectDetailViewProps) {
+export function ProjectDetailView({
+  projectId,
+  onBack,
+  onEdit,
+}: ProjectDetailViewProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchProject = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const projectData = await getProjectById(projectId);
-        setProject(projectData);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProject();
-  }, [projectId]);
+  const fetchProject = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const projectData = await getProjectById(projectId);
+      const normalizedProject = projectData.project || projectData;
+      setProject(normalizedProject);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchProject();
+}, [projectId]);
 
   if (loading) {
     return (
@@ -76,13 +81,13 @@ export function ProjectDetailView({ projectId, onBack }: ProjectDetailViewProps)
           Back to Projects
         </button>
         <div className="text-center p-8">
-          <p className="text-red-600">Error: {error || "Project not found"}</p>
+          <p className="text-red-600">Error: {error || 'Project not found'}</p>
         </div>
       </div>
     );
   }
 
-  const statusClass = statusColors[project.status] || "bg-gray-500 text-white";
+  const statusClass = statusColors[project.status] || 'bg-gray-500 text-white';
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -99,7 +104,9 @@ export function ProjectDetailView({ projectId, onBack }: ProjectDetailViewProps)
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {project.name}
+              </h1>
               <p className="text-gray-600 mt-1">Project Details</p>
             </div>
             <span
@@ -135,7 +142,7 @@ export function ProjectDetailView({ projectId, onBack }: ProjectDetailViewProps)
                 Category
               </label>
               <p className="text-gray-900 capitalize">
-                {project.category?.replace("_", " ") ?? "Unknown category"}
+                {project.category?.replace('_', ' ') ?? 'Unknown category'}
               </p>
             </div>
 
@@ -152,7 +159,9 @@ export function ProjectDetailView({ projectId, onBack }: ProjectDetailViewProps)
               <label className="block text-sm font-medium text-gray-700">
                 Project ID
               </label>
-              <p className="text-gray-500 text-sm font-mono">{project.projectId}</p>
+              <p className="text-gray-500 text-sm font-mono">
+                {project.projectId}
+              </p>
             </div>
           </div>
         </div>
@@ -167,9 +176,9 @@ export function ProjectDetailView({ projectId, onBack }: ProjectDetailViewProps)
               <label className="block text-sm font-medium text-gray-700">
                 Funding Goal
               </label>
-             <p className="text-2xl font-bold text-gray-900">
-  ${project.targetFundingGoal?.toLocaleString() ?? "N/A"}
-</p>
+              <p className="text-2xl font-bold text-gray-900">
+                ${project.targetFundingGoal?.toLocaleString() ?? 'N/A'}
+              </p>
             </div>
 
             <div>
@@ -195,17 +204,26 @@ export function ProjectDetailView({ projectId, onBack }: ProjectDetailViewProps)
 
       {/* Description */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Description</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Description
+        </h2>
         <p className="text-gray-700 leading-relaxed">{project.description}</p>
       </div>
+
 
       {/* Action Buttons */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex gap-4">
           <Button
             className="bg-[#123962] hover:bg-[#90A5FB] text-white"
+        
             onClick={() => {
-              alert("Edit functionality - coming next!");
+              console.log("Project in detail view:", project);
+              console.log(
+                'Edit button clicked for project:',
+                project.projectId
+              );
+              onEdit(project.projectId);
             }}
           >
             Edit Project
@@ -214,20 +232,22 @@ export function ProjectDetailView({ projectId, onBack }: ProjectDetailViewProps)
           <Button
             variant="outline"
             onClick={() => {
-              const newStatus = project.status === "draft" ? "live" : "draft";
+              const newStatus = project.status === 'draft' ? 'live' : 'draft';
               alert(
-                `${newStatus === "live" ? "Publish" : "Unpublish"} functionality - coming soon!`
+                `${newStatus === 'live' ? 'Publish' : 'Unpublish'} functionality - coming soon!`
               );
             }}
           >
-            {project.status === "draft" ? "Publish Project" : "Unpublish Project"}
+            {project.status === 'draft'
+              ? 'Publish Project'
+              : 'Unpublish Project'}
           </Button>
 
           <Button
             variant="outline"
             className="text-red-600 hover:text-red-700 hover:border-red-300"
             onClick={() => {
-              alert("Delete functionality - coming next!");
+              alert('Delete functionality - coming next!');
             }}
           >
             Delete Project

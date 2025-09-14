@@ -19,7 +19,8 @@ export function MainContent({ children, title, subtitle, actions }: MainContentP
   const userName = user?.givenName || user?.familyName || "";
 
   return (
-    <main className="flex-1 overflow-y-auto bg-gray-50">
+   <main className="flex-1 overflow-auto bg-gray-50 p-4 sm:p-6 lg:p-8 min-w-0">
+
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Page Header */}
         {(title || subtitle || actions) && (

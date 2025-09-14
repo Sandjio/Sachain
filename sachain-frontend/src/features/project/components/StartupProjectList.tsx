@@ -52,9 +52,10 @@ import { ProjectCard } from "./ProjectCard";
 
 interface StartupProjectListProps {
   onViewDetails?: (projectId: string) => void;
+  onEditProject?: (projectId: string) => void;
 }
 
-export function StartupProjectList({ onViewDetails }: StartupProjectListProps) {
+export function StartupProjectList({ onViewDetails, onEditProject }: StartupProjectListProps) {
   const { projects, loading, error, fetchProjects } = useProjects();
 
   useEffect(() => {

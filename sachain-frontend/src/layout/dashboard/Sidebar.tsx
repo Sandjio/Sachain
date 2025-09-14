@@ -26,14 +26,8 @@ export function Sidebar({
 
   const navItems: NavItem[] = navConfig[role] || [];
 
-  // const handleLogout = () => {
-  //   useAuthStore.getState().logout();
-  //   // Optionally redirect after logout
-  //   // router.push("/login");
-  // };
-
   return (
-    <div className="w-64 bg-[#123962] text-white flex flex-col h-screen">
+    <div className="flex flex-col bg-[#123962] text-white h-full w-full lg:w-64">
       {/* Logo/Brand */}
       <div className="p-6 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-3">

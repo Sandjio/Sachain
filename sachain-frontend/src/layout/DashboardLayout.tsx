@@ -41,9 +41,10 @@ export function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="flex-1 flex min-w-0 h-screen">
+
       {/* Desktop Sidebar - Hidden on mobile */}
-      <div className="hidden lg:flex">
+      <div className="hidden lg:flex lg:w-64">
         <Sidebar activeItem={activeItem} onItemChange={onItemChange} />
       </div>
 
@@ -56,7 +57,7 @@ export function DashboardLayout({
       />
 
       {/* Main Layout Column */}
-      <div className="flex-1 flex flex-col min-w-0">
+       <div className="flex-1 flex flex-col min-w-0">
         {/* Sticky Header */}
         <div className="sticky top-0 z-40">
           <Header onMobileMenuToggle={handleMobileMenuToggle} />
