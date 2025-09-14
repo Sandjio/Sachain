@@ -7,7 +7,9 @@ export default function CreateProjectPage() {
     <DashboardLayout>
       <div className="max-w-4xl mx-auto p-6">
         <h1 className="mb-6 text-3xl font-bold">Create New Project</h1>
-        <MultiStepProjectForm />
+        <MultiStepProjectForm onCancel={function (): void {
+          throw new Error("Function not implemented.");
+        } } />
       </div>
     </DashboardLayout>
   );

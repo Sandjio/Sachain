@@ -10,6 +10,7 @@ export interface ProjectPayload {
 }
 
 export interface Project {
+  projectId: string;
   id: string;
   name: string;
   description: string;
