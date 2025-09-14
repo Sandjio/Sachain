@@ -27,3 +27,30 @@ export async function createProject(payload: any) {
 
   return res.json();
 }
+export async function getProjects() {
+  const tokens = useAuthStore.getState().tokens;
+
+  if (!tokens?.idToken) {
+    throw new Error('No token available — user is not authenticated.');
+  }
+
+  const res = await fetch(`${API_URL}/projects`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${tokens.idToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`API error: ${res.status} - ${errorText}`);
+  }
+
+  const json = await res.json();
+  console.log("Fetched projects:", json);
+
+  // Return the array of projects, not the wrapper object
+  return Array.isArray(json.projects) ? json.projects : [];
+  console
+}

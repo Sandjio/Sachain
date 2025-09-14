@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ProjectList } from "@/features/project/components/ProjectList";
+import { StartupProjectList } from "@/features/project/components/StartupProjectList";
+import { Star } from "lucide-react";
 
 interface ProjectPageProps {
   onCreateProject: () => void; // callback to open create tab
@@ -26,7 +28,7 @@ export default function ProjectPage({ onCreateProject }: ProjectPageProps) {
       </div>
 
       {/* Render your projects list / cards here */}
-      <ProjectList />
+      <StartupProjectList />
     </div>
   );
 }

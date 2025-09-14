@@ -1,11 +1,13 @@
 
 
 // src/lib/auth/cognitoProvider.ts
+import { useAuthStore } from "@/store/authStore";
 import {
   CognitoIdentityProviderClient,
   SignUpCommand,
   ConfirmSignUpCommand,
   InitiateAuthCommand,
+  GlobalSignOutCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 
 
@@ -104,4 +106,29 @@ export async function cognitoSignIn(params: {
     accessToken: auth.AccessToken,
     refreshToken: auth.RefreshToken,
   };
+}
+
+// ---- SIGN OUT ----------------------------------------------------
+export async function cognitoSignOut() {
+  const { tokens, logout } = useAuthStore.getState(); // get tokens and logout action from store
+
+  if (!tokens?.accessToken) {
+    console.warn("[Cognito] No access token found for sign out");
+    logout(); // still clear store
+    return;
+  }
+
+  try {
+    await client.send(
+      new GlobalSignOutCommand({
+        AccessToken: tokens.accessToken,
+      })
+    );
+    console.log("[Cognito] User signed out successfully");
+  } catch (err) {
+    console.error("[Cognito] Error during sign out:", err);
+  } finally {
+    // Always clear local store and localStorage
+    logout();
+  }
 }

@@ -1,27 +1,13 @@
-import { useState } from 'react';
-import { createProject } from '../core/api';
-import type { Project, ProjectPayload } from '../core/types';
+// src/features/projects/hooks/useCreateProject.ts
+import { useProjectStore } from "@/features/project/store/projectStore";
+import type { ProjectPayload } from "../core/types";
 
 export function useCreateProject() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [project, setProject] = useState<Project | null>(null);
+  const { addProject, loading, error } = useProjectStore();
 
   const submitProject = async (payload: ProjectPayload) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await createProject(payload);
-      setProject(result);
-      return result;
-      console.log('the project', result);
-    } catch (err: any) {
-      setError(err.message || 'Project creation failed');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    return await addProject(payload);
   };
 
-  return { submitProject, loading, error, project };
+  return { submitProject, loading, error };
 }

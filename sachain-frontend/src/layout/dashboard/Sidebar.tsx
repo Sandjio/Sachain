@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Settings, LogOut } from "lucide-react";
 import { navConfig, type NavItem } from "./navConfig";
 import { useAuthStore } from "@/store/authStore";
+import { useSignOut } from "@/features/auth/hook/useSignOut";
 
 interface SidebarProps {
   activeItem?: string;
@@ -15,6 +16,7 @@ export function Sidebar({
   onItemChange,
 }: SidebarProps) {
   const role = useAuthStore((state) => state.user?.role);
+  const { signOut, loading, error } = useSignOut();
 
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
@@ -24,11 +26,11 @@ export function Sidebar({
 
   const navItems: NavItem[] = navConfig[role] || [];
 
-  const handleLogout = () => {
-    useAuthStore.getState().logout();
-    // Optionally redirect after logout
-    // router.push("/login");
-  };
+  // const handleLogout = () => {
+  //   useAuthStore.getState().logout();
+  //   // Optionally redirect after logout
+  //   // router.push("/login");
+  // };
 
   return (
     <div className="w-64 bg-[#123962] text-white flex flex-col h-screen">
@@ -91,7 +93,7 @@ export function Sidebar({
         </Button>
 
         <Button
-          onClick={handleLogout}
+          onClick={signOut}
           variant="ghost"
           className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10"
         >
