@@ -12,16 +12,22 @@ import ErrorState from './ErrorState';
 import WalletCreation from './WalletCreation';
 import ManualWalletConnect from './WalletConnection';
 import { useConnectWalletDialog } from '../hooks/useConnectWalletDialog';
+import { useWalletStore } from '@/features/wallet/store/walletStore';
+
 
 interface ConnectWalletDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+
+
 export default function ConnectWalletDialog({
   open,
   onOpenChange,
 }: ConnectWalletDialogProps) {
+  const connectWallet = useWalletStore((state) => state.connectWallet);
+
   const {
     state,
     selectedWallet,
@@ -36,6 +42,8 @@ export default function ConnectWalletDialog({
     handleRetry,
     handleClose,
   } = useConnectWalletDialog(open, onOpenChange);
+
+ 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -107,7 +115,10 @@ export default function ConnectWalletDialog({
           <SuccessState
             walletName={selectedWallet ?? ''}
             walletDetails={connectedAccount}
-            onContinue={handleClose}
+            onContinue={() => {
+              connectWallet(connectedAccount.accountId);
+              handleClose();
+            }}
           />
         )}
 
@@ -135,7 +146,7 @@ export default function ConnectWalletDialog({
             walletName="Created Wallet"
             walletDetails={connectedAccount}
             onContinue={() => {
-              //handleContinueFromCreate();
+              connectWallet(connectedAccount.accountId);
               handleClose();
             }}
             showCreatedWalletDetails={true}
