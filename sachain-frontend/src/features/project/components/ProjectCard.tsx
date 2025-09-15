@@ -2,7 +2,6 @@
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
-import { DeleteSuccessModal } from './modals/DeleteSuccess';
 import { useDeleteProject } from "@/features/project/hook/useDeleteProject";
 
 interface Project {
@@ -29,14 +28,12 @@ const statusColors = {
   draft: "bg-yellow-500 text-white",
 };
 
-export function ProjectCard({ project, onViewDetails }: ProjectCardProps) {
+export function ProjectCard({ project, onViewDetails, onDeleteSuccess }: ProjectCardProps & { onDeleteSuccess?: () => void }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { isDeleting, deleteProjectById } = useDeleteProject(() => {
     setIsModalOpen(false);
-    setShowSuccess(true);
-    // Optionally, trigger a refresh or callback here
+    onDeleteSuccess?.();
   });
 
   const statusClass = statusColors[project.status] || "bg-gray-500 text-white";
@@ -152,10 +149,6 @@ export function ProjectCard({ project, onViewDetails }: ProjectCardProps) {
             onConfirm={confirmDelete}
             onCancel={() => setIsModalOpen(false)}
             loading={isDeleting}
-          />
-          <DeleteSuccessModal
-            isOpen={showSuccess}
-            onClose={() => setShowSuccess(false)}
           />
           {/* Optionally, show error UI here */}
           {error && (

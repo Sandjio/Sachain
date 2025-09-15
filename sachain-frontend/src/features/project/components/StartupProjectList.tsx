@@ -46,9 +46,10 @@
 
 
 // StartupProjectList.tsx - Updated to match your pattern
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useProjects } from "../hook/useProjects";
 import { ProjectCard } from "./ProjectCard";
+import { DeleteSuccessModal } from "./modals/DeleteSuccess";
 
 interface StartupProjectListProps {
   onViewDetails?: (projectId: string) => void;
@@ -57,6 +58,7 @@ interface StartupProjectListProps {
 
 export function StartupProjectList({ onViewDetails, onEditProject }: StartupProjectListProps) {
   const { projects, loading, error, fetchProjects } = useProjects();
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -78,6 +80,7 @@ export function StartupProjectList({ onViewDetails, onEditProject }: StartupProj
               key={project.projectId || project.id}
               project={project}
               onViewDetails={onViewDetails}
+              onDeleteSuccess={() => setShowDeleteSuccess(true)}
             />
           ))
         ) : (
@@ -91,6 +94,11 @@ export function StartupProjectList({ onViewDetails, onEditProject }: StartupProj
       >
         🔄 Refresh
       </button>
+
+      <DeleteSuccessModal
+        isOpen={showDeleteSuccess}
+        onClose={() => setShowDeleteSuccess(false)}
+      />
     </div>
   );
 }

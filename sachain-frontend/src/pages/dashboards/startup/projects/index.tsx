@@ -100,6 +100,8 @@ import { StartupProjectList } from "@/features/project/components/StartupProject
 import { ProjectDetailView } from "@/features/project/components/ProjectDetail";
 import { ProjectEditForm } from "@/features/project/components/ProjectEditForm"; // add this import
 import { useState } from "react";
+import { SaveSuccessModal } from '@/features/project/components/modals/SaveSuccessModal';
+
 
 interface ProjectPageProps {
   onCreateProject: () => void; // callback to open create tab
@@ -108,6 +110,8 @@ interface ProjectPageProps {
 export default function ProjectPage({ onCreateProject }: ProjectPageProps) {
   const [currentView, setCurrentView] = useState<"list" | "details" | "edit">("list");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
 
   const handleViewDetails = (projectId: string) => {
     setSelectedProjectId(projectId);
@@ -129,7 +133,7 @@ export default function ProjectPage({ onCreateProject }: ProjectPageProps) {
   };
 
   const handleSaveSuccess = () => {
-    alert("Project saved successfully!");
+    setShowSaveSuccess(true);
     setCurrentView("details");
   };
 
@@ -174,6 +178,11 @@ export default function ProjectPage({ onCreateProject }: ProjectPageProps) {
           onSaveSuccess={handleSaveSuccess}
         />
       )}
+
+      <SaveSuccessModal
+        isOpen={showSaveSuccess}
+        onClose={() => setShowSaveSuccess(false)}
+      />
     </div>
   );
 }
