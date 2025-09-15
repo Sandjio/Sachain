@@ -18,6 +18,7 @@ export class EventBridgeConstruct extends Construct {
   public readonly kycStatusChangeRule: events.Rule;
   public readonly kycDocumentUploadedRule: events.Rule;
   public readonly kycReviewCompletedRule: events.Rule;
+  public readonly paymentCompletedRule: events.Rule;
 
   constructor(scope: Construct, id: string, props: EventBridgeConstructProps) {
     super(scope, id);
@@ -168,6 +169,20 @@ export class EventBridgeConstruct extends Construct {
       })
     );
 
+    // Event Rule: Payment Completed Events
+    this.paymentCompletedRule = new events.Rule(this, "PaymentCompletedRule", {
+      ruleName: `sachain-payment-completed-${props.environment}`,
+      description: "Route payment completion events to HBAR transfer",
+      eventBus: this.eventBus,
+      eventPattern: {
+        source: ["sachain.payments"],
+        detailType: ["Payment Completed"],
+        detail: {
+          eventType: ["PAYMENT_COMPLETED"],
+        },
+      },
+    });
+
     // Add tags for resource management
     cdk.Tags.of(this.notificationTopic).add(
       "Purpose",
@@ -191,7 +206,8 @@ export class EventBridgeConstruct extends Construct {
 
   public addLambdaTargets(
     kycProcessingLambda: lambda.Function,
-    userNotificationLambda: lambda.Function
+    userNotificationLambda: lambda.Function,
+    sendHbarLambda: lambda.Function
   ): void {
     // Add lambda targets to event rules
     this.kycDocumentUploadedRule.addTarget(
@@ -205,6 +221,13 @@ export class EventBridgeConstruct extends Construct {
       new targets.LambdaFunction(userNotificationLambda, {
         retryAttempts: 2,
         maxEventAge: cdk.Duration.hours(1),
+      })
+    );
+
+    this.paymentCompletedRule.addTarget(
+      new targets.LambdaFunction(sendHbarLambda, {
+        retryAttempts: 3,
+        maxEventAge: cdk.Duration.hours(2),
       })
     );
   }

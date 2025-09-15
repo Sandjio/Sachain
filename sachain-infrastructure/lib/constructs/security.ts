@@ -627,6 +627,47 @@ export class SecurityConstruct extends Construct {
         // },
       })
     );
+
+    // EventBridge permissions for publishing payments events
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "EventBridgeOmPaymentEvents",
+        effect: iam.Effect.ALLOW,
+        actions: ["events:PutEvents"],
+        resources: [`arn:aws:events:*:${cdk.Aws.ACCOUNT_ID}:event-bus/*`],
+        conditions: {
+          StringEquals: {
+            "events:source": "sachain.payments",
+          },
+        },
+      })
+    );
+
+    // CloudWatch metrics permissions for HBAR recharge system
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "OmPaymentCloudWatchMetrics",
+        effect: iam.Effect.ALLOW,
+        actions: ["cloudwatch:PutMetricData"],
+        resources: ["*"],
+        conditions: {
+          StringEquals: {
+            "cloudwatch:namespace": ["Sachain/Projects", "Sachain/HBARRecharge"],
+          },
+        },
+      })
+    );
+
+    // X-Ray tracing permissions
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        sid: "OmPaymentXRayTracing",
+        effect: iam.Effect.ALLOW,
+        actions: ["xray:PutTraceSegments", "xray:PutTelemetryRecords"],
+        resources: ["*"],
+      })
+    );
+
     return role;
   }
 

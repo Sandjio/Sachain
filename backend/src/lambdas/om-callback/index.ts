@@ -1,8 +1,13 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { PaymentRepository } from "../../repositories/";
+import { createEventPublisher } from "../../utils/event-publisher";
 
 const paymentRepo = new PaymentRepository({
   tableName: process.env.TABLE_NAME!,
+});
+
+const eventPublisher = createEventPublisher({
+  eventBusName: process.env.EVENT_BUS_NAME!,
 });
 
 export const handler = async (
@@ -69,6 +74,22 @@ export const handler = async (
       orangeMoneyTransactionId: txnid,
     });
 
+    // Publish event for successful payment to trigger HBAR transfer
+    if (newStatus === "completed") {
+      await eventPublisher.publishEvent(
+        "sachain.payments",
+        {
+          eventType: "PAYMENT_COMPLETED",
+          payToken,
+          userId: payment.userId,
+          orderId: payment.orderId,
+          amount: payment.amount,
+          orangeMoneyTransactionId: txnid,
+        },
+        "Payment Completed",
+        "PAYMENT_COMPLETED"
+      );
+    }
     return {
       statusCode: 200,
       body: JSON.stringify({ message: "Payment updated", status: newStatus }),
