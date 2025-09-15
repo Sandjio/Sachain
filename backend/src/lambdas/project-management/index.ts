@@ -700,7 +700,7 @@ async function applyAccessControlFilters(
 ): Promise<GetProjectsRequest> {
   const filteredParams = { ...params };
 
-  if (userType === "entrepreneur") {
+  if (userType === "startup") {
     if (!filteredParams.entrepreneurId) {
       filteredParams.entrepreneurId = userId;
     } else if (filteredParams.entrepreneurId !== userId) {
@@ -836,7 +836,7 @@ async function checkProjectAccess(
   userId: string,
   userType?: string
 ): Promise<boolean> {
-  if (userType === "entrepreneur" && project.entrepreneurId === userId) {
+  if (userType === "startup" && project.entrepreneurId === userId) {
     return true;
   }
   if (project.status === "active") {
@@ -949,7 +949,7 @@ async function getProjectAggregations(
 ): Promise<ProjectAggregations> {
   const startTime = Date.now();
   try {
-    const cacheKey = userType === "entrepreneur" ? userId : "global";
+    const cacheKey = userType === "startup" ? userId : "global";
     const cached = getCachedAggregations(cacheKey);
     if (cached) {
       logger.debug("Aggregations cache hit", {
@@ -967,7 +967,7 @@ async function getProjectAggregations(
     };
 
     let allProjects: Project[] = [];
-    if (userType === "entrepreneur") {
+    if (userType === "startup") {
       const result = await getProjectRepository().getProjectsByEntrepreneur(
         userId,
         { limit: 1000 }

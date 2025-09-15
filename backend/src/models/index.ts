@@ -14,7 +14,7 @@ export interface UserProfile {
   email: string;
   firstName?: string;
   lastName?: string;
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
   kycStatus: "not_started" | "pending" | "approved" | "rejected";
   walletAddress?: string;
   createdAt: string;
@@ -70,7 +70,7 @@ export interface CreateUserProfileInput {
   email: string;
   firstName?: string;
   lastName?: string;
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
   emailVerified: boolean;
 }
 

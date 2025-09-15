@@ -448,7 +448,7 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
         error as Error
       );
     }
-    const userType = (userProfile as any)?.userType || "entrepreneur";
+    const userType = (userProfile as any)?.userType || "startup";
 
     // Publish EventBridge events with error handling
     try {
@@ -461,7 +461,7 @@ async function handleApproval(event: APIGatewayProxyEvent): Promise<any> {
           reviewedBy: adminUserId,
           reviewComments: request.comments,
           documentType: "national_id",
-          userType: userType as "entrepreneur" | "investor",
+          userType: userType as "startup" | "investor",
         }),
         eventBridgeService.publishKYCReviewCompletedEvent({
           userId: request.userId,
@@ -799,7 +799,7 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
         error as Error
       );
     }
-    const userType = (userProfile as any)?.userType || "entrepreneur";
+    const userType = (userProfile as any)?.userType || "startup";
 
     // Publish EventBridge events with error handling
     try {
@@ -812,7 +812,7 @@ async function handleRejection(event: APIGatewayProxyEvent): Promise<any> {
           reviewedBy: adminUserId,
           reviewComments: request.comments,
           documentType: "national_id",
-          userType: userType as "entrepreneur" | "investor",
+          userType: userType as "startup" | "investor",
         }),
         eventBridgeService.publishKYCReviewCompletedEvent({
           userId: request.userId,

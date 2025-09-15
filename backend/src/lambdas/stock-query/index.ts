@@ -222,7 +222,11 @@ async function handleGetStock(
 
     // Check access permissions
     const userProfile = await userRepository.getUserProfile(userId);
-    const canAccess = await checkStockAccess(stock, userId, userProfile?.userType);
+    const canAccess = await checkStockAccess(
+      stock,
+      userId,
+      userProfile?.userType
+    );
 
     if (!canAccess) {
       const duration = Date.now() - startTime;
@@ -425,9 +429,12 @@ async function handleGetPortfolio(
   try {
     // Get user profile
     const userProfile = await userRepository.getUserProfile(userId);
-    
+
     // Only investors and entrepreneurs can view portfolios
-    if (!userProfile || !["investor", "entrepreneur"].includes(userProfile.userType)) {
+    if (
+      !userProfile ||
+      !["investor", "startup"].includes(userProfile.userType)
+    ) {
       throw new StockQueryError(
         "Unauthorized access to portfolio",
         ErrorCodes.UNAUTHORIZED_ACCESS,
@@ -438,7 +445,7 @@ async function handleGetPortfolio(
 
     // Get wallet address from query params or user profile
     const walletAddress = event.queryStringParameters?.walletAddress;
-    
+
     if (!walletAddress) {
       throw new StockQueryError(
         "Wallet address is required for portfolio query",
@@ -578,7 +585,7 @@ async function applyAccessControlFilters(
   // If projectId is in path, use it
   if (projectId) {
     filteredParams.projectId = projectId;
-    
+
     // Check if user can access this project's stocks
     const project = await projectRepository.getProject(projectId);
     if (!project) {
@@ -591,7 +598,7 @@ async function applyAccessControlFilters(
     }
 
     // Entrepreneurs can see their own project stocks, investors can see active project stocks
-    if (userType === "entrepreneur" && project.entrepreneurId !== userId) {
+    if (userType === "startup" && project.entrepreneurId !== userId) {
       if (project.status !== "active") {
         throw new StockQueryError(
           "Unauthorized access to project stocks",
@@ -626,9 +633,9 @@ async function checkStockAccess(
 
   // Stock owner can always access
   // Note: In a real implementation, you'd need to map userId to wallet address
-  
+
   // Entrepreneurs can access stocks of their own projects
-  if (userType === "entrepreneur" && project.entrepreneurId === userId) {
+  if (userType === "startup" && project.entrepreneurId === userId) {
     return true;
   }
 
@@ -650,11 +657,13 @@ async function enrichStockWithMetadata(
 
     return {
       ...stock,
-      project: project ? {
-        name: project.name,
-        category: project.category,
-        status: project.status,
-      } : undefined,
+      project: project
+        ? {
+            name: project.name,
+            category: project.category,
+            status: project.status,
+          }
+        : undefined,
     };
   } catch (error) {
     logger.warn(
@@ -682,22 +691,24 @@ async function enrichStocksWithMetadata(
 
   try {
     // Get unique project IDs
-    const projectIds = [...new Set(stocks.map(stock => stock.projectId))];
-    
+    const projectIds = [...new Set(stocks.map((stock) => stock.projectId))];
+
     // Batch get projects
     const projects = await projectRepository.batchGetProjects(projectIds);
-    const projectMap = new Map(projects.map(p => [p.projectId, p]));
+    const projectMap = new Map(projects.map((p) => [p.projectId, p]));
 
     // Enrich stocks with project metadata
-    return stocks.map(stock => {
+    return stocks.map((stock) => {
       const project = projectMap.get(stock.projectId);
       return {
         ...stock,
-        project: project ? {
-          name: project.name,
-          category: project.category,
-          status: project.status,
-        } : undefined,
+        project: project
+          ? {
+              name: project.name,
+              category: project.category,
+              status: project.status,
+            }
+          : undefined,
       };
     });
   } catch (error) {

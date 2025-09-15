@@ -26,7 +26,7 @@ const client = new CognitoIdentityProviderClient({});
 
 /** Map userType values to Cognito Group names in your user pool */
 const USER_TYPE_TO_GROUP: Record<string, string> = {
-  entrepreneur: "Entrepreneur",
+  startup: "Startup",
   investor: "Investor",
   admin: "Admin",
 };

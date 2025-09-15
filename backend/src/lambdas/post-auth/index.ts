@@ -164,11 +164,11 @@ export const handler = async (
     const firstName = userAttributes.given_name;
     const lastName = userAttributes.family_name;
 
-    // Determine user type from custom attributes or default to 'entrepreneur'
+    // Determine user type from custom attributes or default to 'startup'
     const userType =
-      (event.request.userAttributes["custom:user_type"] as
-        | "entrepreneur"
-        | "investor") || "investor";
+      (event.request.userAttributes["custom:userType"]?.toLowerCase() as
+        | "startup"
+        | "investor") || "startup";
 
     // Create user profile record using Single Table Design
     const userProfile: UserReference = {

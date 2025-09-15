@@ -33,7 +33,7 @@ interface UserProfile {
   email: string;
   firstName?: string;
   lastName?: string;
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
   kycStatus: string;
   notificationPreferences?: {
     email: boolean;
@@ -204,7 +204,7 @@ Your identity document has been successfully verified, and you now have full acc
 
 What you can do now:
 ${
-  user.userType === "entrepreneur"
+  user.userType === "startup"
     ? "• Create and manage fundraising campaigns\n• Tokenize your project shares\n• Access investor analytics"
     : "• Browse and invest in tokenized projects\n• Manage your investment portfolio\n• Participate in governance voting"
 }

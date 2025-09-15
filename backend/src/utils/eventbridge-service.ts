@@ -51,7 +51,7 @@ export class EventBridgeService {
     reviewedBy: string;
     reviewComments?: string;
     documentType: "national_id";
-    userType: "entrepreneur" | "investor";
+    userType: "startup" | "investor";
   }): Promise<void> {
     const event: KYCStatusChangeEvent = {
       eventId: uuidv4(),
@@ -75,7 +75,7 @@ export class EventBridgeService {
     fileSize: number;
     mimeType: string;
     s3Key: string;
-    userType: "entrepreneur" | "investor";
+    userType: "startup" | "investor";
   }): Promise<void> {
     const event: KYCDocumentUploadedEvent = {
       eventId: uuidv4(),

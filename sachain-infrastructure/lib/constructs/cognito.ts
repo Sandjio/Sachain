@@ -132,8 +132,8 @@ export class CognitoConstruct extends Construct {
     });
 
     // Add Groups to the user pool
-    this.userPool.addGroup("EntrepreneurGroup", {
-      groupName: "Entrepreneur",
+    this.userPool.addGroup("StartupGroup", {
+      groupName: "Startup",
       description: "Group for entrepreneurs",
       precedence: 1,
     });
