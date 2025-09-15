@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { getProjectById } from '@/features/project/core/api';
+import { useDeleteProject } from "@/features/project/hook/useDeleteProject";
+import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
 
 interface Project {
   projectId: string;
@@ -31,9 +33,25 @@ export function ProjectDetailView({
   onBack,
   onEdit,
 }: ProjectDetailViewProps) {
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isDeleting, deleteProjectById } = useDeleteProject(() => {
+    setIsModalOpen(false);
+    onBack();
+  });
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+  const confirmDelete = () => {
+    if (!project) return;
+    deleteProjectById(project.projectId).catch((err) => {
+      alert(err.message || "Failed to delete project");
+    });
+  };
+
+  
 
   useEffect(() => {
   const fetchProject = async () => {
@@ -51,6 +69,9 @@ export function ProjectDetailView({
   };
   fetchProject();
 }, [projectId]);
+
+
+
 
   if (loading) {
     return (
@@ -246,14 +267,22 @@ export function ProjectDetailView({
           <Button
             variant="outline"
             className="text-red-600 hover:text-red-700 hover:border-red-300"
-            onClick={() => {
-              alert('Delete functionality - coming next!');
-            }}
+            onClick={openModal}
+            disabled={isDeleting}
           >
-            Delete Project
+            {isDeleting ? "Deleting..." : "Delete Project"}
           </Button>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={isModalOpen}
+        title={`Delete "${project?.name}"?`}
+        description="This action cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={closeModal}
+        loading={isDeleting}
+      />
     </div>
   );
 }

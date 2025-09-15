@@ -93,6 +93,9 @@ See [LICENSE](LICENSE) file for details.
 
 We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and development process.
 
+
+
+
 ```
 Sachain
 ├─ AUDIT_COMPLIANCE_IMPLEMENTATION.md
@@ -205,7 +208,6 @@ Sachain
 ├─ sachain-frontend
 │  ├─ .env.local
 │  ├─ .next
-│  │  ├─ BUILD_ID
 │  │  ├─ app-build-manifest.json
 │  │  ├─ build
 │  │  │  └─ chunks
@@ -219,175 +221,64 @@ Sachain
 │  │  │     └─ [turbopack]_runtime.js.map
 │  │  ├─ build-manifest.json
 │  │  ├─ cache
-│  │  │  ├─ .previewinfo
-│  │  │  ├─ .rscinfo
-│  │  │  ├─ .tsbuildinfo
-│  │  │  ├─ eslint
-│  │  │  │  └─ .cache_1u76iy8
-│  │  │  ├─ swc
-│  │  │  │  └─ plugins
-│  │  │  │     └─ v7_linux_x86_64_17.0.0
-│  │  │  └─ webpack
-│  │  │     ├─ client-production
-│  │  │     │  ├─ 0.pack
-│  │  │     │  └─ index.pack
-│  │  │     ├─ edge-server-production
-│  │  │     │  ├─ 0.pack
-│  │  │     │  └─ index.pack
-│  │  │     └─ server-production
-│  │  │        ├─ 0.pack
-│  │  │        └─ index.pack
-│  │  ├─ diagnostics
-│  │  │  ├─ build-diagnostics.json
-│  │  │  └─ framework.json
-│  │  ├─ dynamic-css-manifest.json
-│  │  ├─ export-marker.json
+│  │  │  └─ .rscinfo
 │  │  ├─ fallback-build-manifest.json
-│  │  ├─ images-manifest.json
-│  │  ├─ next-minimal-server.js.nft.json
-│  │  ├─ next-server.js.nft.json
 │  │  ├─ package.json
 │  │  ├─ postcss.js
 │  │  ├─ postcss.js.map
 │  │  ├─ prerender-manifest.json
-│  │  ├─ react-loadable-manifest.json
-│  │  ├─ required-server-files.json
 │  │  ├─ routes-manifest.json
 │  │  ├─ server
 │  │  │  ├─ app-paths-manifest.json
 │  │  │  ├─ chunks
-│  │  │  │  ├─ 199.js
-│  │  │  │  ├─ 377.js
-│  │  │  │  ├─ 515.js
-│  │  │  │  ├─ 634.js
-│  │  │  │  ├─ 763.js
 │  │  │  │  └─ ssr
-│  │  │  │     ├─ 4787e_next_dist_9c7a27cf._.js
-│  │  │  │     ├─ 4787e_next_dist_9c7a27cf._.js.map
-│  │  │  │     ├─ 4787e_next_dist_dddd176d._.js
-│  │  │  │     ├─ 4787e_next_dist_dddd176d._.js.map
 │  │  │  │     ├─ [externals]_next_dist_shared_lib_no-fallback-error_external_d7a8835d.js
 │  │  │  │     ├─ [externals]_next_dist_shared_lib_no-fallback-error_external_d7a8835d.js.map
-│  │  │  │     ├─ [root-of-the-server]__04b014cc._.js
-│  │  │  │     ├─ [root-of-the-server]__04b014cc._.js.map
-│  │  │  │     ├─ [root-of-the-server]__07dcbc78._.js
-│  │  │  │     ├─ [root-of-the-server]__07dcbc78._.js.map
-│  │  │  │     ├─ [root-of-the-server]__100a384c._.js
-│  │  │  │     ├─ [root-of-the-server]__100a384c._.js.map
-│  │  │  │     ├─ [root-of-the-server]__101f3131._.js
-│  │  │  │     ├─ [root-of-the-server]__101f3131._.js.map
-│  │  │  │     ├─ [root-of-the-server]__126a8b15._.js
-│  │  │  │     ├─ [root-of-the-server]__126a8b15._.js.map
-│  │  │  │     ├─ [root-of-the-server]__12ccf0bd._.js
-│  │  │  │     ├─ [root-of-the-server]__12ccf0bd._.js.map
-│  │  │  │     ├─ [root-of-the-server]__1399c189._.js
-│  │  │  │     ├─ [root-of-the-server]__1399c189._.js.map
-│  │  │  │     ├─ [root-of-the-server]__15e44134._.js
-│  │  │  │     ├─ [root-of-the-server]__15e44134._.js.map
-│  │  │  │     ├─ [root-of-the-server]__1d9acd0f._.js
-│  │  │  │     ├─ [root-of-the-server]__1d9acd0f._.js.map
-│  │  │  │     ├─ [root-of-the-server]__1dbe8324._.js
-│  │  │  │     ├─ [root-of-the-server]__1dbe8324._.js.map
-│  │  │  │     ├─ [root-of-the-server]__1e28c0bc._.js
-│  │  │  │     ├─ [root-of-the-server]__1e28c0bc._.js.map
-│  │  │  │     ├─ [root-of-the-server]__1e61771b._.js
-│  │  │  │     ├─ [root-of-the-server]__1e61771b._.js.map
-│  │  │  │     ├─ [root-of-the-server]__223cae48._.js
-│  │  │  │     ├─ [root-of-the-server]__223cae48._.js.map
-│  │  │  │     ├─ [root-of-the-server]__24f23bc9._.js
-│  │  │  │     ├─ [root-of-the-server]__24f23bc9._.js.map
-│  │  │  │     ├─ [root-of-the-server]__2842dc62._.js
-│  │  │  │     ├─ [root-of-the-server]__2842dc62._.js.map
-│  │  │  │     ├─ [root-of-the-server]__29a4f3bc._.js
-│  │  │  │     ├─ [root-of-the-server]__29a4f3bc._.js.map
-│  │  │  │     ├─ [root-of-the-server]__2fd2c516._.js
-│  │  │  │     ├─ [root-of-the-server]__2fd2c516._.js.map
-│  │  │  │     ├─ [root-of-the-server]__33bf345b._.js
-│  │  │  │     ├─ [root-of-the-server]__33bf345b._.js.map
-│  │  │  │     ├─ [root-of-the-server]__37097ea7._.js
-│  │  │  │     ├─ [root-of-the-server]__37097ea7._.js.map
+│  │  │  │     ├─ [root-of-the-server]__0cfcf9f4._.js
+│  │  │  │     ├─ [root-of-the-server]__0cfcf9f4._.js.map
+│  │  │  │     ├─ [root-of-the-server]__376337a0._.js
+│  │  │  │     ├─ [root-of-the-server]__376337a0._.js.map
 │  │  │  │     ├─ [root-of-the-server]__3ba8fa17._.js
 │  │  │  │     ├─ [root-of-the-server]__3ba8fa17._.js.map
-│  │  │  │     ├─ [root-of-the-server]__3ed012ce._.js
-│  │  │  │     ├─ [root-of-the-server]__3ed012ce._.js.map
+│  │  │  │     ├─ [root-of-the-server]__3e53421e._.js
+│  │  │  │     ├─ [root-of-the-server]__3e53421e._.js.map
+│  │  │  │     ├─ [root-of-the-server]__4141ae07._.js
+│  │  │  │     ├─ [root-of-the-server]__4141ae07._.js.map
 │  │  │  │     ├─ [root-of-the-server]__42eee2aa._.js
 │  │  │  │     ├─ [root-of-the-server]__42eee2aa._.js.map
-│  │  │  │     ├─ [root-of-the-server]__43a6caec._.js
-│  │  │  │     ├─ [root-of-the-server]__43a6caec._.js.map
 │  │  │  │     ├─ [root-of-the-server]__44f6730b._.js
 │  │  │  │     ├─ [root-of-the-server]__44f6730b._.js.map
-│  │  │  │     ├─ [root-of-the-server]__473fc5ea._.js
-│  │  │  │     ├─ [root-of-the-server]__473fc5ea._.js.map
-│  │  │  │     ├─ [root-of-the-server]__4fe2bddc._.js
-│  │  │  │     ├─ [root-of-the-server]__4fe2bddc._.js.map
-│  │  │  │     ├─ [root-of-the-server]__64b44034._.js
-│  │  │  │     ├─ [root-of-the-server]__64b44034._.js.map
-│  │  │  │     ├─ [root-of-the-server]__67eee4fb._.js
-│  │  │  │     ├─ [root-of-the-server]__67eee4fb._.js.map
-│  │  │  │     ├─ [root-of-the-server]__811c410e._.js
-│  │  │  │     ├─ [root-of-the-server]__811c410e._.js.map
+│  │  │  │     ├─ [root-of-the-server]__5e599573._.js
+│  │  │  │     ├─ [root-of-the-server]__5e599573._.js.map
+│  │  │  │     ├─ [root-of-the-server]__6ffc3410._.js
+│  │  │  │     ├─ [root-of-the-server]__6ffc3410._.js.map
+│  │  │  │     ├─ [root-of-the-server]__7340057c._.js
+│  │  │  │     ├─ [root-of-the-server]__7340057c._.js.map
+│  │  │  │     ├─ [root-of-the-server]__786598b6._.js
+│  │  │  │     ├─ [root-of-the-server]__786598b6._.js.map
 │  │  │  │     ├─ [root-of-the-server]__83a7c2ca._.js
 │  │  │  │     ├─ [root-of-the-server]__83a7c2ca._.js.map
-│  │  │  │     ├─ [root-of-the-server]__85ee0bc7._.js
-│  │  │  │     ├─ [root-of-the-server]__85ee0bc7._.js.map
 │  │  │  │     ├─ [root-of-the-server]__8616f20f._.js
 │  │  │  │     ├─ [root-of-the-server]__8616f20f._.js.map
-│  │  │  │     ├─ [root-of-the-server]__8a512bbe._.js
-│  │  │  │     ├─ [root-of-the-server]__8a512bbe._.js.map
-│  │  │  │     ├─ [root-of-the-server]__8f7a2ed6._.js
-│  │  │  │     ├─ [root-of-the-server]__8f7a2ed6._.js.map
-│  │  │  │     ├─ [root-of-the-server]__906e67a5._.js
-│  │  │  │     ├─ [root-of-the-server]__906e67a5._.js.map
+│  │  │  │     ├─ [root-of-the-server]__938cb130._.js
+│  │  │  │     ├─ [root-of-the-server]__938cb130._.js.map
 │  │  │  │     ├─ [root-of-the-server]__93ade7bd._.js
 │  │  │  │     ├─ [root-of-the-server]__93ade7bd._.js.map
-│  │  │  │     ├─ [root-of-the-server]__94fd3c01._.js
-│  │  │  │     ├─ [root-of-the-server]__94fd3c01._.js.map
-│  │  │  │     ├─ [root-of-the-server]__9c89835a._.js
-│  │  │  │     ├─ [root-of-the-server]__9c89835a._.js.map
-│  │  │  │     ├─ [root-of-the-server]__9de8d848._.js
-│  │  │  │     ├─ [root-of-the-server]__9de8d848._.js.map
-│  │  │  │     ├─ [root-of-the-server]__a1ca224e._.js
-│  │  │  │     ├─ [root-of-the-server]__a1ca224e._.js.map
-│  │  │  │     ├─ [root-of-the-server]__aa47c013._.js
-│  │  │  │     ├─ [root-of-the-server]__aa47c013._.js.map
-│  │  │  │     ├─ [root-of-the-server]__ac11e8e0._.js
-│  │  │  │     ├─ [root-of-the-server]__ac11e8e0._.js.map
-│  │  │  │     ├─ [root-of-the-server]__aece8698._.js
-│  │  │  │     ├─ [root-of-the-server]__aece8698._.js.map
-│  │  │  │     ├─ [root-of-the-server]__b5d88519._.js
-│  │  │  │     ├─ [root-of-the-server]__b5d88519._.js.map
-│  │  │  │     ├─ [root-of-the-server]__ba7d8885._.js
-│  │  │  │     ├─ [root-of-the-server]__ba7d8885._.js.map
-│  │  │  │     ├─ [root-of-the-server]__babacfe6._.js
-│  │  │  │     ├─ [root-of-the-server]__babacfe6._.js.map
-│  │  │  │     ├─ [root-of-the-server]__bf297342._.js
-│  │  │  │     ├─ [root-of-the-server]__bf297342._.js.map
-│  │  │  │     ├─ [root-of-the-server]__c257d62e._.js
-│  │  │  │     ├─ [root-of-the-server]__c257d62e._.js.map
-│  │  │  │     ├─ [root-of-the-server]__ca97ad39._.js
-│  │  │  │     ├─ [root-of-the-server]__ca97ad39._.js.map
-│  │  │  │     ├─ [root-of-the-server]__d015a27f._.js
-│  │  │  │     ├─ [root-of-the-server]__d015a27f._.js.map
-│  │  │  │     ├─ [root-of-the-server]__d97a7248._.js
-│  │  │  │     ├─ [root-of-the-server]__d97a7248._.js.map
-│  │  │  │     ├─ [root-of-the-server]__e432638c._.js
-│  │  │  │     ├─ [root-of-the-server]__e432638c._.js.map
+│  │  │  │     ├─ [root-of-the-server]__a392857f._.js
+│  │  │  │     ├─ [root-of-the-server]__a392857f._.js.map
+│  │  │  │     ├─ [root-of-the-server]__abec5e31._.js
+│  │  │  │     ├─ [root-of-the-server]__abec5e31._.js.map
+│  │  │  │     ├─ [root-of-the-server]__d962f988._.js
+│  │  │  │     ├─ [root-of-the-server]__d962f988._.js.map
 │  │  │  │     ├─ [root-of-the-server]__e87a4777._.js
 │  │  │  │     ├─ [root-of-the-server]__e87a4777._.js.map
-│  │  │  │     ├─ [root-of-the-server]__f0727df3._.js
-│  │  │  │     ├─ [root-of-the-server]__f0727df3._.js.map
-│  │  │  │     ├─ [root-of-the-server]__fd87627b._.js
-│  │  │  │     ├─ [root-of-the-server]__fd87627b._.js.map
+│  │  │  │     ├─ [root-of-the-server]__f334d1a5._.js
+│  │  │  │     ├─ [root-of-the-server]__f334d1a5._.js.map
 │  │  │  │     ├─ [turbopack]_runtime.js
-│  │  │  │     ├─ [turbopack]_runtime.js.map
-│  │  │  │     ├─ b23af_next_dist_d7b67c25._.js
-│  │  │  │     └─ b23af_next_dist_d7b67c25._.js.map
-│  │  │  ├─ dynamic-css-manifest.js
-│  │  │  ├─ functions-config-manifest.json
+│  │  │  │     └─ [turbopack]_runtime.js.map
 │  │  │  ├─ interception-route-rewrite-manifest.js
 │  │  │  ├─ middleware-build-manifest.js
 │  │  │  ├─ middleware-manifest.json
-│  │  │  ├─ middleware-react-loadable-manifest.js
 │  │  │  ├─ next-font-manifest.js
 │  │  │  ├─ next-font-manifest.json
 │  │  │  ├─ pages
@@ -398,14 +289,12 @@ Sachain
 │  │  │  │  │  └─ react-loadable-manifest.json
 │  │  │  │  ├─ _app.js
 │  │  │  │  ├─ _app.js.map
-│  │  │  │  ├─ _app.js.nft.json
 │  │  │  │  ├─ _document
 │  │  │  │  │  ├─ next-font-manifest.json
 │  │  │  │  │  ├─ pages-manifest.json
 │  │  │  │  │  └─ react-loadable-manifest.json
 │  │  │  │  ├─ _document.js
 │  │  │  │  ├─ _document.js.map
-│  │  │  │  ├─ _document.js.nft.json
 │  │  │  │  ├─ _error
 │  │  │  │  │  ├─ build-manifest.json
 │  │  │  │  │  ├─ next-font-manifest.json
@@ -413,7 +302,6 @@ Sachain
 │  │  │  │  │  └─ react-loadable-manifest.json
 │  │  │  │  ├─ _error.js
 │  │  │  │  ├─ _error.js.map
-│  │  │  │  ├─ _error.js.nft.json
 │  │  │  │  ├─ auth
 │  │  │  │  │  ├─ [tab]
 │  │  │  │  │  │  ├─ build-manifest.json
@@ -422,31 +310,14 @@ Sachain
 │  │  │  │  │  │  └─ react-loadable-manifest.json
 │  │  │  │  │  ├─ [tab].js
 │  │  │  │  │  ├─ [tab].js.map
-│  │  │  │  │  ├─ [tab].js.nft.json
 │  │  │  │  │  ├─ login
 │  │  │  │  │  │  ├─ build-manifest.json
 │  │  │  │  │  │  ├─ next-font-manifest.json
 │  │  │  │  │  │  ├─ pages-manifest.json
 │  │  │  │  │  │  └─ react-loadable-manifest.json
 │  │  │  │  │  ├─ login.js
-│  │  │  │  │  ├─ login.js.map
-│  │  │  │  │  ├─ login.js.nft.json
-│  │  │  │  │  ├─ signup
-│  │  │  │  │  │  ├─ build-manifest.json
-│  │  │  │  │  │  ├─ next-font-manifest.json
-│  │  │  │  │  │  ├─ pages-manifest.json
-│  │  │  │  │  │  └─ react-loadable-manifest.json
-│  │  │  │  │  ├─ signup.js
-│  │  │  │  │  ├─ signup.js.map
-│  │  │  │  │  └─ signup.js.nft.json
+│  │  │  │  │  └─ login.js.map
 │  │  │  │  ├─ dashboards
-│  │  │  │  │  ├─ admin
-│  │  │  │  │  │  ├─ build-manifest.json
-│  │  │  │  │  │  ├─ next-font-manifest.json
-│  │  │  │  │  │  ├─ pages-manifest.json
-│  │  │  │  │  │  └─ react-loadable-manifest.json
-│  │  │  │  │  ├─ admin.js
-│  │  │  │  │  ├─ admin.js.map
 │  │  │  │  │  ├─ build-manifest.json
 │  │  │  │  │  ├─ investor
 │  │  │  │  │  │  ├─ build-manifest.json
@@ -455,7 +326,6 @@ Sachain
 │  │  │  │  │  │  └─ react-loadable-manifest.json
 │  │  │  │  │  ├─ investor.js
 │  │  │  │  │  ├─ investor.js.map
-│  │  │  │  │  ├─ investor.js.nft.json
 │  │  │  │  │  ├─ next-font-manifest.json
 │  │  │  │  │  ├─ pages-manifest.json
 │  │  │  │  │  ├─ react-loadable-manifest.json
@@ -463,67 +333,25 @@ Sachain
 │  │  │  │  │  │  ├─ build-manifest.json
 │  │  │  │  │  │  ├─ next-font-manifest.json
 │  │  │  │  │  │  ├─ pages-manifest.json
-│  │  │  │  │  │  ├─ projects
-│  │  │  │  │  │  │  ├─ create-project
-│  │  │  │  │  │  │  │  ├─ build-manifest.json
-│  │  │  │  │  │  │  │  ├─ next-font-manifest.json
-│  │  │  │  │  │  │  │  ├─ pages-manifest.json
-│  │  │  │  │  │  │  │  └─ react-loadable-manifest.json
-│  │  │  │  │  │  │  ├─ create-project.js
-│  │  │  │  │  │  │  └─ create-project.js.map
 │  │  │  │  │  │  └─ react-loadable-manifest.json
 │  │  │  │  │  ├─ startup.js
-│  │  │  │  │  ├─ startup.js.map
-│  │  │  │  │  └─ startup.js.nft.json
+│  │  │  │  │  └─ startup.js.map
 │  │  │  │  ├─ dashboards.js
 │  │  │  │  ├─ dashboards.js.map
-│  │  │  │  ├─ en
-│  │  │  │  │  ├─ 404.html
-│  │  │  │  │  ├─ 500.html
-│  │  │  │  │  ├─ auth
-│  │  │  │  │  │  ├─ [tab].html
-│  │  │  │  │  │  ├─ login.html
-│  │  │  │  │  │  └─ signup.html
-│  │  │  │  │  └─ dashboards
-│  │  │  │  │     ├─ investor.html
-│  │  │  │  │     └─ startup.html
-│  │  │  │  ├─ en.html
-│  │  │  │  ├─ en.json
-│  │  │  │  ├─ fr
-│  │  │  │  │  ├─ 404.html
-│  │  │  │  │  ├─ 500.html
-│  │  │  │  │  ├─ auth
-│  │  │  │  │  │  ├─ [tab].html
-│  │  │  │  │  │  ├─ login.html
-│  │  │  │  │  │  └─ signup.html
-│  │  │  │  │  └─ dashboards
-│  │  │  │  │     ├─ investor.html
-│  │  │  │  │     └─ startup.html
-│  │  │  │  ├─ fr.html
-│  │  │  │  ├─ fr.json
 │  │  │  │  ├─ index
 │  │  │  │  │  ├─ build-manifest.json
 │  │  │  │  │  ├─ next-font-manifest.json
 │  │  │  │  │  ├─ pages-manifest.json
 │  │  │  │  │  └─ react-loadable-manifest.json
 │  │  │  │  ├─ index.js
-│  │  │  │  ├─ index.js.map
-│  │  │  │  └─ index.js.nft.json
+│  │  │  │  └─ index.js.map
 │  │  │  ├─ pages-manifest.json
 │  │  │  ├─ server-reference-manifest.js
-│  │  │  ├─ server-reference-manifest.json
-│  │  │  └─ webpack-runtime.js
+│  │  │  └─ server-reference-manifest.json
 │  │  ├─ static
-│  │  │  ├─ YpeOvAvGaAbrMt2srLLEp
-│  │  │  │  ├─ _buildManifest.js
-│  │  │  │  └─ _ssgManifest.js
 │  │  │  ├─ chunks
-│  │  │  │  ├─ 09926_@hashgraph_sdk_lib_1c2914d1._.js
-│  │  │  │  ├─ 09926_@hashgraph_sdk_lib_1c2914d1._.js.map
 │  │  │  │  ├─ 09926_@hashgraph_sdk_lib_61cb7299._.js
 │  │  │  │  ├─ 09926_@hashgraph_sdk_lib_61cb7299._.js.map
-│  │  │  │  ├─ 09926_@hashgraph_sdk_lib_account_1d32747f._.js
-│  │  │  │  ├─ 09926_@hashgraph_sdk_lib_account_1d32747f._.js.map
 │  │  │  │  ├─ 09926_@hashgraph_sdk_lib_account_4f062afa._.js
 │  │  │  │  ├─ 09926_@hashgraph_sdk_lib_account_4f062afa._.js.map
 │  │  │  │  ├─ 09926_@hashgraph_sdk_lib_contract_f1d078e5._.js
@@ -536,168 +364,60 @@ Sachain
 │  │  │  │  ├─ 1a8f1_@noble_curves_esm_a8445e64._.js.map
 │  │  │  │  ├─ 41ef3_@hashgraph_cryptography_src_265d94a1._.js
 │  │  │  │  ├─ 41ef3_@hashgraph_cryptography_src_265d94a1._.js.map
-│  │  │  │  ├─ 4787e_next_d1fcd2fd._.js
-│  │  │  │  ├─ 4787e_next_d1fcd2fd._.js.map
-│  │  │  │  ├─ 4787e_next_dist_01ca92c9._.js
-│  │  │  │  ├─ 4787e_next_dist_01ca92c9._.js.map
-│  │  │  │  ├─ 4787e_next_dist_9d49c10f._.js
-│  │  │  │  ├─ 4787e_next_dist_9d49c10f._.js.map
-│  │  │  │  ├─ 4787e_next_dist_client_2923b3ae._.js
-│  │  │  │  ├─ 4787e_next_dist_client_2923b3ae._.js.map
-│  │  │  │  ├─ 4787e_next_dist_client_3c4c3702._.js
-│  │  │  │  ├─ 4787e_next_dist_client_3c4c3702._.js.map
-│  │  │  │  ├─ 4787e_next_dist_compiled_303f463f._.js
-│  │  │  │  ├─ 4787e_next_dist_compiled_303f463f._.js.map
-│  │  │  │  ├─ 4787e_next_dist_compiled_f92fb76d._.js
-│  │  │  │  ├─ 4787e_next_dist_compiled_f92fb76d._.js.map
-│  │  │  │  ├─ 4787e_next_dist_compiled_next-devtools_index_9a27b047.js
-│  │  │  │  ├─ 4787e_next_dist_compiled_next-devtools_index_9a27b047.js.map
-│  │  │  │  ├─ 4787e_next_dist_shared_lib_6469e95c._.js
-│  │  │  │  ├─ 4787e_next_dist_shared_lib_6469e95c._.js.map
-│  │  │  │  ├─ 4787e_next_dist_shared_lib_7270dab5._.js
-│  │  │  │  ├─ 4787e_next_dist_shared_lib_7270dab5._.js.map
-│  │  │  │  ├─ 4787e_next_dist_shared_lib_ca08c8e9._.js
-│  │  │  │  ├─ 4787e_next_dist_shared_lib_ca08c8e9._.js.map
-│  │  │  │  ├─ 4787e_next_e28b909e._.js
-│  │  │  │  ├─ 4787e_next_e28b909e._.js.map
-│  │  │  │  ├─ 4787e_next_error_7dcf62fc.js
-│  │  │  │  ├─ 4787e_next_error_7dcf62fc.js.map
-│  │  │  │  ├─ 4787e_next_router_d99673c6.js
-│  │  │  │  ├─ 4787e_next_router_d99673c6.js.map
 │  │  │  │  ├─ 5920c_@aws-sdk_client-cognito-identity-provider_6c1d7978._.js
 │  │  │  │  ├─ 5920c_@aws-sdk_client-cognito-identity-provider_6c1d7978._.js.map
-│  │  │  │  ├─ 74-9cffb87adeec4ac4.js
+│  │  │  │  ├─ 5920c_@aws-sdk_client-cognito-identity-provider_fefa768c._.js
+│  │  │  │  ├─ 5920c_@aws-sdk_client-cognito-identity-provider_fefa768c._.js.map
 │  │  │  │  ├─ 7fbd0_zod_v4_1f06bfac._.js
 │  │  │  │  ├─ 7fbd0_zod_v4_1f06bfac._.js.map
 │  │  │  │  ├─ 8484d_tailwind-merge_dist_bundle-mjs_mjs_efdef8cd._.js
 │  │  │  │  ├─ 8484d_tailwind-merge_dist_bundle-mjs_mjs_efdef8cd._.js.map
-│  │  │  │  ├─ 864-803dabf510b9880a.js
-│  │  │  │  ├─ 880-7945ed57364aae99.js
-│  │  │  │  ├─ 997-75dad5a03cc5564d.js
 │  │  │  │  ├─ [next]_entry_page-loader_ts_b3755954._.js
 │  │  │  │  ├─ [next]_entry_page-loader_ts_b3755954._.js.map
-│  │  │  │  ├─ [next]_entry_page-loader_ts_f2cd5c7a._.js
-│  │  │  │  ├─ [next]_entry_page-loader_ts_f2cd5c7a._.js.map
-│  │  │  │  ├─ [root-of-the-server]__00454ba3._.js
-│  │  │  │  ├─ [root-of-the-server]__00454ba3._.js.map
-│  │  │  │  ├─ [root-of-the-server]__06a181e5._.js
-│  │  │  │  ├─ [root-of-the-server]__06a181e5._.js.map
-│  │  │  │  ├─ [root-of-the-server]__07e193d3._.js
-│  │  │  │  ├─ [root-of-the-server]__07e193d3._.js.map
-│  │  │  │  ├─ [root-of-the-server]__0dd91ba1._.js
-│  │  │  │  ├─ [root-of-the-server]__0dd91ba1._.js.map
-│  │  │  │  ├─ [root-of-the-server]__11e6a6d4._.js
-│  │  │  │  ├─ [root-of-the-server]__11e6a6d4._.js.map
-│  │  │  │  ├─ [root-of-the-server]__1c48944b._.js
-│  │  │  │  ├─ [root-of-the-server]__1c48944b._.js.map
-│  │  │  │  ├─ [root-of-the-server]__1d53af9c._.js
-│  │  │  │  ├─ [root-of-the-server]__1d53af9c._.js.map
-│  │  │  │  ├─ [root-of-the-server]__232563b9._.js
-│  │  │  │  ├─ [root-of-the-server]__232563b9._.js.map
+│  │  │  │  ├─ [root-of-the-server]__07d833bd._.js
+│  │  │  │  ├─ [root-of-the-server]__07d833bd._.js.map
+│  │  │  │  ├─ [root-of-the-server]__0be13f56._.js
+│  │  │  │  ├─ [root-of-the-server]__0be13f56._.js.map
+│  │  │  │  ├─ [root-of-the-server]__1d58f813._.js
+│  │  │  │  ├─ [root-of-the-server]__1d58f813._.js.map
 │  │  │  │  ├─ [root-of-the-server]__292db1e4._.js
 │  │  │  │  ├─ [root-of-the-server]__292db1e4._.js.map
-│  │  │  │  ├─ [root-of-the-server]__352ef131._.js
-│  │  │  │  ├─ [root-of-the-server]__352ef131._.js.map
-│  │  │  │  ├─ [root-of-the-server]__3624f3ea._.js
-│  │  │  │  ├─ [root-of-the-server]__3624f3ea._.js.map
-│  │  │  │  ├─ [root-of-the-server]__38300fbb._.js
-│  │  │  │  ├─ [root-of-the-server]__38300fbb._.js.map
-│  │  │  │  ├─ [root-of-the-server]__3f8fec48._.js
-│  │  │  │  ├─ [root-of-the-server]__3f8fec48._.js.map
+│  │  │  │  ├─ [root-of-the-server]__2e0dd3dc._.js
+│  │  │  │  ├─ [root-of-the-server]__2e0dd3dc._.js.map
 │  │  │  │  ├─ [root-of-the-server]__400f4f9e._.js
 │  │  │  │  ├─ [root-of-the-server]__400f4f9e._.js.map
 │  │  │  │  ├─ [root-of-the-server]__40cf05b3._.js
 │  │  │  │  ├─ [root-of-the-server]__40cf05b3._.js.map
-│  │  │  │  ├─ [root-of-the-server]__467d3f40._.js
-│  │  │  │  ├─ [root-of-the-server]__467d3f40._.js.map
-│  │  │  │  ├─ [root-of-the-server]__4a6ce806._.js
-│  │  │  │  ├─ [root-of-the-server]__4a6ce806._.js.map
-│  │  │  │  ├─ [root-of-the-server]__50d5e834._.js
-│  │  │  │  ├─ [root-of-the-server]__50d5e834._.js.map
-│  │  │  │  ├─ [root-of-the-server]__5249a32b._.js
-│  │  │  │  ├─ [root-of-the-server]__5249a32b._.js.map
-│  │  │  │  ├─ [root-of-the-server]__526abf02._.js
-│  │  │  │  ├─ [root-of-the-server]__526abf02._.js.map
-│  │  │  │  ├─ [root-of-the-server]__55f79849._.js
-│  │  │  │  ├─ [root-of-the-server]__55f79849._.js.map
-│  │  │  │  ├─ [root-of-the-server]__58ed3b29._.js
-│  │  │  │  ├─ [root-of-the-server]__58ed3b29._.js.map
-│  │  │  │  ├─ [root-of-the-server]__58fb3013._.js
-│  │  │  │  ├─ [root-of-the-server]__58fb3013._.js.map
+│  │  │  │  ├─ [root-of-the-server]__56a706ab._.js
+│  │  │  │  ├─ [root-of-the-server]__56a706ab._.js.map
 │  │  │  │  ├─ [root-of-the-server]__5b1dfcc5._.js
 │  │  │  │  ├─ [root-of-the-server]__5b1dfcc5._.js.map
-│  │  │  │  ├─ [root-of-the-server]__5c0bc7bb._.js
-│  │  │  │  ├─ [root-of-the-server]__5c0bc7bb._.js.map
-│  │  │  │  ├─ [root-of-the-server]__64908a19._.js
-│  │  │  │  ├─ [root-of-the-server]__64908a19._.js.map
-│  │  │  │  ├─ [root-of-the-server]__66044b94._.js
-│  │  │  │  ├─ [root-of-the-server]__66044b94._.js.map
-│  │  │  │  ├─ [root-of-the-server]__758bbf8a._.js
-│  │  │  │  ├─ [root-of-the-server]__758bbf8a._.js.map
-│  │  │  │  ├─ [root-of-the-server]__7ac56eac._.js
-│  │  │  │  ├─ [root-of-the-server]__7ac56eac._.js.map
-│  │  │  │  ├─ [root-of-the-server]__81b538ba._.js
-│  │  │  │  ├─ [root-of-the-server]__81b538ba._.js.map
-│  │  │  │  ├─ [root-of-the-server]__9e271bd1._.js
-│  │  │  │  ├─ [root-of-the-server]__9e271bd1._.js.map
-│  │  │  │  ├─ [root-of-the-server]__a059bd86._.js
-│  │  │  │  ├─ [root-of-the-server]__a059bd86._.js.map
-│  │  │  │  ├─ [root-of-the-server]__a1e2e424._.js
-│  │  │  │  ├─ [root-of-the-server]__a1e2e424._.js.map
-│  │  │  │  ├─ [root-of-the-server]__a7a602a0._.js
-│  │  │  │  ├─ [root-of-the-server]__a7a602a0._.js.map
-│  │  │  │  ├─ [root-of-the-server]__b2a1663b._.js
-│  │  │  │  ├─ [root-of-the-server]__b2a1663b._.js.map
-│  │  │  │  ├─ [root-of-the-server]__b34be275._.js
-│  │  │  │  ├─ [root-of-the-server]__b34be275._.js.map
+│  │  │  │  ├─ [root-of-the-server]__7bb195d1._.js
+│  │  │  │  ├─ [root-of-the-server]__7bb195d1._.js.map
+│  │  │  │  ├─ [root-of-the-server]__915e6774._.js
+│  │  │  │  ├─ [root-of-the-server]__915e6774._.js.map
+│  │  │  │  ├─ [root-of-the-server]__91762464._.js
+│  │  │  │  ├─ [root-of-the-server]__91762464._.js.map
+│  │  │  │  ├─ [root-of-the-server]__9272c710._.js
+│  │  │  │  ├─ [root-of-the-server]__9272c710._.js.map
+│  │  │  │  ├─ [root-of-the-server]__a6140dc4._.js
+│  │  │  │  ├─ [root-of-the-server]__a6140dc4._.js.map
 │  │  │  │  ├─ [root-of-the-server]__b35e77d5._.js
 │  │  │  │  ├─ [root-of-the-server]__b35e77d5._.js.map
-│  │  │  │  ├─ [root-of-the-server]__b9bb30cf._.js
-│  │  │  │  ├─ [root-of-the-server]__b9bb30cf._.js.map
+│  │  │  │  ├─ [root-of-the-server]__b61d6297._.js
+│  │  │  │  ├─ [root-of-the-server]__b61d6297._.js.map
 │  │  │  │  ├─ [root-of-the-server]__c194513e._.js
 │  │  │  │  ├─ [root-of-the-server]__c194513e._.js.map
-│  │  │  │  ├─ [root-of-the-server]__c70e4a54._.js
-│  │  │  │  ├─ [root-of-the-server]__c70e4a54._.js.map
-│  │  │  │  ├─ [root-of-the-server]__c803ea20._.js
-│  │  │  │  ├─ [root-of-the-server]__c803ea20._.js.map
-│  │  │  │  ├─ [root-of-the-server]__ca96392e._.js
-│  │  │  │  ├─ [root-of-the-server]__ca96392e._.js.map
-│  │  │  │  ├─ [root-of-the-server]__cf6562f6._.js
-│  │  │  │  ├─ [root-of-the-server]__cf6562f6._.js.map
-│  │  │  │  ├─ [root-of-the-server]__d5f63d55._.js
-│  │  │  │  ├─ [root-of-the-server]__d5f63d55._.js.map
-│  │  │  │  ├─ [root-of-the-server]__d98ac191._.js
-│  │  │  │  ├─ [root-of-the-server]__d98ac191._.js.map
-│  │  │  │  ├─ [root-of-the-server]__e12ce875._.js
-│  │  │  │  ├─ [root-of-the-server]__e12ce875._.js.map
-│  │  │  │  ├─ [root-of-the-server]__eb46ea2b._.js
-│  │  │  │  ├─ [root-of-the-server]__eb46ea2b._.js.map
-│  │  │  │  ├─ [root-of-the-server]__eb61e115._.js
-│  │  │  │  ├─ [root-of-the-server]__eb61e115._.js.map
-│  │  │  │  ├─ [root-of-the-server]__f4213c5f._.js
-│  │  │  │  ├─ [root-of-the-server]__f4213c5f._.js.map
-│  │  │  │  ├─ [root-of-the-server]__f5ec1fb7._.js
-│  │  │  │  ├─ [root-of-the-server]__f5ec1fb7._.js.map
-│  │  │  │  ├─ [root-of-the-server]__f817dab8._.js
-│  │  │  │  ├─ [root-of-the-server]__f817dab8._.js.map
-│  │  │  │  ├─ [root-of-the-server]__fa1309fb._.js
-│  │  │  │  ├─ [root-of-the-server]__fa1309fb._.js.map
-│  │  │  │  ├─ [root-of-the-server]__fbc65e7e._.js
-│  │  │  │  ├─ [root-of-the-server]__fbc65e7e._.js.map
-│  │  │  │  ├─ [root-of-the-server]__fcbe03bf._.js
-│  │  │  │  ├─ [root-of-the-server]__fcbe03bf._.js.map
-│  │  │  │  ├─ [root-of-the-server]__fe85be58._.js
-│  │  │  │  ├─ [root-of-the-server]__fe85be58._.js.map
+│  │  │  │  ├─ [root-of-the-server]__c8611425._.js
+│  │  │  │  ├─ [root-of-the-server]__c8611425._.js.map
+│  │  │  │  ├─ [root-of-the-server]__ce645f88._.js
+│  │  │  │  ├─ [root-of-the-server]__ce645f88._.js.map
+│  │  │  │  ├─ [root-of-the-server]__d90c7df2._.js
+│  │  │  │  ├─ [root-of-the-server]__d90c7df2._.js.map
 │  │  │  │  ├─ a14e7_react-dom_638ad3bb._.js
 │  │  │  │  ├─ a14e7_react-dom_638ad3bb._.js.map
-│  │  │  │  ├─ b23af_next_4234e156._.js
-│  │  │  │  ├─ b23af_next_4234e156._.js.map
-│  │  │  │  ├─ b23af_next_dist_0ea7354c._.js
-│  │  │  │  ├─ b23af_next_dist_0ea7354c._.js.map
 │  │  │  │  ├─ b23af_next_dist_5aaf8b22._.js
 │  │  │  │  ├─ b23af_next_dist_5aaf8b22._.js.map
-│  │  │  │  ├─ b23af_next_dist_client_124b829b._.js
-│  │  │  │  ├─ b23af_next_dist_client_124b829b._.js.map
 │  │  │  │  ├─ b23af_next_dist_client_b1261408._.js
 │  │  │  │  ├─ b23af_next_dist_client_b1261408._.js.map
 │  │  │  │  ├─ b23af_next_dist_compiled_16c212d7._.js
@@ -712,204 +432,77 @@ Sachain
 │  │  │  │  ├─ b23af_next_dist_shared_lib_75028229._.js.map
 │  │  │  │  ├─ b23af_next_dist_shared_lib_a7fa718c._.js
 │  │  │  │  ├─ b23af_next_dist_shared_lib_a7fa718c._.js.map
-│  │  │  │  ├─ b23af_next_dist_shared_lib_edf5ba49._.js
-│  │  │  │  ├─ b23af_next_dist_shared_lib_edf5ba49._.js.map
 │  │  │  │  ├─ b23af_next_error_3d12fc61.js
 │  │  │  │  ├─ b23af_next_error_3d12fc61.js.map
 │  │  │  │  ├─ b23af_next_router_4725d949.js
 │  │  │  │  ├─ b23af_next_router_4725d949.js.map
 │  │  │  │  ├─ cd16f_@hashgraph_proto_lib_da8f796c._.js
 │  │  │  │  ├─ cd16f_@hashgraph_proto_lib_da8f796c._.js.map
-│  │  │  │  ├─ framework-609ad57edae63d42.js
-│  │  │  │  ├─ main-717317da23a28e96.js
 │  │  │  │  ├─ pages
-│  │  │  │  │  ├─ _app-c6bfbf321e953fec.js
 │  │  │  │  │  ├─ _app.js
-│  │  │  │  │  ├─ _error-f220751c38606401.js
 │  │  │  │  │  ├─ _error.js
 │  │  │  │  │  ├─ auth
-│  │  │  │  │  │  ├─ [tab]-5cdd1584fa36e4dc.js
 │  │  │  │  │  │  ├─ [tab].js
-│  │  │  │  │  │  ├─ login-f6241ab4edd3169c.js
-│  │  │  │  │  │  ├─ login.js
-│  │  │  │  │  │  ├─ signup-6524a11caa750ebc.js
-│  │  │  │  │  │  └─ signup.js
+│  │  │  │  │  │  └─ login.js
 │  │  │  │  │  ├─ dashboards
-│  │  │  │  │  │  ├─ admin.js
-│  │  │  │  │  │  ├─ investor-add6db231d32a93a.js
 │  │  │  │  │  │  ├─ investor.js
-│  │  │  │  │  │  ├─ startup
-│  │  │  │  │  │  │  └─ projects
-│  │  │  │  │  │  │     └─ create-project.js
-│  │  │  │  │  │  ├─ startup-ddeb58c5ef52d78f.js
 │  │  │  │  │  │  └─ startup.js
 │  │  │  │  │  ├─ dashboards.js
-│  │  │  │  │  ├─ index-3839cf31277e82f2.js
 │  │  │  │  │  └─ index.js
-│  │  │  │  ├─ polyfills-42372ed130431b0a.js
-│  │  │  │  ├─ src_pages__app_172de710._.js
-│  │  │  │  ├─ src_pages__app_172de710._.js.map
 │  │  │  │  ├─ src_pages__app_5771e187._.js
-│  │  │  │  ├─ src_pages__app_89aa9c24._.js
-│  │  │  │  ├─ src_pages__app_89aa9c24._.js.map
 │  │  │  │  ├─ src_pages__app_b3283621._.js
 │  │  │  │  ├─ src_pages__app_b3283621._.js.map
-│  │  │  │  ├─ src_pages__error_530f4538._.js
-│  │  │  │  ├─ src_pages__error_530f4538._.js.map
 │  │  │  │  ├─ src_pages__error_5771e187._.js
 │  │  │  │  ├─ src_pages__error_f7a77632._.js
 │  │  │  │  ├─ src_pages__error_f7a77632._.js.map
-│  │  │  │  ├─ src_pages_auth_[tab]_tsx_2d2e6227._.js
-│  │  │  │  ├─ src_pages_auth_[tab]_tsx_2d2e6227._.js.map
+│  │  │  │  ├─ src_pages_auth_[tab]_tsx_34a90dda._.js
+│  │  │  │  ├─ src_pages_auth_[tab]_tsx_34a90dda._.js.map
 │  │  │  │  ├─ src_pages_auth_[tab]_tsx_5771e187._.js
 │  │  │  │  ├─ src_pages_auth_[tab]_tsx_67312997._.js
 │  │  │  │  ├─ src_pages_auth_[tab]_tsx_67312997._.js.map
-│  │  │  │  ├─ src_pages_auth_[tab]_tsx_698e785d._.js
-│  │  │  │  ├─ src_pages_auth_[tab]_tsx_698e785d._.js.map
-│  │  │  │  ├─ src_pages_auth_[tab]_tsx_a4d8cb6f._.js
-│  │  │  │  ├─ src_pages_auth_[tab]_tsx_a4d8cb6f._.js.map
-│  │  │  │  ├─ src_pages_auth_[tab]_tsx_fe24fc84._.js
-│  │  │  │  ├─ src_pages_auth_[tab]_tsx_fe24fc84._.js.map
-│  │  │  │  ├─ src_pages_auth_login_tsx_5689abd3._.js
-│  │  │  │  ├─ src_pages_auth_login_tsx_5689abd3._.js.map
+│  │  │  │  ├─ src_pages_auth_login_tsx_3d8da33c._.js
+│  │  │  │  ├─ src_pages_auth_login_tsx_3d8da33c._.js.map
 │  │  │  │  ├─ src_pages_auth_login_tsx_5771e187._.js
-│  │  │  │  ├─ src_pages_auth_login_tsx_71bb4974._.js
-│  │  │  │  ├─ src_pages_auth_login_tsx_71bb4974._.js.map
 │  │  │  │  ├─ src_pages_auth_login_tsx_cd9c79a3._.js
 │  │  │  │  ├─ src_pages_auth_login_tsx_cd9c79a3._.js.map
-│  │  │  │  ├─ src_pages_auth_login_tsx_deef01e7._.js
-│  │  │  │  ├─ src_pages_auth_login_tsx_deef01e7._.js.map
-│  │  │  │  ├─ src_pages_auth_login_tsx_e3af7194._.js
-│  │  │  │  ├─ src_pages_auth_login_tsx_e3af7194._.js.map
-│  │  │  │  ├─ src_pages_auth_signup_tsx_2e61641a._.js
-│  │  │  │  ├─ src_pages_auth_signup_tsx_2e61641a._.js.map
-│  │  │  │  ├─ src_pages_auth_signup_tsx_5771e187._.js
-│  │  │  │  ├─ src_pages_dashboards_admin_tsx_4a38e38a._.js
-│  │  │  │  ├─ src_pages_dashboards_admin_tsx_4a38e38a._.js.map
-│  │  │  │  ├─ src_pages_dashboards_admin_tsx_5771e187._.js
-│  │  │  │  ├─ src_pages_dashboards_index_tsx_4ec6878b._.js
-│  │  │  │  ├─ src_pages_dashboards_index_tsx_4ec6878b._.js.map
-│  │  │  │  ├─ src_pages_dashboards_index_tsx_56700f19._.js
-│  │  │  │  ├─ src_pages_dashboards_index_tsx_56700f19._.js.map
 │  │  │  │  ├─ src_pages_dashboards_index_tsx_5771e187._.js
 │  │  │  │  ├─ src_pages_dashboards_index_tsx_f079ec81._.js
 │  │  │  │  ├─ src_pages_dashboards_index_tsx_f079ec81._.js.map
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_5771e187._.js
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_785e3c10._.js
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_785e3c10._.js.map
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_7b2405d8._.js
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_7b2405d8._.js.map
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_9afc72b9._.js
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_9afc72b9._.js.map
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_a9dc404c._.js
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_a9dc404c._.js.map
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_c81e483b._.js
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_c81e483b._.js.map
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_edbedddf._.js
-│  │  │  │  ├─ src_pages_dashboards_investor_tsx_edbedddf._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_3779e8eb._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_3779e8eb._.js.map
+│  │  │  │  ├─ src_pages_dashboards_investor_index_tsx_5771e187._.js
+│  │  │  │  ├─ src_pages_dashboards_investor_index_tsx_c43f94cc._.js
+│  │  │  │  ├─ src_pages_dashboards_investor_index_tsx_c43f94cc._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_164ad513._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_164ad513._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_3eba1d34._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_3eba1d34._.js.map
 │  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_5771e187._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_5d998e4a._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_5d998e4a._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_7c3d1970._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_7c3d1970._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_888cb367._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_888cb367._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_ba05edd2._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_ba05edd2._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_be87d831._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_be87d831._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_c8208c07._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_c8208c07._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_d797ae3a._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_d797ae3a._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_01591b85._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_01591b85._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_01e21a0e._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_01e21a0e._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_1601e8dd._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_1601e8dd._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_4f90834d._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_4f90834d._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_5771e187._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_6b0d5e69._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_6b0d5e69._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_8dd49234._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_projects_create-project_tsx_8dd49234._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_0069bf33._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_0069bf33._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_1340b375._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_1340b375._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_25f2d59d._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_25f2d59d._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_27117578._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_27117578._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_2ce68471._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_2ce68471._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_2e373418._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_2e373418._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_30c583d3._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_30c583d3._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_3753225f._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_3753225f._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_3762fa62._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_3762fa62._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_38ef122b._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_38ef122b._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_3aa08a18._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_3aa08a18._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_4f855cab._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_4f855cab._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_5771e187._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_62b1efab._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_62b1efab._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_63d7ed7a._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_63d7ed7a._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_777cad0a._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_777cad0a._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_7d03db92._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_7d03db92._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_8978675b._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_8978675b._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_8c762c6f._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_8c762c6f._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_8d8b1ff0._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_8d8b1ff0._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_adad602f._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_adad602f._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_b1caa232._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_b1caa232._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_b88d4b12._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_b88d4b12._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_c5e25819._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_c5e25819._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_d108258c._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_d108258c._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_d27cda29._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_d27cda29._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_d9ff8efb._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_d9ff8efb._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_f2fa52c6._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_f2fa52c6._.js.map
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_f95d0e68._.js
-│  │  │  │  ├─ src_pages_dashboards_startup_tsx_f95d0e68._.js.map
-│  │  │  │  ├─ src_pages_index_28870b05._.js
-│  │  │  │  ├─ src_pages_index_28870b05._.js.map
-│  │  │  │  ├─ src_pages_index_4e1460b1._.js
-│  │  │  │  ├─ src_pages_index_4e1460b1._.js.map
-│  │  │  │  ├─ src_pages_index_55d4b046._.js
-│  │  │  │  ├─ src_pages_index_55d4b046._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_61d4cf0b._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_61d4cf0b._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_6729face._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_6729face._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_7c94f7e8._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_7c94f7e8._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_84cb834b._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_84cb834b._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_8b7483e8._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_8b7483e8._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_98119c90._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_98119c90._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_aeee9db1._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_aeee9db1._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_cef0ee4f._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_cef0ee4f._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_dac96717._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_dac96717._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_eaa33556._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_eaa33556._.js.map
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_f12f16ff._.js
+│  │  │  │  ├─ src_pages_dashboards_startup_index_tsx_f12f16ff._.js.map
 │  │  │  │  ├─ src_pages_index_5771e187._.js
 │  │  │  │  ├─ src_pages_index_8acda347._.js
 │  │  │  │  ├─ src_pages_index_8acda347._.js.map
-│  │  │  │  ├─ src_pages_index_c8b3487d._.js
-│  │  │  │  ├─ src_pages_index_c8b3487d._.js.map
 │  │  │  │  ├─ src_styles_globals_4738091e.css
-│  │  │  │  ├─ src_styles_globals_4738091e.css.map
-│  │  │  │  └─ webpack-2aa3ab9bb630d3af.js
-│  │  │  ├─ css
-│  │  │  │  └─ 4d8a6db9e733e963.css
+│  │  │  │  └─ src_styles_globals_4738091e.css.map
 │  │  │  └─ development
 │  │  │     ├─ _buildManifest.js
 │  │  │     ├─ _clientMiddlewareManifest.json
@@ -1033,6 +626,7 @@ Sachain
 │  │  │  │  ├─ hook
 │  │  │  │  │  ├─ useKyc.ts
 │  │  │  │  │  ├─ useLogin.ts
+│  │  │  │  │  ├─ useSignOut.ts
 │  │  │  │  │  └─ useSignup.ts
 │  │  │  │  ├─ store
 │  │  │  │  │  └─ signup.store.ts
@@ -1045,9 +639,11 @@ Sachain
 │  │  │  │  │  ├─ EmptyState.tsx
 │  │  │  │  │  ├─ FilterBar.tsx
 │  │  │  │  │  ├─ ProjectCard.tsx
-│  │  │  │  │  ├─ ProjectPage.tsx
-│  │  │  │  │  ├─ Projects.tsx
-│  │  │  │  │  └─ StatCard.tsx
+│  │  │  │  │  ├─ ProjectList.tsx
+│  │  │  │  │  ├─ StartupProjectList.tsx
+│  │  │  │  │  ├─ StatCard.tsx
+│  │  │  │  │  └─ modals
+│  │  │  │  │     └─ ConfirmDeleteModal.tsx
 │  │  │  │  ├─ core
 │  │  │  │  │  ├─ api.ts
 │  │  │  │  │  └─ types.ts
@@ -1060,6 +656,8 @@ Sachain
 │  │  │  │  │  ├─ Step3ReviewPublish.tsx
 │  │  │  │  │  └─ SuccessState.tsx
 │  │  │  │  ├─ hook
+│  │  │  │  │  ├─ useCreateProject.ts
+│  │  │  │  │  └─ useProjects.ts
 │  │  │  │  └─ store
 │  │  │  │     └─ projectStore.ts
 │  │  │  └─ wallet
@@ -1112,13 +710,13 @@ Sachain
 │  │  │  │     ├─ StartupHome.tsx
 │  │  │  │     ├─ index.tsx
 │  │  │  │     ├─ projects
-│  │  │  │     │  ├─ create-project.tsx
+│  │  │  │     │  ├─ [id].tsx
+│  │  │  │     │  ├─ create.tsx
+│  │  │  │     │  ├─ edit
+│  │  │  │     │  │  └─ [id].tsx
 │  │  │  │     │  └─ index.tsx
 │  │  │  │     └─ wallet.tsx
 │  │  │  ├─ index.tsx
-│  │  │  ├─ projects
-│  │  │  │  ├─ create-project.tsx
-│  │  │  │  └─ index.tsx
 │  │  │  └─ unauthorized.tsx
 │  │  ├─ provider
 │  │  │  └─ AuthProvider.tsx
