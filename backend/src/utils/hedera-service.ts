@@ -300,28 +300,34 @@ export class HederaService {
           params.fromAccountId
         );
         const transferAmount = params.amount;
+        
+        // Convert to tinybars and round to avoid decimal issues
+        // 1 HBAR = 100,000,000 tinybars
+        const tinybars = Math.round(transferAmount * 100000000);
+        const roundedAmount = tinybars / 100000000; // Convert back to HBAR
+
         const estimatedFee = 0.05; // Estimated transaction fee in HBAR
 
-        if (senderBalance < transferAmount + estimatedFee) {
+        if (senderBalance < roundedAmount + estimatedFee) {
           throw new HederaServiceError(
             `Insufficient balance. Required: ${
-              transferAmount + estimatedFee
+              roundedAmount + estimatedFee
             } HBAR, Available: ${senderBalance} HBAR`,
             HederaErrorCodes.INSUFFICIENT_TREASURY_BALANCE,
             402,
             {
-              required: transferAmount + estimatedFee,
+              required: roundedAmount + estimatedFee,
               available: senderBalance,
-              transferAmount,
+              transferAmount: roundedAmount,
               estimatedFee,
             }
           );
         }
 
-        // Create transfer transaction
+        // Create transfer transaction using Hbar.fromTinybars to ensure proper conversion
         const transferTx = new TransferTransaction()
-          .addHbarTransfer(fromAccountId, new Hbar(-transferAmount))
-          .addHbarTransfer(toAccountId, new Hbar(transferAmount));
+          .addHbarTransfer(fromAccountId, Hbar.fromTinybars(-tinybars))
+          .addHbarTransfer(toAccountId, Hbar.fromTinybars(tinybars));
 
         if (params.memo) {
           transferTx.setTransactionMemo(params.memo);

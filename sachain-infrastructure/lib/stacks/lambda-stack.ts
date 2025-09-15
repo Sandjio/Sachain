@@ -71,6 +71,7 @@ export class LambdaStack extends cdk.Stack {
   public readonly kycStatusChangeRule: events.Rule;
   public readonly kycDocumentUploadedRule: events.Rule;
   public readonly kycReviewCompletedRule: events.Rule;
+  public readonly paymentCompletedRule: events.Rule;
   public readonly kycStatusChangeRuleArn: string;
   public readonly kycDocumentUploadedRuleArn: string;
   public readonly kycReviewCompletedRuleArn: string;
@@ -104,6 +105,7 @@ export class LambdaStack extends cdk.Stack {
       this.eventBridgeConstruct.kycDocumentUploadedRule;
     this.kycReviewCompletedRule =
       this.eventBridgeConstruct.kycReviewCompletedRule;
+    this.paymentCompletedRule = this.eventBridgeConstruct.paymentCompletedRule;
     this.kycStatusChangeRuleArn = this.kycStatusChangeRule.ruleArn;
     this.kycDocumentUploadedRuleArn = this.kycDocumentUploadedRule.ruleArn;
     this.kycReviewCompletedRuleArn = this.kycReviewCompletedRule.ruleArn;
@@ -187,7 +189,8 @@ export class LambdaStack extends cdk.Stack {
     // Configure event rule targets to reference local lambda functions
     this.eventBridgeConstruct.addLambdaTargets(
       this.kycProcessingLambda,
-      this.userNotificationLambda
+      this.userNotificationLambda,
+      this.lambdaConstruct.sendHbarLambda
     );
   }
 
