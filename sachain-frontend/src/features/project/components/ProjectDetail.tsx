@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { getProjectById } from '@/features/project/core/api';
-import { useDeleteProject } from "@/features/project/hook/useDeleteProject";
+import { useDeleteProject } from '@/features/project/hook/useDeleteProject';
 import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
 import { DeleteSuccessModal } from './modals/DeleteSuccess';
+import ConnectWalletDialog from '@/features/wallet/components/ConnectWalletDialog';
 
 interface Project {
   projectId: string;
@@ -34,7 +35,6 @@ export function ProjectDetailView({
   onBack,
   onEdit,
 }: ProjectDetailViewProps) {
-
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,31 +51,32 @@ export function ProjectDetailView({
   const confirmDelete = () => {
     if (!project) return;
     deleteProjectById(project.projectId).catch((err) => {
-      setErrorMsg(err.message || "Failed to delete project");
+      setErrorMsg(err.message || 'Failed to delete project');
     });
   };
 
-  
+  const [isDialogOpen, setDialogOpen] = useState(false);
+
+  const openTokenizationDialog = () => {
+    setDialogOpen(true);
+  };
 
   useEffect(() => {
-  const fetchProject = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const projectData = await getProjectById(projectId);
-      const normalizedProject = projectData.project || projectData;
-      setProject(normalizedProject);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchProject();
-}, [projectId]);
-
-
-
+    const fetchProject = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const projectData = await getProjectById(projectId);
+        const normalizedProject = projectData.project || projectData;
+        setProject(normalizedProject);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProject();
+  }, [projectId]);
 
   if (loading) {
     return (
@@ -235,15 +236,13 @@ export function ProjectDetailView({
         <p className="text-gray-700 leading-relaxed">{project.description}</p>
       </div>
 
-
       {/* Action Buttons */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex gap-4">
           <Button
             className="bg-[#123962] hover:bg-[#90A5FB] text-white"
-        
             onClick={() => {
-              console.log("Project in detail view:", project);
+              console.log('Project in detail view:', project);
               console.log(
                 'Edit button clicked for project:',
                 project.projectId
@@ -254,16 +253,9 @@ export function ProjectDetailView({
             Edit Project
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={() => {
-              // Optionally, show a toast/modal for publish/unpublish coming soon
-            }}
-          >
-            {project.status === 'draft'
-              ? 'Publish Project'
-              : 'Unpublish Project'}
-          </Button>
+          {project.status === 'draft' && (
+            <Button onClick={openTokenizationDialog}>Tokenize & Go Live</Button>
+          )}
 
           <Button
             variant="outline"
@@ -271,7 +263,7 @@ export function ProjectDetailView({
             onClick={openModal}
             disabled={isDeleting}
           >
-            {isDeleting ? "Deleting..." : "Delete Project"}
+            {isDeleting ? 'Deleting...' : 'Delete Project'}
           </Button>
         </div>
       </div>
@@ -288,9 +280,9 @@ export function ProjectDetailView({
         isOpen={showSuccess}
         onClose={() => setShowSuccess(false)}
       />
-      {errorMsg && (
-        <div className="text-red-600 text-sm mt-2">{errorMsg}</div>
-      )}
+      {errorMsg && <div className="text-red-600 text-sm mt-2">{errorMsg}</div>}
+
+      <ConnectWalletDialog open={isDialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 }
