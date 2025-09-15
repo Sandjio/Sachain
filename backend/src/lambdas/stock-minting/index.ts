@@ -47,6 +47,17 @@ let projectRepository: any = null;
 let hederaService: HederaService | null = null;
 // let ipfsService: any = null; // Temporarily disabled
 
+// Helper function to get allowed origin
+const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
+  const origin = event.headers.origin ?? event.headers.Origin ?? "";
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app",
+  ];
+  return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
+};
+
 // Lazy initialization function to avoid module-level initialization issues
 function initializeServices() {
   if (!logger) {
@@ -107,6 +118,32 @@ async function getHederaService(): Promise<HederaService> {
 }
 
 export const handler: APIGatewayProxyHandler = async (event) => {
+  const allowedOrigin = getAllowedOrigin(event);
+
+  // Handle CORS preflight requests
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+        "Access-Control-Max-Age": "86400",
+      },
+      body: "",
+    };
+  }
+
+  const corsHeaders = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+  };
   try {
     const startTime = Date.now();
     const requestId = event.requestContext.requestId;
@@ -142,7 +179,13 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         statusCode: result.statusCode,
       });
 
-      return result;
+      return {
+        ...result,
+        headers: {
+          ...result.Headers,
+          ...corsHeaders,
+        },
+      };
     } catch (error) {
       const duration = Date.now() - startTime;
       const projectError = ProjectErrorClassifier.classify(error as Error, {
@@ -179,10 +222,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     console.error("Handler error:", error);
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         error: "Internal server error",
         message: (error as Error).message,
