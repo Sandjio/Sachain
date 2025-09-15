@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { getProjectById } from '@/features/project/core/api';
 import { useDeleteProject } from "@/features/project/hook/useDeleteProject";
 import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
+import { DeleteSuccessModal } from './modals/DeleteSuccess';
 
 interface Project {
   projectId: string;
@@ -38,8 +39,11 @@ export function ProjectDetailView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const { isDeleting, deleteProjectById } = useDeleteProject(() => {
     setIsModalOpen(false);
+    setShowSuccess(true);
     onBack();
   });
   const openModal = () => setIsModalOpen(true);
@@ -47,7 +51,7 @@ export function ProjectDetailView({
   const confirmDelete = () => {
     if (!project) return;
     deleteProjectById(project.projectId).catch((err) => {
-      alert(err.message || "Failed to delete project");
+      setErrorMsg(err.message || "Failed to delete project");
     });
   };
 
@@ -253,10 +257,7 @@ export function ProjectDetailView({
           <Button
             variant="outline"
             onClick={() => {
-              const newStatus = project.status === 'draft' ? 'live' : 'draft';
-              alert(
-                `${newStatus === 'live' ? 'Publish' : 'Unpublish'} functionality - coming soon!`
-              );
+              // Optionally, show a toast/modal for publish/unpublish coming soon
             }}
           >
             {project.status === 'draft'
@@ -277,12 +278,19 @@ export function ProjectDetailView({
 
       <ConfirmDeleteModal
         isOpen={isModalOpen}
-        title={`Delete "${project?.name}"?`}
+        title={`Delete \"${project?.name}\"?`}
         description="This action cannot be undone."
         onConfirm={confirmDelete}
         onCancel={closeModal}
         loading={isDeleting}
       />
+      <DeleteSuccessModal
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+      />
+      {errorMsg && (
+        <div className="text-red-600 text-sm mt-2">{errorMsg}</div>
+      )}
     </div>
   );
 }

@@ -32,6 +32,7 @@ const statusColors = {
 export function ProjectCard({ project, onViewDetails }: ProjectCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { isDeleting, deleteProjectById } = useDeleteProject(() => {
     setIsModalOpen(false);
     setShowSuccess(true);
@@ -59,7 +60,7 @@ export function ProjectCard({ project, onViewDetails }: ProjectCardProps) {
   const closeModal = () => setIsModalOpen(false);
   const confirmDelete = () => {
     deleteProjectById(project.projectId).catch((err) => {
-      alert(err.message || "Failed to delete project");
+      setError(err.message || "Failed to delete project");
     });
   };
 
@@ -149,13 +150,17 @@ export function ProjectCard({ project, onViewDetails }: ProjectCardProps) {
             title={`Delete \"${project.name}\"?`}
             description="This action cannot be undone."
             onConfirm={confirmDelete}
-            onCancel={closeModal}
+            onCancel={() => setIsModalOpen(false)}
             loading={isDeleting}
           />
           <DeleteSuccessModal
             isOpen={showSuccess}
             onClose={() => setShowSuccess(false)}
           />
+          {/* Optionally, show error UI here */}
+          {error && (
+            <div className="text-red-600 text-sm mt-2">{error}</div>
+          )}
         </div>
       </div>
     </div>
