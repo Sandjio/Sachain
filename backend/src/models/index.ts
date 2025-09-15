@@ -145,3 +145,27 @@ export interface PaymentInitiation {
   GSI1PK: string; // PAYMENT_STATUS#${status}
   GSI1SK: string; // ${createdAt}
 }
+
+export interface HBARTransaction {
+  PK: string; // USER#${userId}
+  SK: string; // HBAR_TXN#${transactionId}
+  transactionId: string;
+  userId: string;
+  paymentOrderId: string;
+  fromAccountId: string;
+  toAccountId: string;
+  hbarAmount: number;
+  xafAmount: number;
+  exchangeRate: number;
+  hederaTransactionId?: string;
+  hederaTransactionHash?: string;
+  status: "pending" | "completed" | "failed";
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+
+  // GSI1 for status queries
+  GSI1PK: string; // HBAR_TXN_STATUS#${status}
+  GSI1SK: string; // ${createdAt}
+}
