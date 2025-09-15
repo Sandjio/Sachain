@@ -14,17 +14,16 @@ import ManualWalletConnect from './WalletConnection';
 import { useConnectWalletDialog } from '../hooks/useConnectWalletDialog';
 import { useWalletStore } from '@/features/wallet/store/walletStore';
 
-
 interface ConnectWalletDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onWalletConfirmed?: () => void; // Callback when wallet connection or creation is confirmed
 }
-
-
 
 export default function ConnectWalletDialog({
   open,
   onOpenChange,
+  onWalletConfirmed,
 }: ConnectWalletDialogProps) {
   const connectWallet = useWalletStore((state) => state.connectWallet);
 
@@ -42,8 +41,6 @@ export default function ConnectWalletDialog({
     handleRetry,
     handleClose,
   } = useConnectWalletDialog(open, onOpenChange);
-
- 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -117,6 +114,7 @@ export default function ConnectWalletDialog({
             walletDetails={connectedAccount}
             onContinue={() => {
               connectWallet(connectedAccount.accountId);
+              if (onWalletConfirmed) onWalletConfirmed();
               handleClose();
             }}
           />
@@ -147,6 +145,7 @@ export default function ConnectWalletDialog({
             walletDetails={connectedAccount}
             onContinue={() => {
               connectWallet(connectedAccount.accountId);
+              if (onWalletConfirmed) onWalletConfirmed();
               handleClose();
             }}
             showCreatedWalletDetails={true}
