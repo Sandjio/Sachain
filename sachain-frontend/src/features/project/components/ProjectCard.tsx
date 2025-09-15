@@ -150,7 +150,6 @@ export function ProjectCard({ project, onViewDetails, onDeleteSuccess }: Project
             onCancel={() => setIsModalOpen(false)}
             loading={isDeleting}
           />
-          {/* Optionally, show error UI here */}
           {error && (
             <div className="text-red-600 text-sm mt-2">{error}</div>
           )}
