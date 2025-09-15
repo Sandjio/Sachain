@@ -1,19 +1,212 @@
-// ProjectCard.tsx - Updated to follow your callback pattern
-import { Button } from '@/components/ui/button';
+// // ProjectCard.tsx - Updated to follow your callback pattern
+// import { Button } from '@/components/ui/button';
+// import { useState } from 'react';
+// import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
+// import { useDeleteProject } from "@/features/project/hook/useDeleteProject";
+
+// interface Project {
+//   projectId: string;
+//   name: string;
+//   status: 'draft' | 'live';
+//   category: string;
+//   description: string;
+//   targetFundingGoal: number;
+//   pricePerStock: number;
+//   stockSupply: number;
+//   coverImageUrl?: string;
+//   createdAt: string;
+// }
+
+// interface ProjectCardProps {
+//   project: Project;
+//   onViewDetails?: (projectId: string) => void;
+//   onEdit?: (projectId: string) => void;
+// }
+
+// const statusColors = {
+//   live: "bg-green-500 text-white",
+//   draft: "bg-yellow-500 text-white",
+// };
+
+// export function ProjectCard({ project, onViewDetails, onDeleteSuccess }: ProjectCardProps & { onDeleteSuccess?: () => void }) {
+//   const [isModalOpen, setIsModalOpen] = useState(false);
+//   const [error, setError] = useState<string | null>(null);
+//   const { isDeleting, deleteProjectById } = useDeleteProject(() => {
+//     setIsModalOpen(false);
+//     onDeleteSuccess?.();
+//   });
+
+//   const statusClass = statusColors[project.status] || "bg-gray-500 text-white";
+  
+//   const displayData = {
+//     title: project.name || "Untitled Project",
+//     goal: `$${(project.targetFundingGoal || 0).toLocaleString()}`,
+//     raised: "$0",
+//     investors: 0,
+//     daysLeft: "30",
+//     progressPercent: 0,
+//     image: project.coverImageUrl,
+//   };
+  
+
+//   const handleViewDetails = () => {
+//     onViewDetails?.(project.projectId);
+//   };
+
+//   const openModal = () => setIsModalOpen(true);
+//   const closeModal = () => setIsModalOpen(false);
+//   const confirmDelete = () => {
+//     deleteProjectById(project.projectId).catch((err) => {
+//       setError(err.message || "Failed to delete project");
+//     });
+//   };
+
+//   const goalNumber = project.targetFundingGoal || 0;
+//   const raisedNumber = 0;
+//   const remainingToGoal = `$${(goalNumber - raisedNumber).toLocaleString()}`;
+
+//   return (
+//     <div className="bg-white rounded-xl border border-gray-200 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all">
+//       <div className="relative h-48 bg-gray-100 flex flex-col justify-center items-center text-gray-500 text-sm font-medium rounded-t-xl">
+//         <span className={`absolute top-4 right-4 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-wide ${statusClass}`}>
+//           {project.status}
+//         </span>
+        
+//         {displayData.image ? (
+//           <img src={displayData.image} alt={displayData.title} className="object-cover w-full h-full rounded-t-xl" />
+//         ) : (
+//           <div className="whitespace-pre-line text-center">
+//             {`Project Image Placeholder\n${displayData.title}`}
+//           </div>
+//         )}
+//       </div>
+      
+//       <div className="p-6">
+//         <div className="flex justify-between items-start mb-4">
+//           <div>
+//             <h3 className="text-lg font-bold text-gray-900 leading-tight">
+//               {displayData.title}
+//             </h3>
+//             <p className="text-xs uppercase tracking-wide text-gray-500">
+//               {project.category}
+//             </p>
+//           </div>
+//           <button
+//             className="bg-transparent border-none text-2xl text-gray-500 hover:bg-gray-100 rounded-full p-1 transition"
+//             aria-label="Project actions"
+//           >
+//             ⋯
+//           </button>
+//         </div>
+        
+//         <p className="text-sm text-gray-600 mb-5 line-clamp-2">
+//           {project.description}
+//         </p>
+        
+//         <div className="grid grid-cols-3 gap-4 mb-5 text-center">
+//           <Metric label="Raised" value={displayData.raised} />
+//           <Metric label="Investors" value={displayData.investors} />
+//           <Metric label="Days Left" value={displayData.daysLeft} />
+//         </div>
+        
+//         {project.status !== "draft" && (
+//           <div className="mb-5">
+//             <div className="h-2 w-full rounded bg-gray-200 overflow-hidden">
+//               <div 
+//                 className="h-full bg-green-500 rounded transition-all" 
+//                 style={{ width: `${displayData.progressPercent}%` }} 
+//               />
+//             </div>
+//             <div className="flex justify-between text-xs text-gray-600 mt-1">
+//               <span>
+//                 {displayData.progressPercent}% of {displayData.goal} goal
+//               </span>
+//               <span>{remainingToGoal} to go</span>
+//             </div>
+//           </div>
+//         )}
+        
+//         <div className="flex gap-3">
+//           <Button 
+//             variant="default" 
+//             className="flex-1"
+//             onClick={handleViewDetails}
+//           >
+//             View Details
+//           </Button>
+//           <Button 
+//             variant="outline" 
+//             className="text-red-600 hover:text-red-700 hover:border-red-300"
+//             onClick={openModal}
+//             disabled={isDeleting}
+//           >
+//             {isDeleting ? "..." : "Delete"}
+//           </Button>
+//           <ConfirmDeleteModal
+//             isOpen={isModalOpen}
+//             title={`Delete \"${project.name}\"?`}
+//             description="This action cannot be undone."
+//             onConfirm={confirmDelete}
+//             onCancel={() => setIsModalOpen(false)}
+//             loading={isDeleting}
+//           />
+//           {error && (
+//             <div className="text-red-600 text-sm mt-2">{error}</div>
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+// function Metric({ label, value }: { label: string; value: string | number }) {
+//   return (
+//     <div>
+//       <div className="text-base font-bold text-gray-900">{value}</div>
+//       <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+//     </div>
+//   );
+// }
+
+
+
+
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
+import { 
+  MoreVertical, 
+  Edit, 
+  Trash2, 
+  Eye, 
+  Users, 
+  Clock,
+  CheckCircle
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useDeleteProject } from "@/features/project/hook/useDeleteProject";
 
 interface Project {
   projectId: string;
   name: string;
-  status: 'draft' | 'live';
+  status: 'draft' | 'live' | 'pending';
   category: string;
   description: string;
-  targetFundingGoal: number;
-  pricePerStock: number;
-  stockSupply: number;
-  coverImageUrl?: string;
+  targetFundingGoal: number; // corresponds to targetAmount
+  pricePerStock: number; // corresponds to sharePrice
+  stockSupply: number; // corresponds to totalShares
+  soldShares: number;
+  totalRaised?: number; // optionally add if available
+  investorCount?: number; // optionally add if available
+  coverImageUrl?: string; // corresponds to image
   createdAt: string;
 }
 
@@ -21,14 +214,35 @@ interface ProjectCardProps {
   project: Project;
   onViewDetails?: (projectId: string) => void;
   onEdit?: (projectId: string) => void;
+  onDeleteSuccess?: () => void;
 }
 
-const statusColors = {
-  live: "bg-green-500 text-white",
-  draft: "bg-yellow-500 text-white",
+const statusConfig = {
+  live: {
+    label: 'Live',
+    variant: 'default' as const,
+    bgColor: 'bg-green-100',
+    textColor: 'text-green-800',
+    icon: CheckCircle,
+  },
+  draft: {
+    label: 'Draft',
+    variant: 'secondary' as const,
+    bgColor: 'bg-gray-100',
+    textColor: 'text-gray-800',
+    icon: Edit,
+  },
+  pending: {
+    label: 'Pending',
+    variant: 'outline' as const,
+    bgColor: 'bg-yellow-100',
+    textColor: 'text-yellow-800',
+    icon: Clock,
+  },
 };
 
-export function ProjectCard({ project, onViewDetails, onDeleteSuccess }: ProjectCardProps & { onDeleteSuccess?: () => void }) {
+export function ProjectCard({ project, onViewDetails, onEdit, onDeleteSuccess }: ProjectCardProps) {
+  const [isImageLoading, setIsImageLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { isDeleting, deleteProjectById } = useDeleteProject(() => {
@@ -36,23 +250,40 @@ export function ProjectCard({ project, onViewDetails, onDeleteSuccess }: Project
     onDeleteSuccess?.();
   });
 
-  const statusClass = statusColors[project.status] || "bg-gray-500 text-white";
-  
-  const displayData = {
-    title: project.name || "Untitled Project",
-    goal: `$${(project.targetFundingGoal || 0).toLocaleString()}`,
-    raised: "$0",
-    investors: 0,
-    daysLeft: "30",
-    progressPercent: 0,
-    image: project.coverImageUrl,
-  };
-  
+  const status = statusConfig[project.status] ?? statusConfig.draft;
+  const StatusIcon = status.icon;
 
-  const handleViewDetails = () => {
-    onViewDetails?.(project.projectId);
+  // Progress calculations with safe fallback
+  const totalShares = project.stockSupply || 0;
+  const soldShares = project.soldShares || 0;
+  const totalRaised = project.totalRaised ?? 0;
+  const targetAmount = project.targetFundingGoal || 0;
+  const investorCount = project.investorCount ?? 0;
+  const pricePerStock = project.pricePerStock || 0;
+
+  const progressPercentage = totalShares > 0 ? (soldShares / totalShares) * 100 : 0;
+  const raisedPercentage = targetAmount > 0 ? (totalRaised / targetAmount) * 100 : 0;
+
+  // Formatting helpers
+  const formatHBARs = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+  const formatNumber = (num: number) => {
+    if (num >= 1_000_000) {
+      return (num / 1_000_000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
+  // Event handlers
+  const handleView = () => onViewDetails?.(project.projectId);
+  const handleEdit = () => onEdit?.(project.projectId);
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
   const confirmDelete = () => {
@@ -61,109 +292,122 @@ export function ProjectCard({ project, onViewDetails, onDeleteSuccess }: Project
     });
   };
 
-  const goalNumber = project.targetFundingGoal || 0;
-  const raisedNumber = 0;
-  const remainingToGoal = `$${(goalNumber - raisedNumber).toLocaleString()}`;
-
   return (
-    <div className="bg-white rounded-xl border border-gray-200 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all">
-      <div className="relative h-48 bg-gray-100 flex flex-col justify-center items-center text-gray-500 text-sm font-medium rounded-t-xl">
-        <span className={`absolute top-4 right-4 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-wide ${statusClass}`}>
-          {project.status}
-        </span>
-        
-        {displayData.image ? (
-          <img src={displayData.image} alt={displayData.title} className="object-cover w-full h-full rounded-t-xl" />
+    <div className="group hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-[#90A5FB]/50 bg-white rounded-xl">
+      <div className="relative h-48 w-full overflow-hidden rounded-t-xl">
+        {isImageLoading && (
+          <div className="absolute inset-0 bg-gray-100 animate-pulse flex items-center justify-center">
+            <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
+          </div>
+        )}
+        {project.coverImageUrl ? (
+          <img
+            src={project.coverImageUrl}
+            alt={project.name}
+            className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
+              isImageLoading ? 'opacity-0' : 'opacity-100'
+            }`}
+            onLoad={() => setIsImageLoading(false)}
+            onError={() => setIsImageLoading(false)}
+          />
         ) : (
-          <div className="whitespace-pre-line text-center">
-            {`Project Image Placeholder\n${displayData.title}`}
+          <div className="flex h-full items-center justify-center rounded-t-xl bg-gray-100 text-gray-500">
+            No Image
           </div>
         )}
+
+        {/* Status Badge */}
+        <div className="absolute top-3 left-3">
+          <Badge
+            variant={status.variant}
+            className={`${status.bgColor} ${status.textColor} border-0 flex items-center gap-1`}
+          >
+            <StatusIcon className="h-3 w-3" />
+            {status.label}
+          </Badge>
+        </div>
+
+        {/* Category Badge */}
+        <div className="absolute bottom-3 left-3">
+          <Badge variant="outline" className="bg-white/90 backdrop-blur-sm">
+            {project.category}
+          </Badge>
+        </div>
       </div>
-      
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 leading-tight">
-              {displayData.title}
-            </h3>
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              {project.category}
-            </p>
-          </div>
-          <button
-            className="bg-transparent border-none text-2xl text-gray-500 hover:bg-gray-100 rounded-full p-1 transition"
-            aria-label="Project actions"
-          >
-            ⋯
-          </button>
+
+      <div className="p-6 space-y-4">
+        {/* Project Name and Description */}
+        <div>
+          <h3 className="font-semibold text-lg text-gray-900 mb-2 line-clamp-1">
+            {project.name}
+          </h3>
+          <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">
+            {project.description}
+          </p>
         </div>
-        
-        <p className="text-sm text-gray-600 mb-5 line-clamp-2">
-          {project.description}
-        </p>
-        
-        <div className="grid grid-cols-3 gap-4 mb-5 text-center">
-          <Metric label="Raised" value={displayData.raised} />
-          <Metric label="Investors" value={displayData.investors} />
-          <Metric label="Days Left" value={displayData.daysLeft} />
-        </div>
-        
-        {project.status !== "draft" && (
-          <div className="mb-5">
-            <div className="h-2 w-full rounded bg-gray-200 overflow-hidden">
-              <div 
-                className="h-full bg-green-500 rounded transition-all" 
-                style={{ width: `${displayData.progressPercent}%` }} 
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-600 mt-1">
-              <span>
-                {displayData.progressPercent}% of {displayData.goal} goal
-              </span>
-              <span>{remainingToGoal} to go</span>
-            </div>
+
+        {/* Progress Section */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-600">Funding Progress</span>
+            <span className="font-medium text-[#123962]">{raisedPercentage.toFixed(1)}%</span>
           </div>
-        )}
-        
-        <div className="flex gap-3">
-          <Button 
-            variant="default" 
-            className="flex-1"
-            onClick={handleViewDetails}
+          <Progress
+            value={raisedPercentage}
+            className="h-2 bg-gray-100"
+            style={{ '--progress-background': '#90A5FB' } as React.CSSProperties}
+          />
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">{formatHBARs(totalRaised)} HBAR raised</span>
+            <span className="text-gray-500">{formatHBARs(targetAmount)} HBAR goal</span>
+          </div>
+        </div>
+
+        {/* Shares & Investors Section */}
+        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+          <div className="text-center">
+            <div className="text-sm text-gray-500 mb-1">Shares Sold</div>
+            <div className="font-semibold text-[#123962]">
+              {formatNumber(soldShares)}/{formatNumber(totalShares)}
+            </div>
+            <div className="text-xs text-gray-400">{progressPercentage.toFixed(1)}% sold</div>
+          </div>
+
+          <div className="text-center border-l border-gray-100 pl-4">
+            <div className="text-sm text-gray-500 mb-1">Investors</div>
+            <div className="font-semibold text-[#123962] flex items-center justify-center gap-1">
+              <Users className="h-4 w-4" />
+              {formatNumber(investorCount)}
+            </div>
+            <div className="text-xs text-gray-400">{formatHBARs(pricePerStock)} HBAR/share</div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleView}
+            className="flex-1 border-[#90A5FB] text-[#123962] hover:bg-[#90A5FB]/10"
           >
-            View Details
+            <Eye className="h-4 w-4 mr-2" />
+            View
           </Button>
-          <Button 
-            variant="outline" 
-            className="text-red-600 hover:text-red-700 hover:border-red-300"
-            onClick={openModal}
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-red-600 hover:text-red-700 hover:border-red-300 flex-1"
+            onClick={confirmDelete}
             disabled={isDeleting}
           >
-            {isDeleting ? "..." : "Delete"}
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>
-          <ConfirmDeleteModal
-            isOpen={isModalOpen}
-            title={`Delete \"${project.name}\"?`}
-            description="This action cannot be undone."
-            onConfirm={confirmDelete}
-            onCancel={() => setIsModalOpen(false)}
-            loading={isDeleting}
-          />
-          {error && (
-            <div className="text-red-600 text-sm mt-2">{error}</div>
-          )}
         </div>
       </div>
-    </div>
-  );
-}
 
-function Metric({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <div className="text-base font-bold text-gray-900">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+      {/* Delete Modal triggered by your existing logic, you can add a delete button similarly if needed */}
     </div>
   );
 }
