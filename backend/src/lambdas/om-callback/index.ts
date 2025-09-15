@@ -10,19 +10,57 @@ const eventPublisher = createEventPublisher({
   eventBusName: process.env.EVENT_BUS_NAME!,
 });
 
+// Helper function to get allowed origin
+const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
+  const origin = event.headers.origin ?? event.headers.Origin ?? "";
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app",
+  ];
+  return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
+};
+
 export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
+  const allowedOrigin = getAllowedOrigin(event);
+  // Handle CORS preflight requests
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+        "Access-Control-Max-Age": "86400",
+      },
+      body: "",
+    };
+  }
+
   console.info("Orange Money Callback Invoked", {
     path: event.path,
     method: event.httpMethod,
   });
+
+  const corsHeaders = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+  };
 
   try {
     if (!event.body) {
       console.warn("No body in callback");
       return {
         statusCode: 400,
+        headers: corsHeaders,
         body: JSON.stringify({ message: "Missing body" }),
       };
     }
@@ -41,6 +79,7 @@ export const handler = async (
       console.error("Failed to parse JSON body", { raw: bodyString });
       return {
         statusCode: 400,
+        headers: corsHeaders,
         body: JSON.stringify({ message: "Invalid JSON" }),
       };
     }
@@ -52,6 +91,7 @@ export const handler = async (
     if (!payToken) {
       return {
         statusCode: 400,
+        headers: corsHeaders,
         body: JSON.stringify({ message: "Missing payToken" }),
       };
     }
@@ -62,6 +102,7 @@ export const handler = async (
       console.warn("No matching payment found for payToken", { payToken });
       return {
         statusCode: 404,
+        headers: corsHeaders,
         body: JSON.stringify({ message: "Payment not found" }),
       };
     }
@@ -92,6 +133,7 @@ export const handler = async (
     }
     return {
       statusCode: 200,
+      headers: corsHeaders,
       body: JSON.stringify({ message: "Payment updated", status: newStatus }),
     };
   } catch (err: any) {
@@ -100,6 +142,7 @@ export const handler = async (
     });
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ error: "Internal server error" }),
     };
   }

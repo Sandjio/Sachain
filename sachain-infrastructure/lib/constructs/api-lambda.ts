@@ -681,6 +681,7 @@ export class ApiLambdaConstruct extends Construct {
       authorizer: this.cognitoAuthorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
+    omPaymentsResource.addMethod("OPTIONS", omPaymentsIntegration);
 
     // Orange Money Callback URL
     const omCallbackResource = omPaymentsResource.addResource("callback");
