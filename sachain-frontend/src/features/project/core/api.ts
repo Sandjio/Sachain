@@ -184,3 +184,35 @@ export async function deleteProject(projectId: string) {
   
   return true; // DELETE typically returns success status
 }
+
+
+export async function mintStocks(projectId: string, walletAddress: string) {
+  const tokens = useAuthStore.getState().tokens;
+
+  if (!tokens?.idToken) {
+    throw new Error("No token available — user is not authenticated.");
+  }
+
+  // Use relative path for Next.js proxy in development
+  const apiBase = process.env.NODE_ENV === 'development'
+    ? '/api'
+    : API_URL;
+
+  const res = await fetch(`${apiBase}/projects/${projectId}/mint-stocks`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${tokens.idToken}`,
+    },
+    body: JSON.stringify({ walletAddress }),
+  });
+
+  console.log("Minting request payload:", { walletAddress });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`API error: ${res.status} - ${errorText}`);
+  }
+
+  return res.json(); // expected to match your backend's success response format
+}

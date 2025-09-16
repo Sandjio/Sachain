@@ -21,7 +21,9 @@ export default function ProjectEditPage() {
         ← Back to details
       </Button>
 
-      <ProjectEditForm projectId={id} onCancel={handleCancel} />
+      <ProjectEditForm projectId={id} onCancel={handleCancel} onSaveSuccess={function (): void {
+        throw new Error("Function not implemented.");
+      } } />
     </div>
   );
 }

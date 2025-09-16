@@ -290,14 +290,15 @@
 // }
 
 
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { getProjectById } from '@/features/project/core/api';
 import { useDeleteProject } from '@/features/project/hook/useDeleteProject';
 import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
 import { DeleteSuccessModal } from './modals/DeleteSuccess';
-import TokenizationFlow from '@/features/project/components/TokenizationFlow';
+import {TokenizationFlow} from './TokenizationFlow';
+import { useWalletStore } from '@/features/wallet/store/walletStore';
+
 
 interface Project {
   projectId: string;
@@ -310,6 +311,11 @@ interface Project {
   stockSupply: number;
   coverImageUrl?: string;
   createdAt: string;
+  tokenSymbol: string;  // Add these properties
+  tokenSupply: number;
+  tokenPrice: number;
+  equityOffered: string;
+  fundingTarget: number;
 }
 
 interface ProjectDetailViewProps {
@@ -328,13 +334,15 @@ export function ProjectDetailView({
   onBack,
   onEdit,
 }: ProjectDetailViewProps) {
-  
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // New state for view navigation
+  const [view, setView] = useState<'details' | 'tokenization'>('details');
 
   const { isDeleting, deleteProjectById } = useDeleteProject(() => {
     setIsModalOpen(false);
@@ -344,6 +352,8 @@ export function ProjectDetailView({
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
+
+  const walletAddress = useWalletStore((state) => state.walletAddress);
 
   const confirmDelete = () => {
     if (!project) return;
@@ -406,6 +416,24 @@ export function ProjectDetailView({
 
   const statusClass = statusColors[project.status] || 'bg-gray-500 text-white';
 
+  if (view === 'tokenization') {
+    // Placeholder tokenization view
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <TokenizationFlow
+  project={project}
+  walletAddress={walletAddress}  // pass actual connected wallet or null
+  onBack={() => setView("details")}
+  onMintSuccess={() => {
+    // handle post-mint success e.g., refresh data or navigate
+    alert("Minting succeeded! Implement your redirect or state update.");
+  }}
+/>
+      </div>
+    );
+  }
+
+  // Default: Project detail view
   return (
     <div className="max-w-4xl mx-auto">
       {/* Back Button */}
@@ -430,7 +458,6 @@ export function ProjectDetailView({
               {project.status}
             </span>
           </div>
-
           {/* Cover Image */}
           {project.coverImageUrl && (
             <div className="mb-6">
@@ -456,12 +483,10 @@ export function ProjectDetailView({
                 {project.category?.replace('_', ' ') ?? 'Unknown category'}
               </p>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700">Created Date</label>
               <p className="text-gray-900">{new Date(project.createdAt).toLocaleDateString()}</p>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700">Project ID</label>
               <p className="text-gray-500 text-sm font-mono">{project.projectId}</p>
@@ -479,12 +504,10 @@ export function ProjectDetailView({
                 ${project.targetFundingGoal?.toLocaleString() ?? 'N/A'}
               </p>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700">Price Per Stock</label>
               <p className="text-xl font-semibold text-gray-900">${project.pricePerStock}</p>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700">Stock Supply</label>
               <p className="text-xl font-semibold text-gray-900">{project.stockSupply} shares</p>
@@ -510,7 +533,7 @@ export function ProjectDetailView({
           </Button>
 
           {project.status === 'draft' && (
-            <TokenizationFlow project={project} />
+            <Button onClick={() => setView('tokenization')}>Tokenize & Go Live</Button>
           )}
 
           <Button
