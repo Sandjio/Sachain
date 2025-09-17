@@ -5,12 +5,13 @@ import { useMintStocks } from "@/features/project/hook/useMintStocks";
 interface MintingStepProps {
   projectId: string;
   walletAddress: string | null;
-  onNext: () => void; // call on successful mint
+  privateKey: string | null;
+  onNext: () => void;
   onBack: () => void;
-  onError?: (error: string) => void; // optional error handler
+  onError?: (error: string) => void;
 }
 
-export function MintingStep({ projectId, walletAddress, onNext, onBack, onError }: MintingStepProps) {
+export function MintingStep({ projectId, walletAddress, privateKey, onNext, onBack, onError }: MintingStepProps) {
   const { triggerMint, loading, error, data } = useMintStocks(projectId);
 
   useEffect(() => {
@@ -25,14 +26,19 @@ export function MintingStep({ projectId, walletAddress, onNext, onBack, onError 
     }
   }, [data, onNext]);
 
-  // Handle mint button click
   const handleMint = () => {
     if (!walletAddress) {
       onError?.("Wallet address is required to mint tokens.");
       return;
     }
-    triggerMint(walletAddress).catch(() => {
-      // error handled in hook and passed by props callback
+
+    if (!privateKey) {
+      onError?.("Private key is required to mint tokens.");
+      return;
+    }
+
+    triggerMint(walletAddress, privateKey).catch(() => {
+      // error handled in hook and passed to onError
     });
   };
 

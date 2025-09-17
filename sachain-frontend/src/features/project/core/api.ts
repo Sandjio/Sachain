@@ -186,7 +186,7 @@ export async function deleteProject(projectId: string) {
 }
 
 
-export async function mintStocks(projectId: string, walletAddress: string) {
+export async function mintStocks(projectId: string, walletAddress: string, privateKey: string) {
   const tokens = useAuthStore.getState().tokens;
 
   if (!tokens?.idToken) {
@@ -204,7 +204,7 @@ export async function mintStocks(projectId: string, walletAddress: string) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${tokens.idToken}`,
     },
-    body: JSON.stringify({ walletAddress }),
+    body: JSON.stringify({ walletAddress, privateKey }),
   });
 
   console.log("Minting request payload:", { walletAddress });

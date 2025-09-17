@@ -10,7 +10,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://hev5at4o19.execute-api.us-east-1.amazonaws.com/dev/:path*', // Proxy to Backend
+        destination: 'https://hev5at4o19.execute-api.us-east-1.amazonaws.com/dev/:path*',
       },
     ];
   },

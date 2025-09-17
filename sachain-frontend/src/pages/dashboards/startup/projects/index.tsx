@@ -17,6 +17,9 @@ export default function ProjectPage({ onCreateProject }: ProjectPageProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshProjects = () => setRefreshKey(k => k + 1); // to trigger re-fetch in child component
 
   const handleViewDetails = (projectId: string) => {
     setSelectedProjectId(projectId);
@@ -37,9 +40,11 @@ export default function ProjectPage({ onCreateProject }: ProjectPageProps) {
     setCurrentView("details");
   };
 
+  // Call refreshProjects after save (minting) success
   const handleSaveSuccess = () => {
     setShowSaveSuccess(true);
     setCurrentView("details");
+    refreshProjects();
   };
 
   return (
@@ -66,6 +71,8 @@ export default function ProjectPage({ onCreateProject }: ProjectPageProps) {
           <StartupProjectList
             onViewDetails={handleViewDetails}
             onEditProject={handleEditProject}
+            refreshProjects={refreshProjects}
+            key={refreshKey}
           />
         </>
       )}

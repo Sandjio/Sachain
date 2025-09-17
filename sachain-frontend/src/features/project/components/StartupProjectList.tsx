@@ -6,11 +6,13 @@ import { DeleteSuccessModal } from './modals/DeleteSuccess';
 interface StartupProjectListProps {
   onViewDetails?: (projectId: string) => void;
   onEditProject?: (projectId: string) => void;
+  refreshProjects?: () => void;
 }
 
 export function StartupProjectList({
   onViewDetails,
   onEditProject,
+  refreshProjects,
 }: StartupProjectListProps) {
   const { projects, loading, error, fetchProjects } = useProjects();
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);

@@ -1,11 +1,11 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { useHederaVerification } from "../../hook/useHederaVerification";
+import { useHederaBalance } from "@/features/project/hook/useHederaVerification";
+
 
 interface VerificationStepProps {
   walletAddress: string;
-  tokenId: string;
-  mintAmount: number;
+  requiredFeeHbar: number;
   onProceed: () => void;
   onRecharge: () => void;
   onCancel: () => void;
@@ -13,52 +13,44 @@ interface VerificationStepProps {
 
 export function VerificationStep({
   walletAddress,
-  tokenId,
-  mintAmount,
+  requiredFeeHbar,
   onProceed,
   onRecharge,
   onCancel,
 }: VerificationStepProps) {
-  const { requiredFee, userBalance, canMint, loading, error } = useHederaVerification(
-    walletAddress,
-    tokenId,
-    mintAmount,
-  );
+  const { balance, loading, error } = useHederaBalance(walletAddress);
+  const canMint = balance !== null && balance >= requiredFeeHbar;
 
   return (
-    <div className="p-6 max-w-md mx-auto text-center">
-      <h2 className="text-3xl font-bold mb-6">Verify Minting Fees & Balance</h2>
+    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md text-center space-y-4">
+      <h2 className="text-2xl font-semibold">Verify Your Wallet</h2>
 
-      {loading && <p>Checking wallet balance and estimating fees...</p>}
+      {loading && <p>Checking your HBAR balance...</p>}
 
-      {error && <p className="text-red-600 mb-4">Error: {error}</p>}
+      {error && <p className="text-red-600">{error}</p>}
 
-      {!loading && !error && (
+      {!loading && !error && balance !== null && (
         <>
-          <p className="mb-2">
-            Required Minting Fee: <strong>{requiredFee?.toFixed(6)} HBAR</strong>
+          <p>
+            Required Minting Fee: <strong>{requiredFeeHbar} HBAR</strong>
           </p>
-          <p className="mb-6">
-            Your Wallet Balance: <strong>{userBalance?.toFixed(6)} HBAR</strong>
+          <p>
+            Your Wallet Balance: <strong>{balance.toFixed(6)} HBAR</strong>
           </p>
 
           {canMint ? (
-            <p className="text-green-600 font-semibold mb-6">
-              Your balance is sufficient to mint tokens.
-            </p>
+            <p className="text-green-600 font-semibold">You have sufficient balance to mint tokens.</p>
           ) : (
-            <p className="text-red-600 font-semibold mb-6">
-              Insufficient balance. Please recharge to proceed.
-            </p>
+            <p className="text-red-600 font-semibold">Insufficient balance. Please recharge to continue.</p>
           )}
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             <Button onClick={onProceed} disabled={!canMint}>
               Proceed to Mint
             </Button>
             {!canMint && (
               <Button variant="outline" onClick={onRecharge}>
-                Recharge Account
+                Recharge Wallet
               </Button>
             )}
             <Button variant="ghost" onClick={onCancel}>
