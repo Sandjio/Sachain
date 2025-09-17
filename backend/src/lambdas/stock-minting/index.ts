@@ -1019,6 +1019,25 @@ async function mintStockNFTsInBatches(
 
       await Promise.all(stockNFTPromises);
 
+      // Transfer each NFT serial to the owner’s wallet
+      for (const serialNumber of mintResult.serialNumbers) {
+        const transferTx = await hederaServiceInstance.transferToken(
+          tokenId,
+          serialNumber,
+          process.env.HEDERA_OPERATOR_ID!, // or treasury/issuer account
+          process.env.HEDERA_OPERATOR_KEY!, // or treasury’s key
+          ownerWalletAddress // user’s wallet
+        );
+
+        logger.info("Transferred NFT serial", {
+          projectId: project.projectId,
+          tokenId,
+          serialNumber,
+          to: ownerWalletAddress,
+          status: transferTx,
+        });
+      }
+
       batches.push({
         batchNumber,
         stockNumbers,

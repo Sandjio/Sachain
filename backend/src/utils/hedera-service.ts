@@ -823,7 +823,27 @@ export class HederaService {
 
     return receipt.status.toString(); // should be "SUCCESS" if associated
   }
+  async transferToken(
+    tokenId: string,
+    serialNumber: number,
+    senderId: string,
+    senderKey: string,
+    receiverId: string
+  ): Promise<string> {
+    const senderAccountId = AccountId.fromString(senderId);
+    const receiverAccountId = AccountId.fromString(receiverId);
+    const senderPrivateKey = PrivateKey.fromStringDer(senderKey);
 
+    const transferTx = new TransferTransaction()
+      .addNftTransfer(tokenId, serialNumber, senderAccountId, receiverAccountId)
+      .freezeWith(this.client);
+
+    const signTx = await transferTx.sign(senderPrivateKey);
+    const txResponse = await signTx.execute(this.client);
+    const receipt = await txResponse.getReceipt(this.client);
+
+    return receipt.status.toString(); // SUCCESS if transferred
+  }
   /**
    * Mint NFTs for stocks
    */
