@@ -9,6 +9,7 @@ export interface StockMintingEvent extends APIGatewayProxyEvent {
 
 export interface MintStocksRequest {
   walletAddress: string;
+  privateKey: string;
 }
 
 export interface MintStocksResponse {

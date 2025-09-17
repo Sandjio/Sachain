@@ -15,6 +15,7 @@ import {
   TokenNftInfoQuery,
   AccountBalanceQuery,
   TransferTransaction,
+  TokenAssociateTransaction,
   Hbar,
   Status,
   TokenInfo,
@@ -300,7 +301,7 @@ export class HederaService {
           params.fromAccountId
         );
         const transferAmount = params.amount;
-        
+
         // Convert to tinybars and round to avoid decimal issues
         // 1 HBAR = 100,000,000 tinybars
         const tinybars = Math.round(transferAmount * 100000000);
@@ -801,6 +802,26 @@ export class HederaService {
 
       throw this.handleHederaError(error, "createToken", params);
     }
+  }
+
+  async associateToken(
+    accountId: string,
+    privateKey: string,
+    tokenId: string
+  ): Promise<string> {
+    const userAccountId = AccountId.fromString(accountId);
+    const userKey = PrivateKey.fromStringDer(privateKey);
+
+    const associateTx = new TokenAssociateTransaction()
+      .setAccountId(userAccountId)
+      .setTokenIds([tokenId])
+      .freezeWith(this.client);
+
+    const signTx = await associateTx.sign(userKey);
+    const txResponse = await signTx.execute(this.client);
+    const receipt = await txResponse.getReceipt(this.client);
+
+    return receipt.status.toString(); // should be "SUCCESS" if associated
   }
 
   /**

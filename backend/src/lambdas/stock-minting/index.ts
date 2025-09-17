@@ -364,7 +364,12 @@ async function handleStockMinting(event: APIGatewayProxyEvent): Promise<any> {
     );
 
     // Create Hedera token for the project
-    const tokenCreationResult = await createProjectToken(project, requestId);
+    const tokenCreationResult = await createProjectToken(
+      project,
+      requestId,
+      request.walletAddress,
+      request.privateKey
+    );
 
     // Mint NFTs in batches with progress tracking
     const mintingResult = await mintStockNFTsInBatches(
@@ -719,7 +724,9 @@ async function updateProjectStatus(
 
 async function createProjectToken(
   project: any,
-  requestId: string
+  requestId: string,
+  entrepreneurWalletAddress?: string,
+  entrepreneurPrivateKey?: string
 ): Promise<{ tokenId: string; transactionId: string }> {
   const startTime = Date.now();
 
@@ -766,6 +773,19 @@ async function createProjectToken(
       tokenSymbol,
       totalSupply: project.stockSupply,
       // Skip metadata to avoid METADATA_TOO_LONG error
+    });
+
+    const associateTx = await hederaServiceInstance.associateToken(
+      entrepreneurWalletAddress!,
+      entrepreneurPrivateKey!,
+      tokenResult.tokenId
+    );
+    logger.info("Associated token with entrepreneur wallet", {
+      operation: "TokenCreation",
+      requestId,
+      projectId: project.projectId,
+      tokenId: tokenResult.tokenId,
+      status: associateTx,
     });
     const tokenDuration = Date.now() - tokenStartTime;
 
