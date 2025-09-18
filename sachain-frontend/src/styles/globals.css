@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css"; /* Remove if not used */
 
+.bg-hero-svg {
+  background-image: url('/images/Rectangle 100.svg');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
