@@ -113,7 +113,7 @@ export function useConnectWalletDialog(
     // Don't change flow here - let the component handle that
   };
 
-  // New helper to transition from create success back to connect flow
+  
   const handleContinueFromCreate = () => {
     setFlow('connect');
     // Keep the success state and connected account to show in connect flow
