@@ -1,4 +1,5 @@
 // src/layout/PublicLayout.tsx
+import { Navbar } from "@/components/Navbar";
 import { ReactNode } from "react";
 //import Header from "@/components/Header";
 
@@ -14,7 +15,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       </a>
 
       {/* Header */}
-      {/* <Header /> */}
+      <Navbar /> 
 
       {/* Main content */}
       <main id="main" className="flex-1">

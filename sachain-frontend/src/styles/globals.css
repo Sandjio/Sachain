@@ -8,6 +8,15 @@
   background-position: center;
 }
 
+.bg-partner-svg {
+  background-image: url('/images/partner.svg');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

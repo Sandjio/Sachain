@@ -3,7 +3,7 @@ import PublicLayout from '@/layout/PublicLayout';
 import { HowItWorks } from '@/components/HowItWorks';
 import { Navbar } from "@/components/Navbar";
 import { HeroSection } from "@/components/HeroSection";
-import { Features } from "@/components/Features";
+import { PlatformFeatures } from "@/components/Features";
 import { StatsSection } from "@/components/StatSection";
 
 
@@ -11,6 +11,10 @@ import en from '../locales/en.json';
 import fr from '../locales/fr.json';
 import { CTASection } from '@/components/CTASection';
 import { Footer } from '@/components/Footer';
+import { Partners } from '@/components/Partners';
+import { AfricanOpportunity } from '@/components/AfricanOpportunity';
+import { ReadyToStart } from '@/components/ReadyToStart';
+import { WhySachain } from '@/components/WhySachain';
 
 export async function getStaticProps({ locale = 'en' }) {
   const messages = locale === 'fr' ? fr : en;
@@ -23,12 +27,17 @@ export default function Home() {
   return (
  <PublicLayout>
       <div className="min-h-screen bg-white">
-      <Navbar />
+      {/* <Navbar /> */}
       <HeroSection />
+       <Partners />
       <HowItWorks />
-      <Features />
-      <StatsSection />
-      <CTASection />
+     
+      <PlatformFeatures />
+      <AfricanOpportunity />
+      {/* <StatsSection /> */}
+      {/* <CTASection /> */}
+      <WhySachain />
+      <ReadyToStart />
       <Footer />
     </div>
     </PublicLayout>

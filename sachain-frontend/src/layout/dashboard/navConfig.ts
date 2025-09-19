@@ -32,8 +32,7 @@ export const navConfig: Record<string, NavItem[]> = {
   startup: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "projects", label: "Projects", icon: PieChart },
-    { id: "transactions", label: "Funds Raised", icon: CreditCard },
-    { id: "wallet", label: "Wallet Management", icon: LayoutDashboard },
+    { id: "transactions", label: "Transanctions", icon: CreditCard },
     { id: "profile", label: "Profile", icon: User2Icon },
   ],
 };

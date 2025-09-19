@@ -89,7 +89,7 @@ export default function GetStartedModal({
               <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
                 <Building2 className="w-6 h-6 text-green-600" />
               </div>
-              <CardTitle>Startup</CardTitle>
+              <CardTitle>Entrepreneur</CardTitle>
               <CardDescription>
                 Raise capital for your innovative venture
               </CardDescription>
