@@ -59,6 +59,7 @@
 
 
 import { useAuthStore } from '@/store/authStore';
+import { MintStocksStatus } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_KYC_API_BASE;
 
@@ -215,4 +216,34 @@ export async function mintStocks(projectId: string, walletAddress: string, priva
   }
 
   return res.json(); // expected to match your backend's success response format
+}
+
+
+
+export async function getMintStocksStatus(projectId: string): Promise<MintStocksStatus> {
+  const tokens = useAuthStore.getState().tokens;
+  if (!tokens?.idToken) {
+    throw new Error("No token available — user not authenticated.");
+  }
+
+  // const API_URL = process.env.NEXT_PUBLIC_KYC_API_BASE;
+
+    const apiBase = process.env.NODE_ENV === 'development'
+    ? '/api'
+    : API_URL;
+
+  const res = await fetch(`${apiBase}/projects/${projectId}/mint-stocks/status`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokens.idToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status} - ${text}`);
+  }
+
+  return res.json() as Promise<MintStocksStatus>;
 }

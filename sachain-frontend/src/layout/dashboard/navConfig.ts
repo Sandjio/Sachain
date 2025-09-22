@@ -26,7 +26,7 @@ export const navConfig: Record<string, NavItem[]> = {
   ],
   investor: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "analytics", label: "Project Management", icon: BarChart3 },
     { id: "portfolio", label: "Portfolio", icon: PieChart },
   ],
   startup: [
