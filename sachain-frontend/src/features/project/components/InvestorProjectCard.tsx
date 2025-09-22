@@ -8,7 +8,7 @@ import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { ArrowRight, Star } from 'lucide-react';
 
 // API Response Type (what we get from backend)
-interface APIProject {
+export interface APIProject {
   projectId: string;
   name: string;
   description: string;

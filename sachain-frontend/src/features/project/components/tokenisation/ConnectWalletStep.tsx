@@ -1,25 +1,4 @@
-// import React from "react";
-// import { Button } from "@/components/ui/button";
 
-// interface ConnectWalletStepProps {
-//   onNext: () => void;
-//   onBack: () => void;
-// }
-
-// export function ConnectWalletStep({ onNext, onBack }: ConnectWalletStepProps) {
-//   return (
-//     <>
-//       <h2 className="text-4xl font-extrabold mb-4">Connect Your Wallet</h2>
-//       <p className="text-gray-600 mb-8 leading-relaxed">
-//         Connect your wallet to deploy and manage your project tokens on the Hedera network.
-//       </p>
-//       <Button onClick={onNext}>Simulate Wallet Connected</Button>
-//       <Button variant="outline" onClick={onBack} className="mt-4">
-//         Cancel
-//       </Button>
-//     </>
-//   );
-// }
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
