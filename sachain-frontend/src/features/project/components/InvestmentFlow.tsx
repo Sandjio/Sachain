@@ -1,19 +1,18 @@
-
 // import { useEffect } from 'react';
 // import { Button } from '@/components/ui/button';
 // import { Input } from '@/components/ui/input';
 // import { Card, CardContent } from '@/components/ui/card';
 // import { Progress } from '@/components/ui/progress';
 // import { useInvestment } from '../hook/useInvestment';
-// import { 
-//   X, 
-//   Calculator, 
-//   Wallet, 
-//   CreditCard, 
-//   ArrowRight, 
-//   CheckCircle, 
+// import {
+//   X,
+//   Calculator,
+//   Wallet,
+//   CreditCard,
+//   ArrowRight,
+//   CheckCircle,
 //   AlertTriangle,
-//   DollarSign 
+//   DollarSign
 // } from 'lucide-react';
 
 // interface InvestmentFlowProps {
@@ -87,7 +86,7 @@
 //           <h2 className="text-xl font-bold text-gray-900">{getStepTitle()}</h2>
 //           <p className="text-sm text-gray-600">{project.name}</p>
 //         </div>
-//         <button 
+//         <button
 //           onClick={handleClose}
 //           className="text-gray-500 hover:text-gray-700"
 //           disabled={loading}
@@ -118,7 +117,7 @@
 //       <div>
 //         {/* Step 1: Calculate Investment */}
 //         {step === 1 && (
-//           <Step1Calculator 
+//           <Step1Calculator
 //             project={project}
 //             calculation={calculation}
 //             onUpdateTokens={updateTokenAmount}
@@ -129,7 +128,7 @@
 
 //         {/* Step 2: Check Balances */}
 //         {step === 2 && (
-//           <Step2Balances 
+//           <Step2Balances
 //             calculation={calculation}
 //             walletBalance={walletBalance}
 //             orangeMoneyBalance={orangeMoneyBalance}
@@ -144,7 +143,7 @@
 
 //         {/* Step 3: Orange Money Payment */}
 //         {step === 3 && (
-//           <Step3Payment 
+//           <Step3Payment
 //             calculation={calculation}
 //             orangeMoneyBalance={orangeMoneyBalance}
 //             loading={loading}
@@ -157,7 +156,7 @@
 
 //         {/* Step 4: Purchase Tokens */}
 //         {step === 4 && (
-//           <Step4Purchase 
+//           <Step4Purchase
 //             project={project}
 //             calculation={calculation}
 //             loading={loading}
@@ -170,7 +169,7 @@
 
 //         {/* Step 5: Success */}
 //         {step === 5 && (
-//           <Step5Success 
+//           <Step5Success
 //             project={project}
 //             calculation={calculation}
 //             onClose={handleClose}
@@ -242,8 +241,8 @@
 //         )}
 //       </div>
 
-//       <Button 
-//         onClick={onNext} 
+//       <Button
+//         onClick={onNext}
 //         className="w-full bg-[#123962] hover:bg-[#90A5FB] text-white"
 //         disabled={!calculation || calculation.tokensDesired < 0.1}
 //       >
@@ -272,9 +271,9 @@
 //             <Wallet className="h-8 w-8 text-blue-600 mx-auto mb-2" />
 //             <p className="text-sm text-gray-600">Wallet Balance</p>
 //             <p className="text-xl font-bold">{formatCurrency(walletBalance)}</p>
-//             <Button 
-//               variant="outline" 
-//               size="sm" 
+//             <Button
+//               variant="outline"
+//               size="sm"
 //               onClick={onCheckWallet}
 //               loading={loading}
 //               className="mt-2 w-full"
@@ -289,9 +288,9 @@
 //             <CreditCard className="h-8 w-8 text-orange-600 mx-auto mb-2" />
 //             <p className="text-sm text-gray-600">Orange Money</p>
 //             <p className="text-xl font-bold">{formatCurrency(orangeMoneyBalance)}</p>
-//             <Button 
-//               variant="outline" 
-//               size="sm" 
+//             <Button
+//               variant="outline"
+//               size="sm"
 //               onClick={onCheckOrangeMoney}
 //               loading={loading}
 //               className="mt-2 w-full"
@@ -329,8 +328,8 @@
 //         <Button variant="outline" onClick={onBack} className="flex-1">
 //           Back
 //         </Button>
-//         <Button 
-//           onClick={onNext} 
+//         <Button
+//           onClick={onNext}
 //           className="flex-1 bg-[#123962] hover:bg-[#90A5FB] text-white"
 //         >
 //           {needsTopUp ? 'Top Up Wallet' : 'Proceed to Purchase'}
@@ -344,7 +343,7 @@
 // function Step3Payment({ calculation, orangeMoneyBalance, loading, onProcessPayment, onNext, onBack, formatCurrency }: any) {
 //   const handlePayment = async () => {
 //     if (!calculation) return;
-    
+
 //     try {
 //       await onProcessPayment(calculation.finalTotal);
 //       onNext();
@@ -399,7 +398,7 @@
 //         <Button variant="outline" onClick={onBack} className="flex-1" disabled={loading}>
 //           Back
 //         </Button>
-//         <Button 
+//         <Button
 //           onClick={handlePayment}
 //           className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
 //           disabled={loading || !canPay}
@@ -456,7 +455,7 @@
 //         <Button variant="outline" onClick={onBack} className="flex-1" disabled={loading}>
 //           Back
 //         </Button>
-//         <Button 
+//         <Button
 //           onClick={handlePurchase}
 //           className="flex-1 bg-[#123962] hover:bg-[#90A5FB] text-white"
 //           disabled={loading}
@@ -500,7 +499,7 @@
 //         </Card>
 //       )}
 
-//       <Button 
+//       <Button
 //         onClick={handleFinish}
 //         className="w-full bg-[#123962] hover:bg-[#90A5FB] text-white"
 //       >
@@ -510,8 +509,172 @@
 //   );
 // }
 
+// // src/features/project/components/InvestmentFlow.tsx
+// import { useEffect } from 'react';
+// import { Progress } from '@/components/ui/progress';
+// import { useInvestment } from '../hook/useInvestment';
+// import { X } from 'lucide-react';
+// import Step1Calculator from './investment/Step1Calculator';
+// import Step2Balances from './investment/Step2Balances';
+// import Step3Payment from './investment/Step3Payment';
+// import Step4Purchase from './investment/Step4Purchase';
+// import Step5Success from './investment/Step5Success';
 
+// interface InvestmentFlowProps {
+//   onClose: () => void;
+//   project: {
+//     projectId: string;
+//     name: string;
+//     pricePerStock: number;
+//     stockSupply: number;
+//     category: string;
+//     coverImageUrl?: string;
+//   };
+//   onSuccess?: () => void;
+// }
 
+// export function InvestmentFlow({ onClose, project, onSuccess }: InvestmentFlowProps) {
+//   const {
+//     step,
+//     error,
+//     loading,
+//     calculation,
+//     walletBalance,
+//     orangeMoneyBalance,
+//     startInvestment,
+//     resetInvestment,
+//     updateTokenAmount,
+//     nextStep,
+//     prevStep,
+//     checkWalletBalance,
+//     checkOrangeMoneyBalance,
+//     processOrangeMoneyPayment,
+//     purchaseTokens,
+//   } = useInvestment();
+
+//   useEffect(() => {
+//     startInvestment(project.projectId, project.name, project.pricePerStock);
+//     return () => resetInvestment();
+//   }, [project, startInvestment, resetInvestment]);
+
+//   const handleClose = () => {
+//     resetInvestment();
+//     onClose();
+//   };
+
+//   const formatCurrency = (amount: number) =>
+//     new Intl.NumberFormat('en-US', {
+//       style: 'currency',
+//       currency: 'USD',
+//       minimumFractionDigits: 2,
+//     }).format(amount);
+
+//   const getStepTitle = () => {
+//     switch (step) {
+//       case 1: return 'Calculate Investment';
+//       case 2: return 'Check Balances';
+//       case 3: return 'Orange Money Payment';
+//       case 4: return 'Purchase Tokens';
+//       case 5: return 'Investment Complete';
+//       default: return 'Invest in Project';
+//     }
+//   };
+
+//   return (
+//     <div className="p-6 bg-white rounded-lg max-w-4xl mx-auto shadow-md">
+//       {/* Header */}
+//       <div className="flex items-center justify-between mb-6 border-b pb-3">
+//         <div>
+//           <h2 className="text-xl font-bold text-gray-900">{getStepTitle()}</h2>
+//           <p className="text-sm text-gray-600">{project.name}</p>
+//         </div>
+//         <button
+//           onClick={handleClose}
+//           className="text-gray-500 hover:text-gray-700"
+//           disabled={loading}
+//           aria-label="Close investment flow"
+//         >
+//           <X className="h-5 w-5" />
+//         </button>
+//       </div>
+
+//       {/* Progress Indicator */}
+//       <div className="mb-6">
+//         <div className="flex items-center justify-between mb-2">
+//           <span className="text-sm text-gray-600">Step {step} of 5</span>
+//           <span className="text-sm text-gray-600">{(step / 5 * 100).toFixed(0)}%</span>
+//         </div>
+//         <Progress value={(step / 5) * 100} className="h-2" />
+//       </div>
+
+//       {/* Error Display */}
+//       {error && (
+//         <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-md flex items-center text-red-700" role="alert">
+//           <p className="text-sm">{error}</p>
+//         </div>
+//       )}
+
+//       {/* Step Components Rendering */}
+//       {step === 1 && (
+//         <Step1Calculator
+//           project={project}
+//           calculation={calculation}
+//           onUpdateTokens={updateTokenAmount}
+//           onNext={nextStep}
+//           formatCurrency={formatCurrency}
+//         />
+//       )}
+
+//       {step === 2 && (
+//         <Step2Balances
+//           calculation={calculation}
+//           walletBalance={walletBalance}
+//           orangeMoneyBalance={orangeMoneyBalance}
+//           loading={loading}
+//           onCheckWallet={checkWalletBalance}
+//           onCheckOrangeMoney={checkOrangeMoneyBalance}
+//           onNext={nextStep}
+//           onBack={prevStep}
+//           formatCurrency={formatCurrency}
+//         />
+//       )}
+
+//       {step === 3 && (
+//         <Step3Payment
+//           calculation={calculation}
+//           orangeMoneyBalance={orangeMoneyBalance}
+//           loading={loading}
+//           onProcessPayment={async (amount: number) => { await processOrangeMoneyPayment(amount); }}
+//           onNext={nextStep}
+//           onBack={prevStep}
+//           formatCurrency={formatCurrency}
+//         />
+//       )}
+
+//       {step === 4 && (
+//         <Step4Purchase
+//           project={project}
+//           calculation={calculation}
+//           loading={loading}
+//           onPurchase={purchaseTokens}
+//           onNext={nextStep}
+//           onBack={prevStep}
+//           formatCurrency={formatCurrency}
+//         />
+//       )}
+
+//       {step === 5 && (
+//         <Step5Success
+//           project={project}
+//           calculation={calculation}
+//           onClose={handleClose}
+//           onSuccess={onSuccess}
+//           formatCurrency={formatCurrency}
+//         />
+//       )}
+//     </div>
+//   );
+// }
 
 // src/features/project/components/InvestmentFlow.tsx
 import { useEffect } from 'react';
@@ -519,10 +682,11 @@ import { Progress } from '@/components/ui/progress';
 import { useInvestment } from '../hook/useInvestment';
 import { X } from 'lucide-react';
 import Step1Calculator from './investment/Step1Calculator';
-import Step2Balances from './investment/Step2Balances';
+import Step2Balances from './investment/Step2Balances'; // updated step 2 with integrated wallet/recharge
 import Step3Payment from './investment/Step3Payment';
 import Step4Purchase from './investment/Step4Purchase';
 import Step5Success from './investment/Step5Success';
+import { useWalletStore } from '@/features/wallet/store/walletStore';
 
 interface InvestmentFlowProps {
   onClose: () => void;
@@ -537,7 +701,11 @@ interface InvestmentFlowProps {
   onSuccess?: () => void;
 }
 
-export function InvestmentFlow({ onClose, project, onSuccess }: InvestmentFlowProps) {
+export function InvestmentFlow({
+  onClose,
+  project,
+  onSuccess,
+}: InvestmentFlowProps) {
   const {
     step,
     error,
@@ -550,11 +718,11 @@ export function InvestmentFlow({ onClose, project, onSuccess }: InvestmentFlowPr
     updateTokenAmount,
     nextStep,
     prevStep,
-    checkWalletBalance,
-    checkOrangeMoneyBalance,
     processOrangeMoneyPayment,
     purchaseTokens,
   } = useInvestment();
+
+  const walletAddress = useWalletStore((state) => state.walletAddress);
 
   useEffect(() => {
     startInvestment(project.projectId, project.name, project.pricePerStock);
@@ -566,21 +734,29 @@ export function InvestmentFlow({ onClose, project, onSuccess }: InvestmentFlowPr
     onClose();
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount);
+  const formatCurrency = (amount: number | null) =>
+    amount === null
+      ? '-'
+      : new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 2,
+        }).format(amount);
 
   const getStepTitle = () => {
     switch (step) {
-      case 1: return 'Calculate Investment';
-      case 2: return 'Check Balances';
-      case 3: return 'Orange Money Payment';
-      case 4: return 'Purchase Tokens';
-      case 5: return 'Investment Complete';
-      default: return 'Invest in Project';
+      case 1:
+        return 'Calculate Investment';
+      case 2:
+        return 'Connect Wallet & Check Balances';
+      case 3:
+        return 'Orange Money Payment';
+      case 4:
+        return 'Purchase Tokens';
+      case 5:
+        return 'Investment Complete';
+      default:
+        return 'Invest in Project';
     }
   };
 
@@ -606,19 +782,22 @@ export function InvestmentFlow({ onClose, project, onSuccess }: InvestmentFlowPr
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-600">Step {step} of 5</span>
-          <span className="text-sm text-gray-600">{(step / 5 * 100).toFixed(0)}%</span>
+          <span className="text-sm text-gray-600">{(step / 5) * 100}%</span>
         </div>
         <Progress value={(step / 5) * 100} className="h-2" />
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-md flex items-center text-red-700" role="alert">
+        <div
+          className="mb-6 p-3 bg-red-50 border border-red-200 rounded-md flex items-center text-red-700"
+          role="alert"
+        >
           <p className="text-sm">{error}</p>
         </div>
       )}
 
-      {/* Step Components Rendering */}
+      {/* Step Rendering */}
       {step === 1 && (
         <Step1Calculator
           project={project}
@@ -629,14 +808,14 @@ export function InvestmentFlow({ onClose, project, onSuccess }: InvestmentFlowPr
         />
       )}
 
-      {step === 2 && (
+      {step === 2 && walletAddress && (
         <Step2Balances
           calculation={calculation}
           walletBalance={walletBalance}
           orangeMoneyBalance={orangeMoneyBalance}
           loading={loading}
-          onCheckWallet={checkWalletBalance}
-          onCheckOrangeMoney={checkOrangeMoneyBalance}
+          //onCheckWallet={checkWalletBalance}
+          //onCheckOrangeMoney={checkOrangeMoneyBalance}
           onNext={nextStep}
           onBack={prevStep}
           formatCurrency={formatCurrency}
@@ -646,9 +825,7 @@ export function InvestmentFlow({ onClose, project, onSuccess }: InvestmentFlowPr
       {step === 3 && (
         <Step3Payment
           calculation={calculation}
-          orangeMoneyBalance={orangeMoneyBalance}
-          loading={loading}
-          onProcessPayment={async (amount: number) => { await processOrangeMoneyPayment(amount); }}
+          project={project} // Make sure you pass the full project object here
           onNext={nextStep}
           onBack={prevStep}
           formatCurrency={formatCurrency}
@@ -679,3 +856,4 @@ export function InvestmentFlow({ onClose, project, onSuccess }: InvestmentFlowPr
     </div>
   );
 }
+//

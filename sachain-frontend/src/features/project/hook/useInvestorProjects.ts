@@ -48,11 +48,11 @@ const activeProjects = allProjects.filter((project: any) => project.status === '
 };
 
   useEffect(() => {
-    fetchLiveProjects();
+    fetchLiveProjects();// Fetch projects on mount 
   }, []);
 
   const refetch = () => {
-    fetchLiveProjects();
+    fetchLiveProjects(); // Call the fetch function to refetch projects
   };
 
   return {

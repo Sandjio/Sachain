@@ -19,16 +19,16 @@ interface StatCardProps {
 
 function StatCard({ value, label, description, icon }: StatCardProps) {
   return (
-    <Card className="group text-center p-8 hover:shadow-lg transition-all duration-300 hover:scale-105 bg-brand-muted/30 border-border/50">
+    <Card className="group text-center p-2 hover:shadow-lg transition-all duration-300 hover:scale-105 bg-[#C4C4C4]/20 border-[#90A5FB]/50 max-w-sm">
       {/* Icon */}
-      <div className="mb-6 flex justify-center">
-        <div className="bg-brand-light rounded-xl w-16 h-16 flex items-center justify-center group-hover:bg-secondary transition-colors duration-300">
+      <div className="mb-4 flex justify-center">
+        <div className="bg-[#90A5FB]/25 rounded-xl w-16 h-16 flex items-center justify-center group-hover:bg-secondary transition-colors duration-300">
           {icon}
         </div>
       </div>
 
       {/* Content */}
-      <CardContent className="p-0 space-y-3">
+      <CardContent className=" space-y-1">
         <div className="font-black text-foreground group-hover:text-primary transition-colors duration-300">
           {value}
         </div>
@@ -84,14 +84,14 @@ export function AfricanOpportunity() {
   ];
 
   return (
-    <Section size="lg" className="px-8 lg:px-16">
+    <Section size="lg" className="px-6 lg:px-16">
       <SectionHeader 
         title="The African Opportunity"
         subtitle="Africa's startup ecosystem is booming, but access to capital remains a challenge. Sachain bridges this gap with blockchain-powered crowdfunding."
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-6">
         {stats.map((stat, index) => (
           <StatCard 
             key={index}

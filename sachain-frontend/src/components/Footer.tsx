@@ -145,7 +145,7 @@ export function Footer() {
             <Image
               src="/images/logo.png"
               alt="Sachain - African Blockchain Crowdfunding Platform"
-              width={140}
+              width={110}
               height={60}
               className="lg:h-10"
             />

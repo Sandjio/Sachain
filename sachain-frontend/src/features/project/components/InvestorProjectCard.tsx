@@ -13,7 +13,7 @@ export interface APIProject {
   name: string;
   description: string;
   category: string;
-  status: 'draft' | 'active' | 'live';
+  status: string
   targetFundingGoal: number;
   pricePerStock: number;
   stockSupply: number;

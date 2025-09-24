@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css"; /* Remove if not used */
 
+/* Custom Backgrounds */
 .bg-hero-svg {
   background-image: url('/images/Rectangle 100.svg');
   background-repeat: no-repeat;
@@ -15,10 +16,21 @@
   background-position: center;
 }
 
+.bg-dashboard-svg {
+  background-image: url('/images/background.svg');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
 
+.bg-sidebar-svg {
+  background-image: url('/images/biglogo.png');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
 
-@custom-variant dark (&:is(.dark *));
-
+/* CSS Variables for Light Mode */
 :root {
   --font-size: 16px;
 
@@ -80,6 +92,7 @@
   --web3-gradient: linear-gradient(135deg, #123962 0%, #90A5FB 100%);
 }
 
+/* Dark Mode Overrides */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -127,7 +140,7 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
-/* Inline theme variables for components */
+/* Inline theme variable mappings */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -169,6 +182,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Base styles using Tailwind’s @apply */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -179,7 +193,7 @@
   }
 }
 
-/* Typography for elements without text classes */
+/* Base typography where no Tailwind text classes are used */
 @layer base {
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
     h1 {
@@ -225,8 +239,7 @@
   }
 }
 
-/* Optional custom styles */
-
+/* Background pattern utility */
 .bg-grid-pattern {
   background-image:
     linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
@@ -234,6 +247,7 @@
   background-size: 20px 20px;
 }
 
+/* Utility class for multiline truncation */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;

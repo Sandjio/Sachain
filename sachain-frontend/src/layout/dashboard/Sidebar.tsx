@@ -5,6 +5,8 @@ import { Settings, LogOut } from "lucide-react";
 import { navConfig, type NavItem } from "./navConfig";
 import { useAuthStore } from "@/store/authStore";
 import { useSignOut } from "@/features/auth/hook/useSignOut";
+import Image from "next/image";
+
 
 interface SidebarProps {
   activeItem?: string;
@@ -27,16 +29,25 @@ export function Sidebar({
   const navItems: NavItem[] = navConfig[role] || [];
 
   return (
-    <div className="flex flex-col bg-[#123962] text-white h-full w-full lg:w-64">
+    <div className=" relative flex flex-col bg-[#123962] text-white h-full w-full lg:w-64 ">
       {/* Logo/Brand */}
+
+       {/* <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/images/biglogo.png')", maxWidth: '100%', maxHeight: '50%' }}
+        aria-hidden="true"
+      /> */}
+
       <div className="p-6 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#90A5FB] rounded-lg flex items-center justify-center">
-            <span className="font-bold text-sm">S</span>
-          </div>
           <div>
-            <h1 className="font-bold text-lg">SACHAIN</h1>
-            <p className="text-xs text-white/70">Business Dashboard</p>
+            <Image
+              src="/images/logo1.png"
+              alt="Sachain logo"
+              width={95}
+              height={49}
+              className="h-8 lg:h-10"
+            />
           </div>
         </div>
       </div>

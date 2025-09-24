@@ -156,29 +156,6 @@ export function TokenizationFlow({
   const [error, setError] = useState<string | null>(null);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
 
-  // Simulate progress for Connect Wallet and Minting steps
-  // useEffect(() => {
-  //   setProgressPercent(0);
-
-  //   if (currentStep === 1) {
-  //     const timer = setTimeout(() => setProgressPercent(100), 1800);
-  //     return () => clearTimeout(timer);
-  //   }
-
-  //   if (currentStep === 2) {
-  //     let progress = 0;
-  //     const interval = setInterval(() => {
-  //       progress += 10;
-  //       setProgressPercent(progress);
-  //       if (progress >= 100) {
-  //         clearInterval(interval);
-  //         // Do not auto proceed to success here - MintingStep manages that
-  //       }
-  //     }, 500);
-  //     return () => clearInterval(interval);
-  //   }
-  // }, [currentStep]);
-
 
   // Progress animation simplified for brevity
   useEffect(() => {

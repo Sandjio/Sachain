@@ -56,3 +56,4 @@ export function RechargeForm({ walletAddress, onSuccess, onError }: RechargeForm
     </form>
   );
 }
+
