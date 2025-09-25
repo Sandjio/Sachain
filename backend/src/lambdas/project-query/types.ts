@@ -98,8 +98,8 @@ export interface ProjectStatsCache {
 
 export interface AggregationsCache {
   global: CacheEntry<ProjectAggregations>;
-  byEntrepreneur: {
-    [entrepreneurId: string]: CacheEntry<ProjectAggregations>;
+  byStartup: {
+    [startupId: string]: CacheEntry<ProjectAggregations>;
   };
 }
 

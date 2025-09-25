@@ -169,14 +169,16 @@ export class ProjectRepository extends BaseRepository {
     options?: PaginationOptions
   ): Promise<QueryResult<Project>> {
     return await this.scanItems<Project>(
-      "#entrepreneurId = :entrepreneurId AND #SK = :sk",
+      "#entrepreneurId = :entrepreneurId AND #SK = :sk AND begins_with(#PK, :pkPrefix)",
       {
         "#entrepreneurId": "entrepreneurId",
         "#SK": "SK",
+        "#PK": "PK",
       },
       {
         ":entrepreneurId": entrepreneurId,
         ":sk": "METADATA",
+        ":pkPrefix": "PROJECT#",
       },
       options
     );
@@ -419,5 +421,13 @@ export class ProjectRepository extends BaseRepository {
    */
   async deleteItemByKey(pk: string, sk: string): Promise<void> {
     await this.deleteItem(pk, sk);
+  }
+
+  async getProjectSharesHeldByStartup(projectId: string): Promise<number> {
+    const stats = await this.getProjectStats(projectId);
+    if (!stats) {
+      return 0;
+    }
+    return stats.availableStocks;
   }
 }

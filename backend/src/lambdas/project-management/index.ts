@@ -126,7 +126,7 @@ let aggregationsCache: AggregationsCache = {
     timestamp: 0,
     ttl: 0,
   },
-  byEntrepreneur: {},
+  byStartup: {},
 };
 
 // Allowed origins helper (keeps previous list)
@@ -1035,7 +1035,7 @@ function getCachedAggregations(cacheKey: string): ProjectAggregations | null {
   const cached =
     cacheKey === "global"
       ? aggregationsCache.global
-      : aggregationsCache.byEntrepreneur[cacheKey];
+      : aggregationsCache.byStartup[cacheKey];
   if (!cached) return null;
   const now = Date.now();
   if (now > cached.timestamp + cached.ttl * 1000) {
@@ -1050,7 +1050,7 @@ function getCachedAggregations(cacheKey: string): ProjectAggregations | null {
         ttl: 0,
       };
     } else {
-      delete aggregationsCache.byEntrepreneur[cacheKey];
+      delete aggregationsCache.byStartup[cacheKey];
     }
     return null;
   }
@@ -1069,7 +1069,7 @@ function setCachedAggregations(
   if (cacheKey === "global") {
     aggregationsCache.global = cacheEntry;
   } else {
-    aggregationsCache.byEntrepreneur[cacheKey] = cacheEntry;
+    aggregationsCache.byStartup[cacheKey] = cacheEntry;
   }
 }
 
