@@ -750,7 +750,7 @@ export function InvestmentFlow({
       case 2:
         return 'Connect Wallet & Check Balances';
       case 3:
-        return 'Orange Money Payment';
+        return 'Summary & Vailidation';
       case 4:
         return 'Purchase Tokens';
       case 5:
