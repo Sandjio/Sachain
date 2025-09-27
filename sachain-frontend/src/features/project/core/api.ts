@@ -247,3 +247,38 @@ export async function getMintStocksStatus(projectId: string): Promise<MintStocks
 
   return res.json() as Promise<MintStocksStatus>;
 }
+
+
+export async function buyProjectShares(
+  projectId: string,
+  investorPrivateKey: string,
+  sharesRequested: number,
+  investorWalletAddress: string
+) {
+  const tokens = useAuthStore.getState().tokens;
+
+  if (!tokens?.idToken) {
+    throw new Error("No token available — user not authenticated.");
+  }
+
+  const apiBase =
+    process.env.NODE_ENV === 'development'
+      ? '/api'
+      : API_URL;
+
+  const res = await fetch(`${apiBase}/projects/${projectId}/buy`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${tokens.idToken}`,
+    },
+    body: JSON.stringify({ investorPrivateKey, sharesRequested, investorWalletAddress }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`API error: ${res.status} - ${errorText}`);
+  }
+
+  return res.json(); // should include scheduleID or confirmation details
+}

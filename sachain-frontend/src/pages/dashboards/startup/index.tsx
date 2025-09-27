@@ -7,10 +7,11 @@ import { ProfilPage } from "@/features/profil/ProfilPage";
 import ProjectPage from "./projects/index";
 import { MultiStepProjectForm } from "@/features/project/form/MultiStepProjectForm";
 import RequireAuth from "@/components/auth/RequireAuth";
+import TransactionsPage from "./TransactionPage";
 
 export default function StartupDashboard() {
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "projects" | "wallet" | "profile" | "create-project"
+    "dashboard" | "projects" | "wallet" | "profile" | "create-project" | "transactions"
   >("dashboard");
 
   const pageTitleMap = {
@@ -18,6 +19,7 @@ export default function StartupDashboard() {
     projects: "My Projects",
     wallet: "Wallet Management",
     profile: "Profile",
+    transactions: "Transactions",
     "create-project": "Create New Project",
   };
 
@@ -37,6 +39,8 @@ export default function StartupDashboard() {
         return <WalletManagement />;
       case "profile":
         return <ProfilPage />;
+      case "transactions":
+        return <TransactionsPage />;
       default:
         return <StartupDashboardHome />;
     }

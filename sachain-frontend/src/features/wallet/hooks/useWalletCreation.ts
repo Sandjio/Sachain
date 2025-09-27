@@ -58,7 +58,7 @@ export function useWalletCreation() {
       // Step 2: Send transaction
       const tx = new AccountCreateTransaction()
         .setKey(newPublicKey)
-        .setInitialBalance(new Hbar(2));
+        .setInitialBalance(new Hbar(0));
 
       const txResponse = await tx.execute(client);
       setCurrentStep(2); // quickly progress some steps manually
