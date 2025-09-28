@@ -1,0 +1,45 @@
+// {
+//     "eslint.debug": true,
+//     "editor.formatOnSave": true,
+//     "emmet.useInlineCompletions": true,
+//     "emmet.triggerExpansionOnTab": true,
+//     "github.copilot.advanced": {
+
+//     },
+//     "github-actions.workflows.pinned.refresh.enabled": false,
+//     "gitProjectManager.warnIfFolderNotFound": true,
+//     "gitProjectManager.displayProjectPath": false,
+//     "extensions.experimental.deferredStartupFinishedActivation": false
+// }
+
+
+
+
+{
+    "eslint.debug": true,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[typescript]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescriptreact]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[javascript]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[javascriptreact]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "emmet.useInlineCompletions": true,
+    "emmet.triggerExpansionOnTab": true,
+    "github.copilot.advanced": {},
+    "github-actions.workflows.pinned.refresh.enabled": false,
+    "gitProjectManager.warnIfFolderNotFound": true,
+    "gitProjectManager.displayProjectPath": false,
+    "extensions.experimental.deferredStartupFinishedActivation": false
+}

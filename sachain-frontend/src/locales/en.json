@@ -1,0 +1,122 @@
+{
+  "hero": {
+    "title": "Invest in real projects with HBAR",
+    "subtitle": "A transparent, share-based crowdfunding platform connecting project owners and investors across Africa.",
+    "getStarted": "Get Started",
+    "learnMore": "Learn More"
+  },
+  "header": {
+    "login": "Login",
+    "signup": "Sign Up"
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "steps": {
+      "discover": {
+        "title": "Discover Projects",
+        "description": "Browse verified projects from across Africa seeking funding."
+      },
+      "invest": {
+        "title": "Invest Securely",
+        "description": "Use HBAR to invest in projects transparently and securely."
+      },
+      "grow": {
+        "title": "Grow Together",
+        "description": "Earn returns and support impactful initiatives."
+      }
+    }
+  },
+  "users": {
+    "title": "Who is SACHAIN for?",
+    "startups": {
+      "title": "For Startups",
+      "description": "Raise funds transparently, gain community trust, and scale your vision."
+    },
+    "investors": {
+      "title": "For Investors",
+      "description": "Discover vetted projects, invest securely with HBAR, and grow with impact."
+    }
+  },
+  "benefits": {
+    "title": "Why choose SACHAIN?",
+    "items": {
+      "lowFees": {
+        "title": "Low Transaction Fees",
+        "description": "Enjoy near-zero transaction costs thanks to Hedera’s efficient network."
+      },
+      "transparency": {
+        "title": "Full Transparency",
+        "description": "All project and funding activities are recorded on the blockchain."
+      },
+      "speed": {
+        "title": "Fast Settlements",
+        "description": "Transactions are confirmed in seconds, not minutes or hours."
+      }
+    }
+  },
+  "cta": {
+    "title": "Get Started",
+    "subtitle": "Take a chance and begin your journey",
+    "getStarted": "Get Started",
+    "roles": {
+      "startup": "I’m a Startup",
+      "investor": "I’m an Investor"
+    }
+  },
+  "footer": {
+    "copyright": "© 2025 SACHAIN. All rights reserved.",
+    "links": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "contact": "Contact Us"
+    }
+  },
+  "getStartedModal": {
+    "chooseRole": "Choose your role",
+    "welcomeBack": "Welcome back",
+    "roles": {
+      "startup": "I am a Startup",
+      "investor": "I am an Investor"
+    },
+    "tabs": {
+      "login": "Login",
+      "signup": "Sign Up"
+    },
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "verifyCode": "Please enter the verification code sent to your email",
+      "firstName": "First Name",
+      "lastName": "Last Name"
+    },
+    "actions": {
+      "loginAs": "Login as",
+      "signupAs": "Sign up as",
+      "next": "Next",
+      "back": "Back",
+      "submit": "Submit",
+      "close": "Close",
+      "verify": "Verify"
+    },
+    "upload": {
+      "investorInstruction": "Please upload a valid government-issued ID (image or PDF).",
+      "startupInstruction": "Please upload your business registration certificate or startup ID (image or PDF)."
+    },
+    "success": {
+      "title": "Signup Complete!",
+      "message": "Your account as a {{role}} is now pending verification. We will notify you once approved."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "form": {
+        "email": "Email",
+        "password": "Password"
+      },
+      "submit": "Login"
+    }
+  }
+}
