@@ -10,7 +10,7 @@ interface AuthState {
   logout: () => void;
   hydrate: () => void;
   setRole: (role: "startup" | "investor") => void;
-  setUser: (userData: Partial<AuthUser>) => void; // partial update and persist user  
+  setUser: (userData: Partial<AuthUser>) => void; 
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    if (typeof window !== "undefined") { // Ensure we're in a browser environment
+    if (typeof window !== "undefined") { 
       localStorage.removeItem("auth_user");
       localStorage.removeItem("auth_tokens");
     }
@@ -44,14 +44,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       let updatedUser: AuthUser;
 
       if (state.user) {
-        updatedUser = { ...state.user, role }; // update existing user role 
+        updatedUser = { ...state.user, role }; 
       } else {
-        // Create a new user with blank email but set role
+        
         updatedUser = { email: "", role };
       }
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("auth_user", JSON.stringify(updatedUser)); // persist updated user with new role in localStorage
+        localStorage.setItem("auth_user", JSON.stringify(updatedUser));
       }
 
       return { user: updatedUser };

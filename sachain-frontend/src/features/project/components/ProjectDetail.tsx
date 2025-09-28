@@ -1,572 +1,3 @@
-// import React, { useState, useEffect } from 'react';
-// import { Button } from '@/components/ui/button';
-// import { getProjectById } from '@/features/project/core/api';
-// import { useDeleteProject } from '@/features/project/hook/useDeleteProject';
-// import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
-// import { DeleteSuccessModal } from './modals/DeleteSuccess';
-// import ConnectWalletDialog from '@/features/wallet/components/ConnectWalletDialog';
-// import { useWalletStore } from '@/features/wallet/store/walletStore';
-
-
-// interface Project {
-//   projectId: string;
-//   name: string;
-//   status: 'draft' | 'live';
-//   category: string;
-//   description: string;
-//   targetFundingGoal: number;
-//   pricePerStock: number;
-//   stockSupply: number;
-//   coverImageUrl?: string;
-//   createdAt: string;
-// }
-
-// interface ProjectDetailViewProps {
-//   projectId: string;
-//   onBack: () => void; // callback to go back to projects list
-//   onEdit: (projectId: string) => void; // optional callback to edit project
-// }
-
-// const statusColors = {
-//   live: 'bg-green-500 text-white',
-//   draft: 'bg-yellow-500 text-white',
-// };
-
-// export function ProjectDetailView({
-//   projectId,
-//   onBack,
-//   onEdit,
-// }: ProjectDetailViewProps) {
-//   const [project, setProject] = useState<Project | null>(null);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState<string | null>(null);
-//   const [isModalOpen, setIsModalOpen] = useState(false);
-//   const [showSuccess, setShowSuccess] = useState(false);
-//   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-//   const { isDeleting, deleteProjectById } = useDeleteProject(() => {
-//     setIsModalOpen(false);
-//     setShowSuccess(true);
-//     onBack();
-//   });
-//   const openModal = () => setIsModalOpen(true);
-//   const closeModal = () => setIsModalOpen(false);
-//   const confirmDelete = () => {
-//     if (!project) return;
-//     deleteProjectById(project.projectId).catch((err) => {
-//       setErrorMsg(err.message || 'Failed to delete project');
-//     });
-//   };
-
-//   const [isDialogOpen, setDialogOpen] = useState(false);
-
-//   const openTokenizationDialog = () => {
-//     setDialogOpen(true);
-//   };
-
-//   useEffect(() => {
-//     const fetchProject = async () => {
-//       try {
-//         setLoading(true);
-//         setError(null);
-//         const projectData = await getProjectById(projectId);
-//         const normalizedProject = projectData.project || projectData;
-//         setProject(normalizedProject);
-//       } catch (err: any) {
-//         setError(err.message);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-//     fetchProject();
-//   }, [projectId]);
-
-//   if (loading) {
-//     return (
-//       <div>
-//         <button
-//           onClick={onBack}
-//           className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-//         >
-//           Back to Projects
-//         </button>
-//         <div className="flex items-center justify-center p-8">
-//           <div className="text-center">
-//             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-//             <p className="mt-2 text-gray-600">Loading project details...</p>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (error || !project) {
-//     return (
-//       <div>
-//         <button
-//           onClick={onBack}
-//           className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-//         >
-//           Back to Projects
-//         </button>
-//         <div className="text-center p-8">
-//           <p className="text-red-600">Error: {error || 'Project not found'}</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   const statusClass = statusColors[project.status] || 'bg-gray-500 text-white';
-
-//   return (
-//     <div className="max-w-4xl mx-auto">
-//       {/* Back Button */}
-//       <button
-//         onClick={onBack}
-//         className="mb-6 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-//       >
-//         Back to Projects
-//       </button>
-
-//       {/* Project Header */}
-//       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-//         <div className="p-6">
-//           <div className="flex justify-between items-start mb-4">
-//             <div>
-//               <h1 className="text-3xl font-bold text-gray-900">
-//                 {project.name}
-//               </h1>
-//               <p className="text-gray-600 mt-1">Project Details</p>
-//             </div>
-//             <span
-//               className={`rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-wide ${statusClass}`}
-//             >
-//               {project.status}
-//             </span>
-//           </div>
-
-//           {/* Cover Image */}
-//           {project.coverImageUrl && (
-//             <div className="mb-6">
-//               <img
-//                 src={project.coverImageUrl}
-//                 alt={project.name}
-//                 className="w-full h-64 object-cover rounded-lg"
-//               />
-//             </div>
-//           )}
-//         </div>
-//       </div>
-
-//       {/* Project Information */}
-//       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-//         {/* Basic Info */}
-//         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-//             Basic Information
-//           </h2>
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">
-//                 Category
-//               </label>
-//               <p className="text-gray-900 capitalize">
-//                 {project.category?.replace('_', ' ') ?? 'Unknown category'}
-//               </p>
-//             </div>
-
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">
-//                 Created Date
-//               </label>
-//               <p className="text-gray-900">
-//                 {new Date(project.createdAt).toLocaleDateString()}
-//               </p>
-//             </div>
-
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">
-//                 Project ID
-//               </label>
-//               <p className="text-gray-500 text-sm font-mono">
-//                 {project.projectId}
-//               </p>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Financial Info */}
-//         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-//             Financial Details
-//           </h2>
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">
-//                 Funding Goal
-//               </label>
-//               <p className="text-2xl font-bold text-gray-900">
-//                 ${project.targetFundingGoal?.toLocaleString() ?? 'N/A'}
-//               </p>
-//             </div>
-
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">
-//                 Price Per Stock
-//               </label>
-//               <p className="text-xl font-semibold text-gray-900">
-//                 ${project.pricePerStock}
-//               </p>
-//             </div>
-
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">
-//                 Stock Supply
-//               </label>
-//               <p className="text-xl font-semibold text-gray-900">
-//                 {project.stockSupply} shares
-//               </p>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Description */}
-//       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-//         <h2 className="text-xl font-semibold text-gray-900 mb-4">
-//           Description
-//         </h2>
-//         <p className="text-gray-700 leading-relaxed">{project.description}</p>
-//       </div>
-
-//       {/* Action Buttons */}
-//       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//         <div className="flex gap-4">
-//           <Button
-//             className="bg-[#123962] hover:bg-[#90A5FB] text-white"
-//             onClick={() => {
-//               console.log('Project in detail view:', project);
-//               console.log(
-//                 'Edit button clicked for project:',
-//                 project.projectId
-//               );
-//               onEdit(project.projectId);
-//             }}
-//           >
-//             Edit Project
-//           </Button>
-
-//           {project.status === 'draft' && (
-//             <Button onClick={openTokenizationDialog}>Tokenize & Go Live</Button>
-//           )}
-
-//           <Button
-//             variant="outline"
-//             className="text-red-600 hover:text-red-700 hover:border-red-300"
-//             onClick={openModal}
-//             disabled={isDeleting}
-//           >
-//             {isDeleting ? 'Deleting...' : 'Delete Project'}
-//           </Button>
-//         </div>
-//       </div>
-
-//       <ConfirmDeleteModal
-//         isOpen={isModalOpen}
-//         title={`Delete \"${project?.name}\"?`}
-//         description="This action cannot be undone."
-//         onConfirm={confirmDelete}
-//         onCancel={closeModal}
-//         loading={isDeleting}
-//       />
-//       <DeleteSuccessModal
-//         isOpen={showSuccess}
-//         onClose={() => setShowSuccess(false)}
-//       />
-//       {errorMsg && <div className="text-red-600 text-sm mt-2">{errorMsg}</div>}
-
-//       <ConnectWalletDialog open={isDialogOpen} onOpenChange={setDialogOpen} />
-//     </div>
-//   );
-// }
-
-
-
-
-// import React, { useState, useEffect } from 'react';
-// import { Button } from '@/components/ui/button';
-// import { getProjectById } from '@/features/project/core/api';
-// import { useDeleteProject } from '@/features/project/hook/useDeleteProject';
-// import { ConfirmDeleteModal } from './modals/ConfirmDeleteModal';
-// import { DeleteSuccessModal } from './modals/DeleteSuccess';
-// import {TokenizationFlow} from './TokenizationFlow';
-// import { useWalletStore } from '@/features/wallet/store/walletStore';
-
-
-// interface Project {
-//   projectId: string;
-//   name: string;
-//   status: 'draft' | 'live';
-//   category: string;
-//   description: string;
-//   targetFundingGoal: number;
-//   pricePerStock: number;
-//   stockSupply: number;
-//   coverImageUrl?: string;
-//   createdAt: string;
-//   tokenSymbol: string;  // Add these properties
-//   tokenSupply: number;
-//   tokenPrice: number;
-//   equityOffered: string;
-//   fundingTarget: number;
-// }
-
-// interface ProjectDetailViewProps {
-//   projectId: string;
-//   onBack: () => void; // callback to go back to projects list
-//   onEdit: (projectId: string) => void; // optional callback to edit project
-// }
-
-// const statusColors = {
-//   live: 'bg-green-500 text-white',
-//   draft: 'bg-yellow-500 text-white',
-// };
-
-// export function ProjectDetailView({
-//   projectId,
-//   onBack,
-//   onEdit,
-// }: ProjectDetailViewProps) {
-//   const [project, setProject] = useState<Project | null>(null);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState<string | null>(null);
-//   const [isModalOpen, setIsModalOpen] = useState(false);
-//   const [showSuccess, setShowSuccess] = useState(false);
-//   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-//   // New state for view navigation
-//   const [view, setView] = useState<'details' | 'tokenization'>('details');
-
-//   const { isDeleting, deleteProjectById } = useDeleteProject(() => {
-//     setIsModalOpen(false);
-//     setShowSuccess(true);
-//     onBack();
-//   });
-
-//   const openModal = () => setIsModalOpen(true);
-//   const closeModal = () => setIsModalOpen(false);
-
-//   const walletAddress = useWalletStore((state) => state.walletAddress);
-
-//   const confirmDelete = () => {
-//     if (!project) return;
-//     deleteProjectById(project.projectId).catch((err) => {
-//       setErrorMsg(err.message || 'Failed to delete project');
-//     });
-//   };
-
-//   useEffect(() => {
-//     const fetchProject = async () => {
-//       try {
-//         setLoading(true);
-//         setError(null);
-//         const projectData = await getProjectById(projectId);
-//         const normalizedProject = projectData.project || projectData;
-//         setProject(normalizedProject);
-//       } catch (err: any) {
-//         setError(err.message);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-//     fetchProject();
-//   }, [projectId]);
-
-//   if (loading) {
-//     return (
-//       <div>
-//         <button
-//           onClick={onBack}
-//           className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-//         >
-//           Back to Projects
-//         </button>
-//         <div className="flex items-center justify-center p-8">
-//           <div className="text-center">
-//             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-//             <p className="mt-2 text-gray-600">Loading project details...</p>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (error || !project) {
-//     return (
-//       <div>
-//         <button
-//           onClick={onBack}
-//           className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-//         >
-//           Back to Projects
-//         </button>
-//         <div className="text-center p-8">
-//           <p className="text-red-600">Error: {error || 'Project not found'}</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   const statusClass = statusColors[project.status] || 'bg-gray-500 text-white';
-
-//   if (view === 'tokenization') {
-//     // Placeholder tokenization view
-//     return (
-//       <div className="max-w-3xl mx-auto p-6">
-//         <TokenizationFlow
-//   project={project}
-//   walletAddress={walletAddress}  // pass actual connected wallet or null
-//   onBack={() => setView("details")}
-//   onMintSuccess={() => {
-//     // handle post-mint success e.g., refresh data or navigate
-//     alert("Minting succeeded! Implement your redirect or state update.");
-//   }}
-// />
-//       </div>
-//     );
-//   }
-
-//   // Default: Project detail view
-//   return (
-//     <div className="max-w-4xl mx-auto">
-//       {/* Back Button */}
-//       <button
-//         onClick={onBack}
-//         className="mb-6 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-//       >
-//         Back to Projects
-//       </button>
-
-//       {/* Project Header */}
-//       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-//         <div className="p-6">
-//           <div className="flex justify-between items-start mb-4">
-//             <div>
-//               <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
-//               <p className="text-gray-600 mt-1">Project Details</p>
-//             </div>
-//             <span
-//               className={`rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-wide ${statusClass}`}
-//             >
-//               {project.status}
-//             </span>
-//           </div>
-//           {/* Cover Image */}
-//           {project.coverImageUrl && (
-//             <div className="mb-6">
-//               <img
-//                 src={project.coverImageUrl}
-//                 alt={project.name}
-//                 className="w-full h-64 object-cover rounded-lg"
-//               />
-//             </div>
-//           )}
-//         </div>
-//       </div>
-
-//       {/* Project Information */}
-//       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-//         {/* Basic Info */}
-//         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//           <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">Category</label>
-//               <p className="text-gray-900 capitalize">
-//                 {project.category?.replace('_', ' ') ?? 'Unknown category'}
-//               </p>
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">Created Date</label>
-//               <p className="text-gray-900">{new Date(project.createdAt).toLocaleDateString()}</p>
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">Project ID</label>
-//               <p className="text-gray-500 text-sm font-mono">{project.projectId}</p>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Financial Info */}
-//         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//           <h2 className="text-xl font-semibold text-gray-900 mb-4">Financial Details</h2>
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">Funding Goal</label>
-//               <p className="text-2xl font-bold text-gray-900">
-//                 ${project.targetFundingGoal?.toLocaleString() ?? 'N/A'}
-//               </p>
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">Price Per Stock</label>
-//               <p className="text-xl font-semibold text-gray-900">${project.pricePerStock}</p>
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">Stock Supply</label>
-//               <p className="text-xl font-semibold text-gray-900">{project.stockSupply} shares</p>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Description */}
-//       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-//         <h2 className="text-xl font-semibold text-gray-900 mb-4">Description</h2>
-//         <p className="text-gray-700 leading-relaxed">{project.description}</p>
-//       </div>
-
-//       {/* Action Buttons */}
-//       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//         <div className="flex gap-4">
-//           <Button
-//             className="bg-[#123962] hover:bg-[#90A5FB] text-white"
-//             onClick={() => onEdit(project.projectId)}
-//           >
-//             Edit Project
-//           </Button>
-
-//           {project.status === 'draft' && (
-//             <Button onClick={() => setView('tokenization')}>Tokenize & Go Live</Button>
-//           )}
-
-//           <Button
-//             variant="outline"
-//             className="text-red-600 hover:text-red-700 hover:border-red-300"
-//             onClick={openModal}
-//             disabled={isDeleting}
-//           >
-//             {isDeleting ? 'Deleting...' : 'Delete Project'}
-//           </Button>
-//         </div>
-//       </div>
-
-//       <ConfirmDeleteModal
-//         isOpen={isModalOpen}
-//         title={`Delete "${project?.name}"?`}
-//         description="This action cannot be undone."
-//         onConfirm={confirmDelete}
-//         onCancel={closeModal}
-//         loading={isDeleting}
-//       />
-//       <DeleteSuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} />
-//       {errorMsg && <div className="text-red-600 text-sm mt-2">{errorMsg}</div>}
-//     </div>
-//   );
-// }
-
-
-//version 1
-
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -626,22 +57,29 @@ interface ProjectDetailViewProps {
 const statusConfig = {
   active: {
     label: 'Active Project',
-    className: 'bg-emerald-500/90 text-white border-emerald-400/20 backdrop-blur-sm',
+    className:
+      'bg-emerald-500/90 text-white border-emerald-400/20 backdrop-blur-sm',
     icon: <Rocket size={16} />,
   },
   draft: {
     label: 'Draft',
-    className: 'bg-amber-500/90 text-white border-amber-400/20 backdrop-blur-sm',
+    className:
+      'bg-amber-500/90 text-white border-amber-400/20 backdrop-blur-sm',
     icon: <Edit3 size={16} />,
   },
   live: {
     label: 'Live',
-    className: 'bg-green-500/90 text-white border-green-400/20 backdrop-blur-sm',
+    className:
+      'bg-green-500/90 text-white border-green-400/20 backdrop-blur-sm',
     icon: <Rocket size={16} />,
   },
 };
 
-export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailViewProps) {
+export function ProjectDetailView({
+  projectId,
+  onBack,
+  onEdit,
+}: ProjectDetailViewProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -705,8 +143,12 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                 <div className="absolute inset-0 w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full mx-auto animate-ping opacity-20"></div>
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-900">Loading Project Details</h3>
-                <p className="text-gray-600">Please wait while we fetch your project...</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Loading Project Details
+                </h3>
+                <p className="text-gray-600">
+                  Please wait while we fetch your project...
+                </p>
               </div>
             </div>
           </div>
@@ -735,8 +177,12 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                 <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Zap size={32} className="text-destructive" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h3>
-                <p className="text-gray-600 mb-4">{error || 'Project not found'}</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Something went wrong
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {error || 'Project not found'}
+                </p>
                 <Button onClick={onBack} variant="outline">
                   Go Back
                 </Button>
@@ -763,7 +209,9 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
           walletAddress={walletAddress}
           onBack={() => setView('details')}
           onMintSuccess={() => {
-            alert('Minting succeeded! Implement your redirect or state update.');
+            alert(
+              'Minting succeeded! Implement your redirect or state update.'
+            );
           }}
         />
       </div>
@@ -813,7 +261,9 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
               <div className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <Badge className={`${statusInfo.className} text-sm px-4 py-2`}>
+                  <Badge
+                    className={`${statusInfo.className} text-sm px-4 py-2`}
+                  >
                     {statusInfo.icon}
                     <span className="ml-2">{statusInfo.label}</span>
                   </Badge>
@@ -826,8 +276,12 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                 </div>
 
                 <div className="space-y-4">
-                  <h1 className="text-4xl lg:text-5xl font-bold leading-tight">{project.name}</h1>
-                  <p className="text-lg text-white/90 leading-relaxed max-w-2xl">{project.description}</p>
+                  <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
+                    {project.name}
+                  </h1>
+                  <p className="text-lg text-white/90 leading-relaxed max-w-2xl">
+                    {project.description}
+                  </p>
                 </div>
                 {/* Key Metrics */}
                 <div className="grid grid-cols-3 gap-6 pt-4">
@@ -835,7 +289,9 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                     <div className="flex items-center justify-center mb-2">
                       <DollarSign size={24} className="text-white/80" />
                     </div>
-                    <div className="text-2xl font-bold">${raisedAmount.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">
+                      ${raisedAmount.toLocaleString()}
+                    </div>
                     <div className="text-sm text-white/70">Raised</div>
                   </div>
                   <div className="text-center">
@@ -883,7 +339,9 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
             <CardContent className="p-8">
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold text-gray-900">Funding Progress</h3>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Funding Progress
+                  </h3>
                   <div className="flex items-center gap-2 text-emerald-600">
                     <TrendingUp size={20} />
                     <span className="font-semibold">On Track</span>
@@ -900,7 +358,9 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                     <div className="text-sm text-gray-600">Funding Goal</div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-2xl font-bold text-emerald-600">${raisedAmount.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-emerald-600">
+                      ${raisedAmount.toLocaleString()}
+                    </div>
                     <div className="text-sm text-gray-600">Total Raised</div>
                   </div>
                   <div className="space-y-2">
@@ -910,7 +370,9 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                     <div className="text-sm text-gray-600">Total Shares</div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-2xl font-bold text-purple-600">${project.pricePerStock}</div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      ${project.pricePerStock}
+                    </div>
                     <div className="text-sm text-gray-600">Price per Share</div>
                   </div>
                 </div>
@@ -931,7 +393,9 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="prose prose-lg max-w-none">
-                  <p className="text-gray-700 leading-relaxed">{project.description}</p>
+                  <p className="text-gray-700 leading-relaxed">
+                    {project.description}
+                  </p>
                 </div>
 
                 <Separator />
@@ -942,7 +406,9 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                       <Hash size={16} />
                       <span className="text-sm font-medium">Project ID</span>
                     </div>
-                    <p className="font-mono text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">{project.projectId}</p>
+                    <p className="font-mono text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
+                      {project.projectId}
+                    </p>
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-gray-600">
@@ -982,13 +448,22 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                   Edit Project
                 </Button>
                 {project.status === 'draft' && (
-                  <Button onClick={() => setView('tokenization')} size="lg" variant="outline" className="w-full hover:bg-primary/5 hover:border-primary/30">
+                  <Button
+                    onClick={() => setView('tokenization')}
+                    size="lg"
+                    variant="outline"
+                    className="w-full hover:bg-primary/5 hover:border-primary/30"
+                  >
                     <Rocket size={18} className="mr-2" />
                     Tokenize & Go Live
                   </Button>
                 )}
                 {project.status !== 'draft' && (
-                  <Button variant="outline" className="w-full hover:bg-primary/5 hover:border-primary/30" size="lg">
+                  <Button
+                    variant="outline"
+                    className="w-full hover:bg-primary/5 hover:border-primary/30"
+                    size="lg"
+                  >
                     <Clock size={18} className="mr-2" />
                     Unpublish Project
                   </Button>
@@ -1024,17 +499,26 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Price per Share</span>
-                    <span className="font-semibold text-gray-900">${project.pricePerStock}</span>
+                    <span className="font-semibold text-gray-900">
+                      ${project.pricePerStock}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Total Shares</span>
-                    <span className="font-semibold text-gray-900">{project.stockSupply.toLocaleString()}</span>
+                    <span className="font-semibold text-gray-900">
+                      {project.stockSupply.toLocaleString()}
+                    </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between items-center text-lg">
-                    <span className="font-medium text-gray-900">Market Cap</span>
+                    <span className="font-medium text-gray-900">
+                      Market Cap
+                    </span>
                     <span className="font-bold text-primary">
-                      ${(project.stockSupply * project.pricePerStock).toLocaleString()}
+                      $
+                      {(
+                        project.stockSupply * project.pricePerStock
+                      ).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -1052,7 +536,10 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
           loading={isDeleting}
         />
 
-        <DeleteSuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} />
+        <DeleteSuccessModal
+          isOpen={showSuccess}
+          onClose={() => setShowSuccess(false)}
+        />
 
         {/* Error display */}
         {errorMsg && (
@@ -1069,8 +556,7 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
   );
 }
 
-
-//version2 
+//version2
 
 // import React, { useState, useEffect } from "react";
 // import { Button } from "@/components/ui/button";
@@ -1594,8 +1080,6 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
 //               description="This action cannot be undone and will permanently remove this project."
 //             />
 
-            
-
 //             {/* Delete Success Modal */}
 //             <DeleteSuccessModal
 //               isOpen={showDeleteSuccess}
@@ -1618,5 +1102,3 @@ export function ProjectDetailView({ projectId, onBack, onEdit }: ProjectDetailVi
 //     </div>
 //   );
 // }
-
-

@@ -1,11 +1,11 @@
 // types/rechargeTypes.ts
 
 export interface RechargeRequest {
-  customerNumber: string;   // Orange Money phone number
-  amount: string;           // Amount in FCFA, as string
-  description: string;      // Transaction description
-  idempotencyKey: string;  // Unique key to avoid duplicate processing
-  walletAddress: string;    // Hedera wallet address to credit on success
+  customerNumber: string;
+  amount: string;
+  description: string;
+  idempotencyKey: string; 
+  walletAddress: string; 
 }
 
 export interface RechargeResponseData {
@@ -20,14 +20,14 @@ export interface RechargeResponseData {
   inittxnstatus: string;
   confirmtxnstatus: string | null;
   confirmtxnmessage: string | null;
-  status: string;          // e.g. "PENDING"
-  notifUrl: string;        // Backend callback URL
+  status: string;          
+  notifUrl: string;       
   description: string;
   channelUserMsisdn: string;
 }
 
 export interface RechargeResponse {
-  message: string;                    // High-level status message
+  message: string;                    
   result: {
     message: string;
     data: RechargeResponseData;

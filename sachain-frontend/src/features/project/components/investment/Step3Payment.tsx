@@ -1,105 +1,13 @@
-
-
-
-
-// import React, { useState } from 'react';
-// import { CheckCircle } from 'lucide-react';
-// import { Button } from '@/components/ui/button';
-// import { Card, CardContent } from '@/components/ui/card';
-
-// interface Step3Props {
-//   calculation: { finalTotal: number; tokensDesired: number; pricePerToken: number } | null;
-//   project: {
-//     name: string;
-//     category: string;
-//     stockSupply: number;
-//     pricePerStock: number;
-//     coverImageUrl?: string;
-//     description: string;
-//   };
-//   onNext: () => void;
-//   onBack: () => void;
-//   formatCurrency: (amount: number) => string;
-// }
-
-// export default function Step3Payment({
-//   calculation,
-//   project,
-//   onNext,
-//   onBack,
-//   formatCurrency,
-// }: Step3Props) {
-//   const [infoConfirmed, setInfoConfirmed] = useState(false);
-
-//   if (!calculation) return null;
-
-//   return (
-//     <div className="space-y-6" aria-live="polite">
-//       <div className="text-center">
-//         <h2 className="text-2xl font-semibold mb-2">Confirm Your Investment Details</h2>
-//         <p className="text-gray-600 mb-4">Please review the information below before proceeding.</p>
-//       </div>
-
-//       <Card>
-//         <CardContent>
-//           <div className="mb-4 flex justify-center">
-//             {project?.coverImageUrl && (
-//               <img src={project.coverImageUrl} alt={project.name} className="h-32 w-32 object-cover rounded-md" />
-//             )}
-//           </div>
-//           <h3 className="text-xl font-bold text-center mb-2">{project?.name}</h3>
-//           <p className="text-center text-gray-700 mb-4">{project?.category}</p>
-//           <p className="text-center text-gray-700 mb-4">{project?.description}</p>
-
-//           <div className="space-y-2 text-center">
-//             <p>
-//               <strong>Number of Tokens:</strong> {calculation.tokensDesired}
-//             </p>
-//             <p>
-//               <strong>Price per Token:</strong> {formatCurrency(calculation.pricePerToken)}
-//             </p>
-//             <p className="text-lg font-semibold">
-//               <strong>Total Amount to Pay:</strong> {formatCurrency(calculation.finalTotal)}
-//             </p>
-//           </div>
-//         </CardContent>
-//       </Card>
-
-//       <label className="flex items-center gap-2 cursor-pointer">
-//         <input
-//           type="checkbox"
-//           checked={infoConfirmed}
-//           onChange={() => setInfoConfirmed((prev) => !prev)}
-//           className="cursor-pointer"
-//         />
-//         <span className="text-sm select-none">I have reviewed and confirm that the above information is correct.</span>
-//       </label>
-
-//       <div className="flex gap-3">
-//         <Button variant="outline" onClick={onBack} className="flex-1">
-//           Back
-//         </Button>
-//         <Button
-//           onClick={onNext}
-//           className="flex-1 bg-[#123962] hover:bg-[#90A5FB] text-white"
-//           disabled={!infoConfirmed}
-//           aria-disabled={!infoConfirmed}
-//         >
-//           Continue to Payment
-//         </Button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface Step3Props {
-  calculation: { finalTotal: number; tokensDesired: number; pricePerToken: number } | null;
+  calculation: {
+    finalTotal: number;
+    tokensDesired: number;
+    pricePerToken: number;
+  } | null;
   project: {
     name: string;
     category: string;
@@ -136,9 +44,8 @@ export default function Step3Payment({
   };
 
   const handleCheckboxChange = () => {
-    setInfoConfirmed(prev => {
+    setInfoConfirmed((prev) => {
       if (prev) {
-        // Clear private key input & error when unchecking the box
         setPrivateKey('');
         setPrivateKeyError(null);
       }
@@ -149,8 +56,12 @@ export default function Step3Payment({
   return (
     <div className="space-y-6" aria-live="polite">
       <div className="text-center">
-        <h2 className="text-2xl font-semibold mb-2">Confirm Your Investment Details</h2>
-        <p className="text-gray-600 mb-4">Please review the information below before proceeding.</p>
+        <h2 className="text-2xl font-semibold mb-2">
+          Confirm Your Investment Details
+        </h2>
+        <p className="text-gray-600 mb-4">
+          Please review the information below before proceeding.
+        </p>
       </div>
 
       <Card>
@@ -164,14 +75,26 @@ export default function Step3Payment({
               />
             )}
           </div>
-          <h3 className="text-xl font-bold text-center mb-2">{project?.name}</h3>
+          <h3 className="text-xl font-bold text-center mb-2">
+            {project?.name}
+          </h3>
           <p className="text-center text-gray-700 mb-4">{project?.category}</p>
-          <p className="text-center text-gray-700 mb-4">{project?.description}</p>
+          <p className="text-center text-gray-700 mb-4">
+            {project?.description}
+          </p>
 
           <div className="space-y-2 text-center">
-            <p><strong>Number of Tokens:</strong> {calculation.tokensDesired}</p>
-            <p><strong>Price per Token:</strong> {formatCurrency(calculation.pricePerToken)}</p>
-            <p className="text-lg font-semibold"><strong>Total Amount to Pay:</strong> {formatCurrency(calculation.finalTotal)}</p>
+            <p>
+              <strong>Number of Tokens:</strong> {calculation.tokensDesired}
+            </p>
+            <p>
+              <strong>Price per Token:</strong>{' '}
+              {formatCurrency(calculation.pricePerToken)}
+            </p>
+            <p className="text-lg font-semibold">
+              <strong>Total Amount to Pay:</strong>{' '}
+              {formatCurrency(calculation.finalTotal)}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -190,14 +113,17 @@ export default function Step3Payment({
 
       {infoConfirmed && (
         <div className="mt-4">
-          <label htmlFor="privateKeyInput" className="block text-sm font-medium mb-1">
+          <label
+            htmlFor="privateKeyInput"
+            className="block text-sm font-medium mb-1"
+          >
             Enter your private key to proceed with payment
           </label>
           <input
             id="privateKeyInput"
             type="password"
             value={privateKey}
-            onChange={e => {
+            onChange={(e) => {
               setPrivateKey(e.target.value);
               if (privateKeyError) setPrivateKeyError(null);
             }}
@@ -209,6 +135,7 @@ export default function Step3Payment({
             <p className="text-red-600 text-sm mb-2">{privateKeyError}</p>
           )}
           <Button
+            type="submit"
             onClick={handleProceedClick}
             className="bg-[#123962] hover:bg-[#90A5FB] text-white w-full"
           >

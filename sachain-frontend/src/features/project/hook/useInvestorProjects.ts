@@ -28,12 +28,8 @@ const fetchLiveProjects = async () => {
   try {
     const response = await getProjects();
     
-    // Handle the nested structure - projects are inside response.projects
     const allProjects = response.projects || response || [];
 
-    // Filter for active projects only
-    //const activeProjects = allProjects.filter((project: Project) => project.status === 'active');
-    // Cast the API response to handle the type mismatch
 const activeProjects = allProjects.filter((project: any) => project.status === 'active');
 
     console.log('All projects:', allProjects);
@@ -48,11 +44,11 @@ const activeProjects = allProjects.filter((project: any) => project.status === '
 };
 
   useEffect(() => {
-    fetchLiveProjects();// Fetch projects on mount 
+    fetchLiveProjects();
   }, []);
 
   const refetch = () => {
-    fetchLiveProjects(); // Call the fetch function to refetch projects
+    fetchLiveProjects(); 
   };
 
   return {

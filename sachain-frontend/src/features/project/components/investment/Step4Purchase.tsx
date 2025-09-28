@@ -271,7 +271,7 @@
 
 
 
-//---------------------------
+
 
 import React, { useState, useEffect } from 'react';
 import { DollarSign, ArrowRight, Box } from 'lucide-react';
@@ -288,6 +288,7 @@ interface Step4Props {
   formatCurrency: (amount: number) => string;
   investorPrivateKey: string;
   investorWalletAddress: string;
+  step: number;
 }
 
 function Step4PurchaseAnimation() {
@@ -329,9 +330,17 @@ export default function Step4Purchase({
   formatCurrency,
   investorPrivateKey,
   investorWalletAddress,
+  step,
 }: Step4Props) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+
+  useEffect(() => {
+    if (step !== 4) {
+      setIsPending(false);
+      setErrorMessage(null);
+    }
+  }, [step]);
 
   if (!calculation) {
     return (
@@ -347,10 +356,12 @@ export default function Step4Purchase({
     setIsPending(false);
     try {
       await onPurchase(investorPrivateKey, investorWalletAddress);
-      setIsPending(true);  // Start showing pending state
-      // The polling done in hook will advance step when purchase confirmed
+      setIsPending(true);
+      // Manually advance step after purchase success
+      onNext();
     } catch (err: any) {
-      setErrorMessage(err?.message || "Purchase failed. Please try again.");
+      setErrorMessage(err?.message || 'Purchase failed. Please try again.');
+      setIsPending(false);
     }
   };
 
@@ -383,7 +394,6 @@ export default function Step4Purchase({
           {errorMessage}
         </div>
       )}
-      
 
       {isPending && (
         <p className="text-center text-yellow-600 font-medium">

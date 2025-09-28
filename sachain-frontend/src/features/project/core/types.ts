@@ -31,6 +31,6 @@ export interface MintStocksStatusProgress {
 
 export interface MintStocksStatus {
   projectId: string;
-  status: string; // e.g. 'draft', 'in_progress', 'completed'
+  status: string;
   progress: MintStocksStatusProgress;
 }

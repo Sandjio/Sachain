@@ -1,11 +1,10 @@
 import { useTranslate } from '@/hooks/useTranslate';
 import PublicLayout from '@/layout/PublicLayout';
 import { HowItWorks } from '@/components/HowItWorks';
-import { Navbar } from "@/components/Navbar";
-import { HeroSection } from "@/components/HeroSection";
-import { PlatformFeatures } from "@/components/Features";
-import { StatsSection } from "@/components/StatSection";
-
+import { Navbar } from '@/components/Navbar';
+import { HeroSection } from '@/components/HeroSection';
+import { PlatformFeatures } from '@/components/Features';
+import { StatsSection } from '@/components/StatSection';
 
 import en from '../locales/en.json';
 import fr from '../locales/fr.json';
@@ -21,28 +20,22 @@ export async function getStaticProps({ locale = 'en' }) {
   return { props: { messages, locale } };
 }
 
-
 export default function Home() {
- 
   return (
- <PublicLayout>
+    <PublicLayout>
       <div className="min-h-screen bg-white">
-      {/* <Navbar /> */}
-      <HeroSection />
-       <Partners />
-      <HowItWorks />
-     
-      <PlatformFeatures />
-      <AfricanOpportunity />
-      {/* <StatsSection /> */}
-      {/* <CTASection /> */}
-      <WhySachain />
-      <ReadyToStart />
-      <Footer />
-    </div>
+        {/* <Navbar /> */}
+        <HeroSection />
+        <Partners />
+        <HowItWorks />
+
+        <PlatformFeatures />
+        <AfricanOpportunity />
+
+        <WhySachain />
+        <ReadyToStart />
+        <Footer />
+      </div>
     </PublicLayout>
   );
 }
-
-
-

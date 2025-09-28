@@ -2,7 +2,6 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { useRecharge } from "../hook/useRecharge";
 
-// Define the mint fee constant (replace with the correct value if needed)
 const MINT_FEE_HBAR = 5.0;
 
 

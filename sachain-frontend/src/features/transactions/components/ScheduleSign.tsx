@@ -1,59 +1,51 @@
-import React, { useState, useMemo } from 'react';
-import { Client, ScheduleSignTransaction, PrivateKey, ScheduleId } from '@hashgraph/sdk';
+import React, { useState } from 'react';
+import { useScheduleSign } from '../hook/useScheduleSign';
+import { useHcsPublish } from '../hook/useHcsPublish';
 
 interface ScheduleSignProps {
   scheduleId: string;
+  projectId: string;
+  investorWalletAddress: string;
+  sharesApproved: number;
 }
 
-export default function ScheduleSign({ scheduleId }: ScheduleSignProps) {
+export default function ScheduleSign({
+  scheduleId,
+  projectId,
+  investorWalletAddress,
+  sharesApproved,
+}: ScheduleSignProps) {
   const [privateKeyInput, setPrivateKeyInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    loading: signingLoading,
+    error: signingError,
+    successMessage,
+    signSchedule,
+  } = useScheduleSign(scheduleId);
+  const {
+    publishMessage,
+    loading: publishLoading,
+    error: publishError,
+    success: publishSuccess,
+  } = useHcsPublish();
 
-  const client = useMemo(() => {
-  const c = Client.forTestnet();
-  c.setOperator(
-    process.env.NEXT_PUBLIC_HEDERA_OPERATOR_ID || '',
-    process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY || ''
-  );
-  return c;
-}, []);
+  const handleSignClick = async () => {
+    const signed = await signSchedule(privateKeyInput);
+    if (signed) {
+      // Prepare the notification payload
+      const messagePayload = JSON.stringify({
+        type: 'purchase_approved',
+        projectId,
+        investorWalletAddress,
+        sharesApproved,
+        timestamp: new Date().toISOString(),
+      });
 
-
-  const handleSignSchedule = async () => {
-  setLoading(true);
-  setError(null);
-  setSuccessMessage(null);
-
-  try {
-    if (!scheduleId.trim()) throw new Error('Schedule ID is required');
-    if (!privateKeyInput.trim()) throw new Error('Private key is required');
-
-    const startupPrivateKey = PrivateKey.fromString(privateKeyInput.trim());
-    const scheduleIdObj = ScheduleId.fromString(scheduleId.trim());
-
-    // Await freezing so transactionId is properly set
-    const scheduleSignTx = await new ScheduleSignTransaction()
-      .setScheduleId(scheduleIdObj)
-      .freezeWith(client);
-
-    const signedTx = await scheduleSignTx.sign(startupPrivateKey);
-    const response = await signedTx.execute(client);
-    const receipt = await response.getReceipt(client);
-
-    if (receipt.status.toString() === 'SUCCESS') {
-      setSuccessMessage('Schedule transaction signed and executed successfully!');
+      // Publish the approval notification
+      await publishMessage(messagePayload);
       setPrivateKeyInput('');
-    } else {
-      setError(`Transaction failed with status: ${receipt.status.toString()}`);
     }
-  } catch (error: any) {
-    setError(error.message || 'An error occurred while signing');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -69,12 +61,25 @@ export default function ScheduleSign({ scheduleId }: ScheduleSignProps) {
         style={{ width: 400, marginRight: 10 }}
         autoComplete="off"
       />
-      <button onClick={handleSignSchedule} disabled={loading || !privateKeyInput.trim()}>
-        {loading ? 'Signing...' : 'Sign Schedule'}
+      <button
+        onClick={handleSignClick}
+        disabled={signingLoading || publishLoading || !privateKeyInput.trim()}
+      >
+        {signingLoading || publishLoading ? 'Processing...' : 'Sign Schedule'}
       </button>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {signingError && (
+        <p style={{ color: 'red' }}>Signing Error: {signingError}</p>
+      )}
+      {publishError && (
+        <p style={{ color: 'red' }}>Notification Error: {publishError}</p>
+      )}
       {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
+      {publishSuccess && (
+        <p style={{ color: 'green' }}>
+          Approval notification sent successfully!
+        </p>
+      )}
     </div>
   );
 }

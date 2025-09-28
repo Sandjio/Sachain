@@ -12,7 +12,7 @@ const client = Client.forTestnet();
 client.setOperator(operatorId, operatorKey);
 
 export async function getScheduleInfo(scheduleIdStr: string) {
-  // Debug: log the Schedule ID you actually query
+  
   const cleanedScheduleId = scheduleIdStr.trim();
   console.log('Querying Schedule ID:', cleanedScheduleId);
 
@@ -20,7 +20,7 @@ export async function getScheduleInfo(scheduleIdStr: string) {
     const query = new ScheduleInfoQuery().setScheduleId(cleanedScheduleId);
     return await query.execute(client);
   } catch (error: any) {
-    // Log the error for diagnostics
+  
     console.error('Error fetching Schedule Info:', error);
     throw error;
   }

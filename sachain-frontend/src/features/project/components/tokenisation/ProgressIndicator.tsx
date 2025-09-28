@@ -4,7 +4,7 @@ const RADIUS = 90;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 interface ProgressIndicatorProps {
-  currentStep: number; // 1-based step number
+  currentStep: number; 
   totalSteps: number;
   progressPercent: number;
   label: string;

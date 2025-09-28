@@ -33,7 +33,7 @@ export function InvestorProjectCard({
   onViewDetails,
 }: InvestorProjectCardProps) {
   
-  // Transform API data to display format
+
   const transformedProject = {
     id: project.projectId,
     name: project.name,
@@ -44,20 +44,20 @@ export function InvestorProjectCard({
     // Financial calculations
     sharePrice: project.pricePerStock,
     totalShares: project.stockSupply,
-    soldShares: 0, // TODO: Calculate from actual investments
+    soldShares: 0,
     targetAmount: project.targetFundingGoal,
     totalRaised: 0, // TODO: Calculate from actual investments
     
     // Display data
     image: project.coverImageUrl || '/placeholder-project.jpg',
-    location: 'Remote', // TODO: Add location field to API
-    investorCount: 0, // TODO: Calculate from actual investments
-    expectedROI: '15-25%', // TODO: Add to API or calculate
-    duration: '12-24 months', // TODO: Add to API
-    riskLevel: 'Medium', // TODO: Add to API
-    minInvestment: project.pricePerStock, // Minimum is 1 share
+    location: 'Remote', 
+    investorCount: 0, 
+    expectedROI: '15-25%', 
+    duration: '12-24 months', 
+    riskLevel: 'Medium', 
+    minInvestment: project.pricePerStock, 
     launchDate: project.createdAt,
-    featured: false // TODO: Add featured flag to API
+    featured: false 
   };
 
   const calculateFundingProgress = (soldShares: number, totalShares: number) => {

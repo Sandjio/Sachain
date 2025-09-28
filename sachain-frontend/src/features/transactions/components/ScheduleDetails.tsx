@@ -1,16 +1,15 @@
 // import React from 'react';
 
 interface ScheduleDetailsProps {
-  scheduleInfo: any; // Define more specific types as needed
+  scheduleInfo: any; 
 }
 
-// Helper to render Hedera IDs (AccountId/ScheduleId objects)
 function renderId(idObj: any) {
   if (!idObj || typeof idObj !== 'object') return 'N/A';
   if ('shard' in idObj && 'realm' in idObj && 'num' in idObj) {
     return `${idObj.shard}.${idObj.realm}.${idObj.num}`;
   }
-  // fallback to string if possible
+  
   if (typeof idObj.toString === 'function') return idObj.toString();
   return 'N/A';
 }
@@ -36,7 +35,6 @@ export default function ScheduleDetails({ scheduleInfo }: ScheduleDetailsProps) 
     return date.toLocaleString();
   };
 
-  // Get token transfer or HBAR transfer details from scheduledTransactionBody
   const getTransactionSummary = () => {
     if (!scheduledTransactionBody) return 'N/A';
 
@@ -49,7 +47,6 @@ export default function ScheduleDetails({ scheduleInfo }: ScheduleDetailsProps) 
         .join(', ');
     }
 
-    // Crypto transfer transactions
     if (scheduledTransactionBody.cryptoTransfer?.transfers) {
       return scheduledTransactionBody.cryptoTransfer.transfers
         .map((transfer: any) =>
@@ -58,7 +55,6 @@ export default function ScheduleDetails({ scheduleInfo }: ScheduleDetailsProps) 
         .join(', ');
     }
 
-    // NFT transfers (example structure from your explorer data)
     if (
       scheduledTransactionBody.cryptoTransfer?.tokenTransfers &&
       scheduledTransactionBody.cryptoTransfer.tokenTransfers[0]?.nftTransfers
@@ -86,7 +82,7 @@ export default function ScheduleDetails({ scheduleInfo }: ScheduleDetailsProps) 
         <strong>Expiration Time:</strong> {formatTimestamp(expirationTime)}
       </p>
       <p>
-        <strong>Execution Time:</strong> {formatTimestamp(executionTime) || 'Not yet executed'}
+        <strong>Execution Time:</strong> {formatTimestamp(executionTime) || 'Not found'}
       </p>
       <p>
         <strong>Signatories:</strong>{' '}

@@ -1,6 +1,6 @@
 // src/features/transaction/TransactionsPage.tsx
 import React from 'react';
-import ScheduleDashboard from '@/features/transactions/components/ScheduleDashboard'; // Adjust import path as needed
+import ScheduleDashboard from '@/features/transactions/components/ScheduleDashboard';
 
 export default function TransactionsPage() {
   return (

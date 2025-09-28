@@ -20,7 +20,7 @@ export function useWalletCreation() {
   const [currentStep, setCurrentStep] = useState(0);
   const [state, setState] = useState<'idle' | 'creating' | 'success' | 'error'>(
     'idle'
-  ); // idle, creating, success, error for simplicity and clarity
+  ); 
   const [error, setError] = useState<string | null>(null);
 
   const client = Client.forTestnet();
