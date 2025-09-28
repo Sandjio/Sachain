@@ -16,6 +16,8 @@ import {
   AccountBalanceQuery,
   TransferTransaction,
   TokenAssociateTransaction,
+  ScheduleCreateTransaction,
+  ScheduleSignTransaction,
   Hbar,
   Status,
   TokenInfo,
@@ -844,6 +846,90 @@ export class HederaService {
 
     return receipt.status.toString(); // SUCCESS if transferred
   }
+  async createScheduledTransfer(params: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    memo: string;
+    requiredSignatures: string[];
+  }): Promise<{ transactionId: string }> {
+    const fromAccount = AccountId.fromString(params.fromAccountId);
+    const toAccount = AccountId.fromString(params.toAccountId);
+
+    const scheduledTx = new ScheduleCreateTransaction()
+      .setScheduledTransaction(
+        new TransferTransaction()
+          .addHbarTransfer(
+            fromAccount,
+            Hbar.fromTinybars(-params.amount * 100000000)
+          )
+          .addHbarTransfer(
+            toAccount,
+            Hbar.fromTinybars(params.amount * 100000000)
+          )
+          .setTransactionMemo(params.memo)
+      )
+      .setAdminKey(this.operatorKey);
+
+    const response = await scheduledTx.execute(this.client);
+    const receipt = await response.getReceipt(this.client);
+
+    return { transactionId: receipt.scheduleId!.toString() };
+  }
+
+  async executeScheduledTransaction(
+    scheduleId: string,
+    signerKey: string
+  ): Promise<void> {
+    const signTx = new ScheduleSignTransaction()
+      .setScheduleId(scheduleId)
+      .freezeWith(this.client);
+
+    const signedTx = await signTx.sign(PrivateKey.fromStringDer(signerKey));
+    await signedTx.execute(this.client);
+  }
+
+  async createScheduledAtomicSwap(params: {
+    investorAccountId: string;
+    entrepreneurAccountId: string;
+    hbarAmount: number;
+    tokenId: string;
+    nftSerials: number[];
+    memo: string;
+    requiredSignatures: string[];
+  }): Promise<{ transactionId: string }> {
+    const investor = AccountId.fromString(params.investorAccountId);
+    const entrepreneur = AccountId.fromString(params.entrepreneurAccountId);
+
+    // Create atomic swap transaction
+    const swapTx = new TransferTransaction()
+      // HBAR transfer: investor -> entrepreneur
+      .addHbarTransfer(
+        investor,
+        Hbar.fromTinybars(-params.hbarAmount * 100000000)
+      )
+      .addHbarTransfer(
+        entrepreneur,
+        Hbar.fromTinybars(params.hbarAmount * 100000000)
+      )
+      .setTransactionMemo(params.memo);
+
+    // Add NFT transfers: entrepreneur -> investor
+    params.nftSerials.forEach((serial) => {
+      swapTx.addNftTransfer(params.tokenId, serial, entrepreneur, investor);
+    });
+
+    // Create scheduled transaction
+    const scheduledTx = new ScheduleCreateTransaction()
+      .setScheduledTransaction(swapTx)
+      .setAdminKey(this.operatorKey);
+
+    const response = await scheduledTx.execute(this.client);
+    const receipt = await response.getReceipt(this.client);
+
+    return { transactionId: receipt.scheduleId!.toString() };
+  }
+
   /**
    * Mint NFTs for stocks
    */

@@ -12,9 +12,9 @@ export interface KYCNotificationData {
 }
 
 export interface NotificationServiceConfig {
-  snsClient: SNSClient;
+  snsClient?: SNSClient;
   sesClient?: SESv2Client;
-  topicArn: string;
+  topicArn?: string;
   adminPortalUrl?: string;
   fromEmail?: string;
   replyToEmail?: string;
@@ -60,13 +60,13 @@ export class NotificationService {
   private retryConfig: RetryConfig;
 
   constructor(config: NotificationServiceConfig) {
-    this.snsClient = config.snsClient;
+    this.snsClient = config.snsClient!;
     this.sesClient = config.sesClient;
-    this.topicArn = config.topicArn;
+    this.topicArn = config.topicArn!;
     this.adminPortalUrl =
       config.adminPortalUrl || process.env.ADMIN_PORTAL_URL || "";
     this.fromEmail =
-      config.fromEmail || process.env.FROM_EMAIL || "noreply@sachain.com";
+      config.fromEmail || process.env.FROM_EMAIL || "noreply@emmasandjio.com";
     this.replyToEmail = config.replyToEmail || process.env.REPLY_TO_EMAIL;
     this.logger = StructuredLogger.getInstance("NotificationService");
 
@@ -346,6 +346,51 @@ Sachain KYC System
    */
   private getEmailTemplates(): Record<string, { html: string; text: string }> {
     return {
+      "share-purchase-request": {
+        html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #007bff;">New Share Purchase Request</h2>
+      <p>You have received a new share purchase request for your project.</p>
+      
+      <div style="background-color: #d1ecf1; padding: 20px; border-radius: 5px; margin: 20px 0;">
+        <h3>Request Details:</h3>
+        <ul style="list-style: none; padding: 0;">
+          <li><strong>Project:</strong> {{projectName}}</li>
+          <li><strong>Investor:</strong> {{investorId}}</li>
+          <li><strong>Shares Requested:</strong> {{sharesRequested}}</li>
+          <li><strong>Total Amount:</strong> {{totalAmount}} HBAR</li>
+          <li><strong>Transaction ID:</strong> {{transactionId}}</li>
+          <li><strong>Schedule ID:</strong> {{scheduleID}}</li>
+          <li><strong>Expires At:</strong> {{expiresAt}}</li>
+        </ul>
+      </div>
+      
+      <p><strong>Action Required:</strong> You have 30 minutes to approve or reject this request.</p>
+      <p><a href="{{approvalUrl}}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Review Request</a></p>
+    </div>
+  `,
+        text: `
+New Share Purchase Request
+
+You have received a new share purchase request for your project.
+
+Request Details:
+- Project: {{projectName}}
+- Investor: {{investorId}}
+- Shares Requested: {{sharesRequested}}
+- Total Amount: {{totalAmount}} HBAR
+- Transaction ID: {{transactionId}}
+- Schedule ID: {{scheduleID}}
+- Expires At: {{expiresAt}}
+
+Action Required: You have 30 minutes to approve or reject this request.
+
+Review at: {{approvalUrl}}
+
+---
+Sachain Team
+  `.trim(),
+      },
       "recharge-success": {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
