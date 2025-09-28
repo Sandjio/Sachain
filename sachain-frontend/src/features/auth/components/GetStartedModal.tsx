@@ -1,8 +1,5 @@
-// import { useState } from "react";
 // import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-// import { Button } from "@/components/ui/button";
 // import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-// import { useTranslate } from "@/hooks/useTranslate";
 // import LoginForm from "./LoginForm";
 // import SignupFormWizard from "@/features/auth/components/signup/SignupFormWizard";
 

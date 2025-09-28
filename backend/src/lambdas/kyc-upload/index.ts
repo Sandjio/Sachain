@@ -46,9 +46,21 @@ const retry = new ExponentialBackoff({
   jitterType: "full",
 });
 
+// Helper function to get allowed origin
+const getAllowedOrigin = (event: APIGatewayProxyEvent): string => {
+  const origin = event.headers.origin ?? event.headers.Origin ?? "";
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "https://frontend-sachain-5bda0gd76-joanchacha01gmailcoms-projects.vercel.app",
+  ];
+  return allowedOrigins.includes(origin) ? origin : "http://localhost:5173";
+};
+
 export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("KYC Upload Lambda triggered", {
     operation: "LambdaInvocation",
@@ -57,6 +69,22 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     httpMethod: event.httpMethod,
     userAgent: event.headers["User-Agent"],
   });
+
+  // Handle CORS preflight requests
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
+        "Access-Control-Max-Age": "86400",
+      },
+      body: "",
+    };
+  }
 
   try {
     const path = event.path;
@@ -76,7 +104,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         statusCode: 404,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({ message: "Endpoint not found" }),
       };
@@ -128,7 +160,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: errorDetails.userMessage,
@@ -141,6 +177,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
   const startTime = Date.now();
   const requestId = event.requestContext.requestId;
+  const allowedOrigin = getAllowedOrigin(event);
 
   logger.info("Direct upload started", {
     operation: "DirectUpload",
@@ -176,7 +213,11 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         statusCode: 401,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({
           message: "Authentication failed",
@@ -228,7 +269,11 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         statusCode: 400,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({
           message: validation.errors.join("; "),
@@ -278,7 +323,11 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
         statusCode: 500,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
         },
         body: JSON.stringify({
           message: uploadResult.error || "File upload failed",
@@ -422,7 +471,11 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify(response),
     };
@@ -462,7 +515,11 @@ async function handleDirectUpload(event: APIGatewayProxyEvent): Promise<any> {
       statusCode: errorDetails.httpStatusCode || 500,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token",
       },
       body: JSON.stringify({
         message: errorDetails.userMessage,

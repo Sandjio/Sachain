@@ -28,7 +28,6 @@ interface SignupStep1Props {
 }
 
 export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
-  const translate = useTranslate("getStartedModal");
   const { register, handleSubmit, formState: { errors } } = useForm<SignupStep1Data>({
     resolver: zodResolver(signupStep1Schema),
   });

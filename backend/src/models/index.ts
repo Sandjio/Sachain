@@ -4,6 +4,9 @@
 // Export compliance models
 export * from "./compliance";
 
+// Export project models
+export * from "./project";
+
 export interface UserProfile {
   PK: string; // USER#${userId}
   SK: string; // PROFILE
@@ -11,8 +14,9 @@ export interface UserProfile {
   email: string;
   firstName?: string;
   lastName?: string;
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
   kycStatus: "not_started" | "pending" | "approved" | "rejected";
+  walletAddress?: string;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
@@ -66,7 +70,7 @@ export interface CreateUserProfileInput {
   email: string;
   firstName?: string;
   lastName?: string;
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
   emailVerified: boolean;
 }
 
@@ -110,6 +114,7 @@ export interface UpdateUserProfileInput {
   lastName?: string;
   kycStatus?: "not_started" | "pending" | "approved" | "rejected";
   lastLoginAt?: string;
+  walletAddress?: string;
 }
 
 export interface UpdateKYCDocumentInput {
@@ -118,4 +123,49 @@ export interface UpdateKYCDocumentInput {
   status?: "pending" | "approved" | "rejected";
   reviewedBy?: string;
   reviewComments?: string;
+}
+
+export interface PaymentInitiation {
+  PK: string; // USER#${userId}
+  SK: string; // PAYMENT#${orderId}
+  orderId: string;
+  userId: string;
+  customerNumber: string;
+  amount: number;
+  description: string;
+  status: "initiated" | "pending" | "completed" | "failed";
+  orangeMoneyTransactionId?: string;
+  payToken?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+
+  // GSI1 for status queries
+  GSI1PK: string; // PAYMENT_STATUS#${status}
+  GSI1SK: string; // ${createdAt}
+}
+
+export interface HBARTransaction {
+  PK: string; // USER#${userId}
+  SK: string; // HBAR_TXN#${transactionId}
+  transactionId: string;
+  userId: string;
+  paymentOrderId: string;
+  fromAccountId: string;
+  toAccountId: string;
+  hbarAmount: number;
+  xafAmount: number;
+  exchangeRate: number;
+  hederaTransactionId?: string;
+  hederaTransactionHash?: string;
+  status: "pending" | "completed" | "failed";
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+
+  // GSI1 for status queries
+  GSI1PK: string; // HBAR_TXN_STATUS#${status}
+  GSI1SK: string; // ${createdAt}
 }

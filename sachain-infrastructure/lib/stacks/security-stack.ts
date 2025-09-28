@@ -2,25 +2,22 @@ import * as cdk from "aws-cdk-lib";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import * as kms from "aws-cdk-lib/aws-kms";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
+
+import { EnvironmentType } from "../types";
 import { SecurityConstruct } from "../constructs";
-import { SecurityStackOutputs, StackDependencies } from "../interfaces";
-import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
 export interface SecurityStackProps extends cdk.StackProps {
-  environment: string;
-  // Core resources from CoreStack (now includes auth resources)
-  table: dynamodb.Table;
-  documentBucket: s3.Bucket;
-  encryptionKey: kms.Key;
+  environment: EnvironmentType;
+  table: dynamodb.ITable;
+  sachainBucket: s3.Bucket;
   userPool: cognito.UserPool;
   // Note: Event resources (notificationTopic, eventBus) are created in LambdaStack
   // EventBridge permissions will be added directly in LambdaStack to avoid circular dependencies
 }
 
-export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
+export class SecurityStack extends cdk.Stack {
   public readonly securityConstruct: SecurityConstruct;
 
   // SecurityStackOutputs interface implementation
@@ -28,38 +25,22 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
   public readonly adminReviewRole: iam.Role;
   public readonly userNotificationRole: iam.Role;
   public readonly kycProcessingRole: iam.Role;
+  public readonly projectCreationRole: iam.Role;
+  public readonly stockMintingRole: iam.Role;
+  public readonly stockMintingStatusRole: iam.Role;
   public readonly complianceRole?: iam.Role;
   public readonly kycUploadRoleArn: string;
   public readonly adminReviewRoleArn: string;
   public readonly userNotificationRoleArn: string;
   public readonly kycProcessingRoleArn: string;
+  public readonly projectCreationRoleArn: string;
+  public readonly stockMintingRoleArn: string;
+  public readonly stockMintingStatusRoleArn: string;
   public readonly complianceRoleArn?: string;
+  public readonly omPaymentsRole: iam.Role;
 
   constructor(scope: Construct, id: string, props: SecurityStackProps) {
     super(scope, id, props);
-
-    // Validate dependencies - now all resources come from CoreStack (consolidated)
-    const dependencies: StackDependencies["security"] = {
-      coreOutputs: {
-        table: props.table,
-        documentBucket: props.documentBucket,
-        encryptionKey: props.encryptionKey,
-        userPool: props.userPool,
-      },
-    };
-
-    CrossStackValidator.validateCoreStackOutputs(dependencies.coreOutputs, id, [
-      "table",
-      "documentBucket",
-      "encryptionKey",
-      "userPool",
-    ]);
-
-    // Record cross-stack references for tracking - all from CoreStack now
-    ResourceReferenceTracker.recordReference(id, "CoreStack", "table");
-    ResourceReferenceTracker.recordReference(id, "CoreStack", "documentBucket");
-    ResourceReferenceTracker.recordReference(id, "CoreStack", "encryptionKey");
-    ResourceReferenceTracker.recordReference(id, "CoreStack", "userPool");
 
     // Add environment tags
     cdk.Tags.of(this).add("Environment", props.environment);
@@ -71,9 +52,7 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
     this.securityConstruct = new SecurityConstruct(this, "Security", {
       environment: props.environment,
       table: props.table,
-      documentBucket: props.documentBucket,
-      encryptionKey: props.encryptionKey,
-      // EventBridge permissions will be added in LambdaStack to avoid circular dependencies
+      sachainBucket: props.sachainBucket,
     });
 
     // Expose roles for cross-stack references
@@ -81,12 +60,19 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
     this.adminReviewRole = this.securityConstruct.adminReviewRole;
     this.userNotificationRole = this.securityConstruct.userNotificationRole;
     this.kycProcessingRole = this.securityConstruct.kycProcessingRole;
+    this.projectCreationRole = this.securityConstruct.projectCreationRole;
+    this.stockMintingRole = this.securityConstruct.stockMintingRole;
+    this.stockMintingStatusRole = this.securityConstruct.stockMintingStatusRole;
+    this.omPaymentsRole = this.securityConstruct.omPaymentsRole;
 
     // Set role ARNs for interface compliance
     this.kycUploadRoleArn = this.kycUploadRole.roleArn;
     this.adminReviewRoleArn = this.adminReviewRole.roleArn;
     this.userNotificationRoleArn = this.userNotificationRole.roleArn;
     this.kycProcessingRoleArn = this.kycProcessingRole.roleArn;
+    this.projectCreationRoleArn = this.projectCreationRole.roleArn;
+    this.stockMintingRoleArn = this.stockMintingRole.roleArn;
+    this.stockMintingStatusRoleArn = this.stockMintingStatusRole.roleArn;
 
     // Create stack outputs for cross-stack references
     this.createStackOutputs(props.environment);
@@ -116,6 +102,24 @@ export class SecurityStack extends cdk.Stack implements SecurityStackOutputs {
       value: this.kycProcessingRole.roleArn,
       description: "KYC Processing Lambda Role ARN",
       exportName: `${environment}-sachain-security-kyc-processing-role-arn`,
+    });
+
+    new cdk.CfnOutput(this, "ProjectCreationRoleArn", {
+      value: this.projectCreationRole.roleArn,
+      description: "Project Creation Lambda Role ARN",
+      exportName: `${environment}-sachain-security-project-creation-role-arn`,
+    });
+
+    new cdk.CfnOutput(this, "StockMintingRoleArn", {
+      value: this.stockMintingRole.roleArn,
+      description: "Stock Minting Lambda Role ARN",
+      exportName: `${environment}-sachain-security-stock-minting-role-arn`,
+    });
+
+    new cdk.CfnOutput(this, "StockMintingStatusRoleArn", {
+      value: this.stockMintingStatusRole.roleArn,
+      description: "Stock Minting Status Lambda Role ARN",
+      exportName: `${environment}-sachain-security-stock-minting-status-role-arn`,
     });
   }
 

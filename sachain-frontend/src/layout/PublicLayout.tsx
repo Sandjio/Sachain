@@ -1,6 +1,6 @@
 // src/layout/PublicLayout.tsx
 import { ReactNode } from "react";
-import Header from "@/components/Header";
+//import Header from "@/components/Header";
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   return (

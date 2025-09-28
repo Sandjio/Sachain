@@ -27,7 +27,7 @@ export interface UserReference {
   createdAt: string;
   updatedAt: string;
   kycStatus: "not_started" | "pending" | "approved" | "rejected";
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
   firstName?: string;
   lastName?: string;
   emailVerified: boolean;

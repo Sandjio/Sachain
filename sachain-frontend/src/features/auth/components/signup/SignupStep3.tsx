@@ -87,7 +87,6 @@
 // }
 
 // export default function SignupStep3({ role, onNext, onBack }: SignupStep3Props) {
-//   const translate = useTranslate("getStartedModal");
 //   const { uploadDocument, loading, error } = useKyc();
 //   const { tokens } = useAuthStore(); // get idToken for authorization
 

@@ -20,7 +20,7 @@ export interface UserProfile {
   email: string;
   firstName?: string;
   lastName?: string;
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
   kycStatus: "not_started" | "pending" | "approved" | "rejected";
   createdAt: string;
   updatedAt: string;

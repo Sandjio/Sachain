@@ -2,28 +2,20 @@ import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
 import { MonitoringConstruct } from "../constructs";
-import { MonitoringStackOutputs, StackDependencies } from "../interfaces";
-import { CrossStackValidator, ResourceReferenceTracker } from "../utils";
 
 export interface MonitoringStackProps extends cdk.StackProps {
   environment: string;
-  // Post-auth lambda from CoreStack (consolidated structure)
-  postAuthLambda: lambda.Function;
-  // Lambda functions from LambdaStack (consolidated structure)
-  kycUploadLambda: lambda.Function;
-  adminReviewLambda: lambda.Function;
-  userNotificationLambda: lambda.Function;
-  kycProcessingLambda: lambda.Function;
-  complianceLambda?: lambda.Function; // Optional as it might not exist yet
+  kycUploadLambda: lambda.IFunction;
+  adminReviewLambda: lambda.IFunction;
+  userNotificationLambda: lambda.IFunction;
+  kycProcessingLambda: lambda.IFunction;
+  complianceLambda?: lambda.IFunction; // Optional as it might not exist yet
   // Optional monitoring configuration
   alertEmail?: string;
   enableDetailedMonitoring?: boolean;
 }
 
-export class MonitoringStack
-  extends cdk.Stack
-  implements MonitoringStackOutputs
-{
+export class MonitoringStack extends cdk.Stack {
   public readonly monitoringConstruct: MonitoringConstruct;
 
   // MonitoringStackOutputs interface implementation
@@ -39,61 +31,14 @@ export class MonitoringStack
   constructor(scope: Construct, id: string, props: MonitoringStackProps) {
     super(scope, id, props);
 
-    // Validate dependencies for consolidated stack structure
-    const dependencies: StackDependencies["monitoring"] = {
-      lambdaOutputs: {
-        kycUploadLambda: props.kycUploadLambda,
-        adminReviewLambda: props.adminReviewLambda,
-        userNotificationLambda: props.userNotificationLambda,
-        kycProcessingLambda: props.kycProcessingLambda,
-        complianceLambda: props.complianceLambda,
-      },
-      coreOutputs: {
-        postAuthLambda: props.postAuthLambda,
-      },
-    };
-
-    CrossStackValidator.validateMonitoringStackDependencies(dependencies, id);
-
-    // Record cross-stack references for tracking (consolidated structure)
-    ResourceReferenceTracker.recordReference(id, "CoreStack", "postAuthLambda");
-    ResourceReferenceTracker.recordReference(
-      id,
-      "LambdaStack",
-      "kycUploadLambda"
-    );
-    ResourceReferenceTracker.recordReference(
-      id,
-      "LambdaStack",
-      "adminReviewLambda"
-    );
-    ResourceReferenceTracker.recordReference(
-      id,
-      "LambdaStack",
-      "userNotificationLambda"
-    );
-    ResourceReferenceTracker.recordReference(
-      id,
-      "LambdaStack",
-      "kycProcessingLambda"
-    );
-    if (props.complianceLambda) {
-      ResourceReferenceTracker.recordReference(
-        id,
-        "LambdaStack",
-        "complianceLambda"
-      );
-    }
-
     // Add environment tags
     cdk.Tags.of(this).add("Environment", props.environment);
     cdk.Tags.of(this).add("Project", "Sachain");
     cdk.Tags.of(this).add("Component", "Monitoring");
 
     // Collect all Lambda functions for monitoring (consolidated structure)
-    const lambdaFunctions = [
-      props.postAuthLambda, // From CoreStack (consolidated auth resources)
-      props.kycUploadLambda, // From LambdaStack (consolidated event resources)
+    const lambdaFunctions: lambda.IFunction[] = [
+      props.kycUploadLambda,
       props.adminReviewLambda,
       props.userNotificationLambda,
       props.kycProcessingLambda,

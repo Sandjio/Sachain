@@ -1,62 +1,32 @@
+/**
+ * S3 Construct for Sachain
+ * - S3 bucket for encrypted document storage with comprehensive security
+ * - Lifecycle policies for cost optimization
+ * - CORS configuration for web uploads
+ * - Bucket policies to enforce security best practices
+ * - Permissions for Lambda functions to access the buckets
+ */
+
 import * as cdk from "aws-cdk-lib";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import * as kms from "aws-cdk-lib/aws-kms";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
+import { EnvironmentType } from "../types";
 
 export interface S3ConstructProps {
-  environment: string;
-  lambdaExecutionRoleArns?: string[];
+  environment: EnvironmentType;
 }
 
 export class S3Construct extends Construct {
-  public readonly documentBucket: s3.Bucket;
-  public readonly encryptionKey: kms.Key;
+  public readonly sachainBucket: s3.Bucket;
 
   constructor(scope: Construct, id: string, props: S3ConstructProps) {
     super(scope, id);
 
-    // KMS key for S3 encryption with proper key policy
-    this.encryptionKey = new kms.Key(this, "DocumentEncryptionKey", {
-      description: `KYC document encryption key for ${props.environment}`,
-      enableKeyRotation: true,
-      removalPolicy:
-        props.environment === "prod"
-          ? cdk.RemovalPolicy.RETAIN
-          : cdk.RemovalPolicy.DESTROY,
-      keySpec: kms.KeySpec.SYMMETRIC_DEFAULT,
-      keyUsage: kms.KeyUsage.ENCRYPT_DECRYPT,
-    });
-
-    // Add key policy to allow Lambda functions to use the key
-    this.encryptionKey.addToResourcePolicy(
-      new iam.PolicyStatement({
-        sid: "AllowLambdaAccess",
-        effect: iam.Effect.ALLOW,
-        principals: [new iam.ServicePrincipal("lambda.amazonaws.com")],
-        actions: [
-          "kms:Decrypt",
-          "kms:DescribeKey",
-          "kms:Encrypt",
-          "kms:GenerateDataKey",
-          "kms:ReEncrypt*",
-        ],
-        resources: ["*"],
-        conditions: {
-          StringEquals: {
-            "kms:ViaService": `s3.${cdk.Aws.REGION}.amazonaws.com`,
-          },
-        },
-      })
-    );
-
     // S3 bucket for encrypted document storage with comprehensive security
-    this.documentBucket = new s3.Bucket(this, "DocumentBucket", {
-      bucketName: `sachain-kyc-documents-${props.environment}-${cdk.Aws.ACCOUNT_ID}`,
-      encryption: s3.BucketEncryption.KMS,
-      encryptionKey: this.encryptionKey,
+    this.sachainBucket = new s3.Bucket(this, "SachainBucket", {
+      encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      versioned: true,
       removalPolicy:
         props.environment === "prod"
           ? cdk.RemovalPolicy.RETAIN
@@ -67,7 +37,7 @@ export class S3Construct extends Construct {
       // Lifecycle configuration for cost optimization
       lifecycleRules: [
         {
-          id: "KYCDocumentLifecycle",
+          id: "SachainBucketLifecycle",
           enabled: true,
           // Move to IA after 30 days
           transitions: [
@@ -103,7 +73,8 @@ export class S3Construct extends Construct {
             s3.HttpMethods.PUT,
             s3.HttpMethods.POST,
           ],
-          allowedOrigins: ["*"], // Should be restricted to actual domain in production
+          allowedOrigins:
+            props.environment === "prod" ? ["https://yourdomain.com"] : ["*"],
           allowedHeaders: ["*"],
           maxAge: 3000,
         },
@@ -121,23 +92,20 @@ export class S3Construct extends Construct {
     this.addBucketPolicy();
 
     // Add tags for compliance and cost tracking
-    cdk.Tags.of(this.documentBucket).add("DataClassification", "Sensitive");
-    cdk.Tags.of(this.documentBucket).add("Purpose", "KYC-Documents");
-    cdk.Tags.of(this.documentBucket).add("Compliance", "KYC-AML");
-    cdk.Tags.of(this.encryptionKey).add("Purpose", "KYC-Encryption");
+    cdk.Tags.of(this.sachainBucket).add("Purpose", "Sachain-Bucket");
   }
 
   private addBucketPolicy(): void {
     // Deny insecure connections
-    this.documentBucket.addToResourcePolicy(
+    this.sachainBucket.addToResourcePolicy(
       new iam.PolicyStatement({
         sid: "DenyInsecureConnections",
         effect: iam.Effect.DENY,
         principals: [new iam.AnyPrincipal()],
         actions: ["s3:*"],
         resources: [
-          this.documentBucket.bucketArn,
-          this.documentBucket.arnForObjects("*"),
+          this.sachainBucket.bucketArn,
+          this.sachainBucket.arnForObjects("*"),
         ],
         conditions: {
           Bool: {
@@ -149,13 +117,14 @@ export class S3Construct extends Construct {
   }
 
   /**
-   * Grant Lambda function permissions to access the bucket
+   * Grant Lambda function permissions to access the buckets
    */
-  public grantLambdaAccess(lambdaRole: iam.IRole): void {
-    // Grant S3 permissions
-    this.documentBucket.grantReadWrite(lambdaRole);
-
-    // Grant KMS permissions
-    this.encryptionKey.grantEncryptDecrypt(lambdaRole);
+  public grantLambdaAccess(
+    lambdaRole: iam.IRole,
+    access: "read" | "write" | "readwrite" = "readwrite"
+  ) {
+    if (access === "read") this.sachainBucket.grantRead(lambdaRole);
+    else if (access === "write") this.sachainBucket.grantWrite(lambdaRole);
+    else this.sachainBucket.grantReadWrite(lambdaRole);
   }
 }

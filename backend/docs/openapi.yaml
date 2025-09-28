@@ -374,6 +374,1375 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  # Project Creation Endpoints
+  /projects:
+    post:
+      tags:
+        - Project Creation
+      summary: Create new project
+      description: |
+        Create a new project for tokenized fundraising. The entrepreneur must have completed KYC verification.
+        This endpoint validates project data, checks for duplicate names, and creates the project in draft status.
+      operationId: createProject
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+            examples:
+              basic_project:
+                summary: Basic project creation
+                value:
+                  name: "EcoTech Solutions"
+                  description: "Revolutionary solar panel technology that increases efficiency by 40% while reducing manufacturing costs. Our patented nano-coating process enables better light absorption and weather resistance."
+                  category: "CleanTech"
+                  stockSupply: 10000
+                  targetFundingGoal: 500000
+                  pricePerStock: 50
+              minimal_project:
+                summary: Minimal required fields
+                value:
+                  name: "AI Healthcare Platform"
+                  description: "AI-powered diagnostic platform that helps doctors identify diseases faster and more accurately using machine learning algorithms trained on millions of medical images."
+                  category: "Healthcare"
+                  stockSupply: 5000
+      responses:
+        "201":
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateProjectResponse"
+              examples:
+                success:
+                  summary: Successful project creation
+                  value:
+                    projectId: "proj-789"
+                    message: "Project created successfully"
+                    project:
+                      id: "proj-789"
+                      name: "EcoTech Solutions"
+                      description: "Revolutionary solar panel technology..."
+                      category: "CleanTech"
+                      stockSupply: 10000
+                      targetFundingGoal: 500000
+                      pricePerStock: 50
+                      status: "draft"
+                      createdAt: "2024-01-15T14:30:00Z"
+        "400":
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                validation_error:
+                  summary: Validation error
+                  value:
+                    message: "Project validation failed"
+                    code: "INVALID_PROJECT_DATA"
+                    details:
+                      errors:
+                        - "Project name must be between 3-100 characters"
+                        - "Stock supply must be between 1 and 1,000,000"
+                    requestId: "req-123"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - KYC not verified or duplicate project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                kyc_not_verified:
+                  summary: KYC verification required
+                  value:
+                    message: "KYC verification must be completed before creating projects"
+                    code: "KYC_NOT_VERIFIED"
+                    details:
+                      kycStatus: "pending"
+                      requiredStatus: "approved"
+                    requestId: "req-456"
+                duplicate_name:
+                  summary: Duplicate project name
+                  value:
+                    message: "A project with this name already exists for your account"
+                    code: "PROJECT_NAME_EXISTS"
+                    details:
+                      existingProjectId: "proj-123"
+                      existingProjectName: "EcoTech Solutions"
+                      attemptedName: "EcoTech Solutions"
+                    requestId: "req-789"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    get:
+      tags:
+        - Project Query
+      summary: Get projects for entrepreneur
+      description: |
+        Retrieve projects for the authenticated user. Entrepreneurs can see their own projects,
+        while investors can only see active projects. Supports filtering, sorting, and pagination.
+
+        Query parameters allow for:
+        - Status filtering (draft, minting, active, paused, completed)
+        - Pagination with limit and cursor-based navigation
+        - Sorting by creation date, name, or status
+        - Optional statistics inclusion for performance optimization
+        - Category filtering for project discovery
+      operationId: getProjects
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter projects by status
+          required: false
+          schema:
+            type: string
+            enum: [draft, minting, active, paused, completed]
+          examples:
+            active:
+              summary: Active projects only
+              value: active
+            draft:
+              summary: Draft projects only
+              value: draft
+        - name: limit
+          in: query
+          description: Maximum number of projects to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          examples:
+            default:
+              summary: Default limit
+              value: 20
+            small:
+              summary: Small batch
+              value: 10
+        - name: sortBy
+          in: query
+          description: Field to sort projects by
+          required: false
+          schema:
+            type: string
+            enum: [createdAt, name, status]
+            default: createdAt
+          examples:
+            creation_date:
+              summary: Sort by creation date
+              value: createdAt
+            name:
+              summary: Sort by project name
+              value: name
+        - name: sortOrder
+          in: query
+          description: Sort order (ascending or descending)
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          examples:
+            newest_first:
+              summary: Newest projects first
+              value: desc
+            oldest_first:
+              summary: Oldest projects first
+              value: asc
+        - name: exclusiveStartKey
+          in: query
+          description: Pagination cursor for next page (URL-encoded JSON)
+          required: false
+          schema:
+            type: string
+          example: "%7B%22PK%22%3A%22PROJECT%23proj-123%22%7D"
+        - name: includeStats
+          in: query
+          description: Include project statistics in response
+          required: false
+          schema:
+            type: boolean
+            default: false
+          examples:
+            with_stats:
+              summary: Include statistics
+              value: true
+            without_stats:
+              summary: Exclude statistics
+              value: false
+        - name: entrepreneurId
+          in: query
+          description: Filter by entrepreneur ID (admin use only)
+          required: false
+          schema:
+            type: string
+          example: "user-123"
+        - name: category
+          in: query
+          description: Filter projects by category
+          required: false
+          schema:
+            type: string
+            enum:
+              [
+                Technology,
+                Healthcare,
+                FinTech,
+                CleanTech,
+                Education,
+                E-commerce,
+                Manufacturing,
+                Agriculture,
+                Real Estate,
+                Entertainment,
+                Food & Beverage,
+                Transportation,
+                Other,
+              ]
+          examples:
+            cleantech:
+              summary: CleanTech projects
+              value: CleanTech
+            healthcare:
+              summary: Healthcare projects
+              value: Healthcare
+      responses:
+        "200":
+          description: Projects retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "public, max-age=300, stale-while-revalidate=600"
+            ETag:
+              description: Entity tag for conditional requests
+              schema:
+                type: string
+                example: '"abc123def456"'
+            X-Query-Type:
+              description: Type of database query used (gsi, scan, query)
+              schema:
+                type: string
+                example: "gsi"
+            X-Index-Used:
+              description: Database index used for the query
+              schema:
+                type: string
+                example: "GSI3"
+            X-Cache-Hit:
+              description: Whether the response was served from cache
+              schema:
+                type: string
+                example: "false"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectsResponse"
+              examples:
+                entrepreneur_projects:
+                  summary: Entrepreneur's projects
+                  value:
+                    projects:
+                      - projectId: "proj-123"
+                        name: "EcoTech Solutions"
+                        description: "Revolutionary solar panel technology..."
+                        category: "CleanTech"
+                        status: "active"
+                        stockSupply: 10000
+                        targetFundingGoal: 500000
+                        pricePerStock: 50
+                        entrepreneurId: "user-123"
+                        createdAt: "2024-01-15T14:30:00Z"
+                        updatedAt: "2024-01-15T14:30:00Z"
+                        stats:
+                          totalStocks: 10000
+                          mintedStocks: 10000
+                          availableStocks: 8500
+                          soldStocks: 1500
+                          totalRaised: 75000
+                    pagination:
+                      limit: 20
+                      count: 1
+                      hasMore: false
+                    aggregations:
+                      totalProjects: 3
+                      projectsByStatus:
+                        active: 1
+                        draft: 2
+                      projectsByCategory:
+                        CleanTech: 1
+                        Healthcare: 2
+                investor_projects:
+                  summary: Investor view (active projects only)
+                  value:
+                    projects:
+                      - projectId: "proj-123"
+                        name: "EcoTech Solutions"
+                        description: "Revolutionary solar panel technology..."
+                        category: "CleanTech"
+                        status: "active"
+                        stockSupply: 10000
+                        pricePerStock: 50
+                        entrepreneurId: "user-456"
+                        createdAt: "2024-01-15T14:30:00Z"
+                        updatedAt: "2024-01-15T14:30:00Z"
+                    pagination:
+                      limit: 20
+                      count: 1
+                      hasMore: false
+                    aggregations:
+                      totalProjects: 15
+                      projectsByCategory:
+                        CleanTech: 5
+                        Healthcare: 4
+                        Technology: 6
+        "400":
+          description: Bad request - invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                invalid_parameters:
+                  summary: Invalid query parameters
+                  value:
+                    message: "Invalid query parameters"
+                    code: "INVALID_QUERY_PARAMETERS"
+                    details:
+                      errors:
+                        - "Limit must be a number between 1 and 100"
+                        - "Invalid status. Must be one of: draft, minting, active, paused, completed"
+                    requestId: "req-400"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects/{projectId}:
+    get:
+      tags:
+        - Project Query
+      summary: Get project details
+      description: |
+        Retrieve detailed information about a specific project. Access control applies:
+        - Entrepreneurs can access their own projects regardless of status
+        - Investors and other users can only access active projects
+
+        The response includes comprehensive project information and optional statistics.
+      operationId: getProject
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      responses:
+        "200":
+          description: Project details retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "public, max-age=300, stale-while-revalidate=600"
+            ETag:
+              description: Entity tag for conditional requests
+              schema:
+                type: string
+                example: '"xyz789abc123"'
+            Last-Modified:
+              description: Last modification date of the project
+              schema:
+                type: string
+                example: "Mon, 15 Jan 2024 14:30:00 GMT"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectResponse"
+              examples:
+                detailed_project:
+                  summary: Complete project details
+                  value:
+                    project:
+                      projectId: "proj-789"
+                      name: "EcoTech Solutions"
+                      description: "Revolutionary solar panel technology that increases efficiency by 40% while reducing manufacturing costs. Our patented nano-coating process enables better light absorption and weather resistance, making solar energy more accessible and cost-effective for residential and commercial applications."
+                      category: "CleanTech"
+                      status: "active"
+                      stockSupply: 10000
+                      targetFundingGoal: 500000
+                      pricePerStock: 50
+                      coverImageUrl: "https://s3.amazonaws.com/sachain-images/proj-789/cover.jpg"
+                      entrepreneurId: "user-123"
+                      createdAt: "2024-01-15T14:30:00Z"
+                      updatedAt: "2024-01-16T09:15:00Z"
+                      stats:
+                        totalStocks: 10000
+                        mintedStocks: 10000
+                        availableStocks: 8500
+                        soldStocks: 1500
+                        totalRaised: 75000
+                        lastUpdated: "2024-01-16T09:15:00Z"
+                      recentActivity:
+                        lastUpdatedAt: "2024-01-16T09:15:00Z"
+                draft_project:
+                  summary: Draft project (entrepreneur view)
+                  value:
+                    project:
+                      projectId: "proj-456"
+                      name: "AI Healthcare Platform"
+                      description: "AI-powered diagnostic platform that helps doctors identify diseases faster and more accurately using machine learning algorithms trained on millions of medical images."
+                      category: "Healthcare"
+                      status: "draft"
+                      stockSupply: 5000
+                      targetFundingGoal: 250000
+                      pricePerStock: 50
+                      entrepreneurId: "user-123"
+                      createdAt: "2024-01-16T10:00:00Z"
+                      updatedAt: "2024-01-16T10:00:00Z"
+                      recentActivity:
+                        lastUpdatedAt: "2024-01-16T10:00:00Z"
+        "400":
+          description: Bad request - invalid project ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                invalid_project_id:
+                  summary: Invalid project ID format
+                  value:
+                    message: "Invalid project ID format"
+                    code: "INVALID_PROJECT_ID"
+                    details:
+                      projectId: "invalid-id"
+                      expectedFormat: "proj-[alphanumeric]"
+                    requestId: "req-400"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - unauthorized access to project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Cannot access draft project of another entrepreneur
+                  value:
+                    message: "Unauthorized access to project"
+                    code: "UNAUTHORIZED_ACCESS"
+                    details:
+                      projectId: "proj-789"
+                      projectStatus: "draft"
+                      accessLevel: "investor"
+                    requestId: "req-403"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectErrorResponse"
+              examples:
+                project_not_found:
+                  summary: Project does not exist
+                  value:
+                    message: "Project not found"
+                    code: "PROJECT_NOT_FOUND"
+                    details:
+                      projectId: "proj-nonexistent"
+                    requestId: "req-404"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Project Management
+      summary: Update project details
+      description: |
+        Update project details for draft projects only. Entrepreneurs can only update their own projects.
+        Once a project is minted or active, it cannot be updated through this endpoint.
+      operationId: updateProject
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectRequest"
+            examples:
+              partial_update:
+                summary: Update only specific fields
+                value:
+                  name: "EcoTech Solutions v2"
+                  description: "Updated revolutionary solar panel technology with 50% efficiency improvement"
+                  pricePerStock: 55
+      responses:
+        "200":
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateProjectResponse"
+              examples:
+                success:
+                  summary: Successful update
+                  value:
+                    projectId: "proj-789"
+                    message: "Project updated successfully"
+                    changes: ["name", "description", "pricePerStock"]
+        "400":
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - not project owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "422":
+          description: Unprocessable entity - invalid project status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+              examples:
+                invalid_status:
+                  summary: Cannot update non-draft project
+                  value:
+                    message: "Only draft projects can be updated"
+                    code: "INVALID_PROJECT_STATUS"
+                    details:
+                      projectId: "proj-789"
+                      currentStatus: "active"
+                      allowedStatus: "draft"
+                    requestId: "req-422"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Project Management
+      summary: Delete project
+      description: |
+        Delete a project and all associated data. Only draft projects can be deleted.
+        This operation performs cascade deletion of project statistics and transaction records.
+      operationId: deleteProject
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      responses:
+        "200":
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteProjectResponse"
+              examples:
+                success:
+                  summary: Successful deletion
+                  value:
+                    projectId: "proj-789"
+                    message: "Project deleted successfully"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - not project owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "422":
+          description: Unprocessable entity - invalid project status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+              examples:
+                invalid_status:
+                  summary: Cannot delete non-draft project
+                  value:
+                    message: "Only draft projects can be deleted"
+                    code: "INVALID_PROJECT_STATUS"
+                    details:
+                      projectId: "proj-789"
+                      currentStatus: "active"
+                      allowedStatus: "draft"
+                    requestId: "req-422"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects/{projectId}/status:
+    put:
+      tags:
+        - Project Management
+      summary: Update project status
+      description: |
+        Update the status of a project. Valid transitions depend on the current status:
+        - draft → minting, paused
+        - minting → active, paused, draft
+        - active → paused, completed
+        - paused → draft, minting, active
+        - completed → (no transitions allowed)
+      operationId: updateProjectStatus
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectStatusTransitionRequest"
+            examples:
+              pause_project:
+                summary: Pause an active project
+                value:
+                  newStatus: "paused"
+                  reason: "Temporary pause for maintenance"
+      responses:
+        "200":
+          description: Project status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectStatusTransitionResponse"
+              examples:
+                success:
+                  summary: Successful status transition
+                  value:
+                    projectId: "proj-789"
+                    message: "Project status updated successfully"
+                    previousStatus: "active"
+                    newStatus: "paused"
+        "400":
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - not project owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+        "422":
+          description: Unprocessable entity - invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectManagementErrorResponse"
+              examples:
+                invalid_transition:
+                  summary: Invalid status transition
+                  value:
+                    message: "Invalid status transition from 'completed' to 'active'"
+                    code: "INVALID_STATUS_TRANSITION"
+                    details:
+                      projectId: "proj-789"
+                      currentStatus: "completed"
+                      requestedStatus: "active"
+                      allowedTransitions: []
+                    requestId: "req-422"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects/{projectId}/mint-stocks:
+    post:
+      tags:
+        - Stock Minting
+      summary: Mint stock NFTs for project
+      description: |
+        Initiate the minting of stock NFTs for a project using Hedera Token Service.
+        This is an asynchronous operation that creates a token and mints individual NFTs
+        for each stock. The operation includes progress tracking and comprehensive error handling.
+
+        Prerequisites:
+        - Project must be in 'draft' status
+        - Entrepreneur must own the project
+        - Wallet must have sufficient balance for gas fees
+
+        The minting process:
+        1. Validates project and wallet
+        2. Creates HTS token for the project
+        3. Mints NFTs in batches (50 per batch)
+        4. Stores metadata on IPFS
+        5. Updates project status to 'active'
+      operationId: mintStocks
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MintStocksRequest"
+            examples:
+              basic_minting:
+                summary: Basic stock minting request
+                value:
+                  walletAddress: "0.0.123456"
+              testnet_wallet:
+                summary: Testnet wallet example
+                value:
+                  walletAddress: "0.0.987654"
+      responses:
+        "200":
+          description: Stock minting completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MintStocksResponse"
+              examples:
+                successful_minting:
+                  summary: Successful minting completion
+                  value:
+                    message: "Stock minting completed successfully"
+                    tokenId: "0.0.123456"
+                    totalMinted: 10000
+                    mintingBatches: 200
+                    transactionIds:
+                      [
+                        "0.0.123456@1234567890.123456789",
+                        "0.0.123456@1234567891.123456789",
+                      ]
+                    progress:
+                      completed: 10000
+                      total: 10000
+                      percentage: 100
+                      status: "completed"
+        "400":
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                invalid_wallet:
+                  summary: Invalid wallet address
+                  value:
+                    message: "Invalid wallet address"
+                    code: "INVALID_WALLET_ADDRESS"
+                    details:
+                      walletAddress: "invalid-address"
+                    requestId: "req-123"
+                missing_project_id:
+                  summary: Missing project ID
+                  value:
+                    message: "Project ID is required"
+                    code: "INVALID_REQUEST"
+                    requestId: "req-456"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: Payment required - insufficient wallet balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                insufficient_balance:
+                  summary: Insufficient wallet balance
+                  value:
+                    message: "Insufficient wallet balance for minting operation"
+                    code: "INSUFFICIENT_BALANCE"
+                    details:
+                      walletAddress: "0.0.123456"
+                      currentBalance: "50.0"
+                      requiredAmount: "100.0"
+                      estimatedGasFee: "100.0"
+                    requestId: "req-789"
+        "403":
+          description: Forbidden - unauthorized access or KYC issues
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Not project owner
+                  value:
+                    message: "You are not authorized to mint stocks for this project"
+                    code: "UNAUTHORIZED_ACCESS"
+                    details:
+                      projectId: "proj-789"
+                      entrepreneurId: "user-123"
+                      projectOwner: "user-456"
+                    requestId: "req-101"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                project_not_found:
+                  summary: Project does not exist
+                  value:
+                    message: "Project not found"
+                    code: "PROJECT_NOT_FOUND"
+                    details:
+                      projectId: "proj-nonexistent"
+                    requestId: "req-404"
+        "422":
+          description: Unprocessable entity - business logic errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                invalid_project_status:
+                  summary: Project not in draft status
+                  value:
+                    message: "Cannot mint stocks for project in active status"
+                    code: "INVALID_PROJECT_STATUS"
+                    details:
+                      projectId: "proj-789"
+                      currentStatus: "active"
+                      requiredStatus: "draft"
+                    requestId: "req-422"
+                invalid_stock_supply:
+                  summary: Invalid stock supply
+                  value:
+                    message: "Project must have a positive stock supply"
+                    code: "INVALID_STOCK_SUPPLY"
+                    details:
+                      projectId: "proj-789"
+                      stockSupply: 0
+                    requestId: "req-422b"
+        "503":
+          description: Service unavailable - external service errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMintingErrorResponse"
+              examples:
+                hedera_service_error:
+                  summary: Hedera network unavailable
+                  value:
+                    message: "Failed to create project token on Hedera network"
+                    code: "TOKEN_CREATION_FAILED"
+                    details:
+                      projectId: "proj-789"
+                      error: "Network timeout"
+                    requestId: "req-503"
+                nft_minting_failed:
+                  summary: NFT minting failure
+                  value:
+                    message: "Failed to mint stock NFTs"
+                    code: "NFT_MINTING_FAILED"
+                    details:
+                      projectId: "proj-789"
+                      tokenId: "0.0.123456"
+                      totalMinted: 5000
+                      completedBatches: 100
+                      error: "Batch minting timeout"
+                    requestId: "req-503b"
+
+  /projects/{projectId}/mint-stocks/status:
+    get:
+      tags:
+        - Stock Minting
+      summary: Get stock minting status
+      description: |
+        Get the current status of stock minting for a project. This endpoint provides
+        real-time progress information for ongoing minting operations and final results
+        for completed operations.
+      operationId: getMintingStatus
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+      responses:
+        "200":
+          description: Minting status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MintingStatusResponse"
+              examples:
+                in_progress:
+                  summary: Minting in progress
+                  value:
+                    projectId: "proj-789"
+                    status: "minting"
+                    progress:
+                      completed: 5000
+                      total: 10000
+                      percentage: 50
+                      status: "in_progress"
+                      currentBatch: 100
+                      totalBatches: 200
+                    tokenId: "0.0.123456"
+                    startedAt: "2024-01-15T14:30:00Z"
+                    estimatedCompletion: "2024-01-15T15:00:00Z"
+                completed:
+                  summary: Minting completed
+                  value:
+                    projectId: "proj-789"
+                    status: "active"
+                    progress:
+                      completed: 10000
+                      total: 10000
+                      percentage: 100
+                      status: "completed"
+                    tokenId: "0.0.123456"
+                    totalMinted: 10000
+                    mintingBatches: 200
+                    transactionIds: ["0.0.123456@1234567890.123456789"]
+                    startedAt: "2024-01-15T14:30:00Z"
+                    completedAt: "2024-01-15T15:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - not project owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found or no minting operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects/{projectId}/stocks:
+    get:
+      tags:
+        - Stock Query
+      summary: Get stocks for project
+      description: |
+        Retrieve stocks for a specific project with filtering and pagination support.
+        Access control applies:
+        - Entrepreneurs can access stocks of their own projects regardless of status
+        - Investors can only access stocks of active projects
+        
+        Supports filtering by stock status and includes optional metadata enrichment.
+      operationId: getProjectStocks
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+        - name: status
+          in: query
+          description: Filter stocks by status
+          required: false
+          schema:
+            type: string
+            enum: [minted, listed, sold, transferred]
+          examples:
+            minted:
+              summary: Minted stocks only
+              value: minted
+            sold:
+              summary: Sold stocks only
+              value: sold
+        - name: limit
+          in: query
+          description: Maximum number of stocks to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 50
+        - name: exclusiveStartKey
+          in: query
+          description: Pagination cursor for next page (URL-encoded JSON)
+          required: false
+          schema:
+            type: string
+          example: "%7B%22PK%22%3A%22PROJECT%23proj-123%22%7D"
+        - name: includeMetadata
+          in: query
+          description: Include project metadata in stock response
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: true
+      responses:
+        "200":
+          description: Project stocks retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "public, max-age=60"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetStocksResponse"
+              examples:
+                project_stocks:
+                  summary: Project stocks with metadata
+                  value:
+                    stocks:
+                      - PK: "PROJECT#proj-789"
+                        SK: "STOCK#1"
+                        projectId: "proj-789"
+                        stockNumber: 1
+                        tokenId: "0.0.123456"
+                        serialNumber: 1
+                        ownerWalletAddress: "0.0.987654"
+                        mintedAt: "2024-01-15T15:00:00Z"
+                        metadataUri: "ipfs://QmHash123"
+                        status: "minted"
+                        GSI4PK: "OWNER#0.0.987654"
+                        GSI4SK: "2024-01-15T15:00:00Z"
+                        project:
+                          name: "EcoTech Solutions"
+                          category: "CleanTech"
+                          status: "active"
+                    pagination:
+                      limit: 20
+                      count: 1
+                      hasMore: false
+        "400":
+          description: Bad request - invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                invalid_parameters:
+                  summary: Invalid query parameters
+                  value:
+                    message: "Invalid query parameters"
+                    code: "INVALID_QUERY_PARAMETERS"
+                    details:
+                      errors:
+                        - "Limit must be a number between 1 and 100"
+                        - "Invalid status. Must be one of: minted, listed, sold, transferred"
+                    requestId: "req-400"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - unauthorized access to project stocks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Cannot access draft project stocks
+                  value:
+                    message: "Can only view stocks of active projects"
+                    code: "UNAUTHORIZED_ACCESS"
+                    details:
+                      projectId: "proj-789"
+                    requestId: "req-403"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                project_not_found:
+                  summary: Project does not exist
+                  value:
+                    message: "Project not found"
+                    code: "PROJECT_NOT_FOUND"
+                    details:
+                      projectId: "proj-nonexistent"
+                    requestId: "req-404"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects/{projectId}/stocks/{stockNumber}:
+    get:
+      tags:
+        - Stock Query
+      summary: Get specific stock details
+      description: |
+        Retrieve detailed information about a specific stock NFT.
+        Access control applies:
+        - Stock owners can always access their stocks
+        - Entrepreneurs can access stocks of their own projects
+        - Investors can access stocks of active projects
+      operationId: getStock
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Unique identifier of the project
+          schema:
+            type: string
+            pattern: "^proj-[a-zA-Z0-9]+$"
+          example: "proj-789"
+        - name: stockNumber
+          in: path
+          required: true
+          description: Stock number within the project
+          schema:
+            type: integer
+            minimum: 1
+          example: 42
+      responses:
+        "200":
+          description: Stock details retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "public, max-age=300"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetStockResponse"
+              examples:
+                stock_details:
+                  summary: Complete stock details
+                  value:
+                    stock:
+                      PK: "PROJECT#proj-789"
+                      SK: "STOCK#42"
+                      projectId: "proj-789"
+                      stockNumber: 42
+                      tokenId: "0.0.123456"
+                      serialNumber: 42
+                      ownerWalletAddress: "0.0.987654"
+                      mintedAt: "2024-01-15T15:00:00Z"
+                      metadataUri: "ipfs://QmHash123"
+                      status: "minted"
+                      GSI4PK: "OWNER#0.0.987654"
+                      GSI4SK: "2024-01-15T15:00:00Z"
+                      project:
+                        name: "EcoTech Solutions"
+                        category: "CleanTech"
+                        status: "active"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - unauthorized access to stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Cannot access stock
+                  value:
+                    message: "Unauthorized access to stock"
+                    code: "UNAUTHORIZED_ACCESS"
+                    details:
+                      projectId: "proj-789"
+                      stockNumber: 42
+                    requestId: "req-403"
+        "404":
+          description: Stock not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                stock_not_found:
+                  summary: Stock does not exist
+                  value:
+                    message: "Stock not found"
+                    code: "STOCK_NOT_FOUND"
+                    details:
+                      projectId: "proj-789"
+                      stockNumber: 42
+                    requestId: "req-404"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /stocks/portfolio:
+    get:
+      tags:
+        - Stock Query
+      summary: Get investor stock portfolio
+      description: |
+        Retrieve stock portfolio for an investor, showing all stocks owned by a specific wallet address.
+        Includes portfolio aggregations and statistics.
+        
+        Only investors and entrepreneurs can access portfolio data.
+      operationId: getStockPortfolio
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: walletAddress
+          in: query
+          required: true
+          description: Hedera wallet address to get portfolio for
+          schema:
+            type: string
+            pattern: '^0\.0\.[0-9]+$'
+          example: "0.0.987654"
+      responses:
+        "200":
+          description: Portfolio retrieved successfully
+          headers:
+            Cache-Control:
+              description: Caching directives for performance optimization
+              schema:
+                type: string
+                example: "private, max-age=60"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPortfolioResponse"
+              examples:
+                investor_portfolio:
+                  summary: Investor portfolio
+                  value:
+                    portfolio:
+                      walletAddress: "0.0.987654"
+                      totalStocks: 150
+                      stocksByProject:
+                        "proj-789": 50
+                        "proj-456": 75
+                        "proj-123": 25
+                      stocksByStatus:
+                        minted: 120
+                        listed: 20
+                        sold: 10
+                      stocks:
+                        - PK: "PROJECT#proj-789"
+                          SK: "STOCK#1"
+                          projectId: "proj-789"
+                          stockNumber: 1
+                          tokenId: "0.0.123456"
+                          serialNumber: 1
+                          ownerWalletAddress: "0.0.987654"
+                          mintedAt: "2024-01-15T15:00:00Z"
+                          metadataUri: "ipfs://QmHash123"
+                          status: "minted"
+                          GSI4PK: "OWNER#0.0.987654"
+                          GSI4SK: "2024-01-15T15:00:00Z"
+        "400":
+          description: Bad request - missing or invalid wallet address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                missing_wallet:
+                  summary: Missing wallet address
+                  value:
+                    message: "Wallet address is required for portfolio query"
+                    code: "INVALID_QUERY_PARAMETERS"
+                    requestId: "req-400"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Forbidden - unauthorized access to portfolio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockQueryErrorResponse"
+              examples:
+                unauthorized_access:
+                  summary: Not authorized to view portfolios
+                  value:
+                    message: "Unauthorized access to portfolio"
+                    code: "UNAUTHORIZED_ACCESS"
+                    requestId: "req-403"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   securitySchemes:
     CognitoAuth:
@@ -389,6 +1758,434 @@ components:
 
   schemas:
     # Request Schemas
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9\s\-_.&()]+$'
+          description: Updated project name (3-100 characters)
+          example: "EcoTech Solutions v2"
+        description:
+          type: string
+          minLength: 50
+          maxLength: 2000
+          description: Updated project description (50-2000 characters)
+          example: "Updated revolutionary solar panel technology with 50% efficiency improvement"
+        category:
+          type: string
+          enum:
+            [
+              "Technology",
+              "Healthcare",
+              "FinTech",
+              "CleanTech",
+              "Education",
+              "E-commerce",
+              "Manufacturing",
+              "Agriculture",
+              "Real Estate",
+              "Entertainment",
+              "Food & Beverage",
+              "Transportation",
+              "Other",
+            ]
+          description: Updated project category
+          example: "CleanTech"
+        targetFundingGoal:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+          description: Updated target funding amount
+          example: 600000
+        pricePerStock:
+          type: number
+          minimum: 0
+          maximum: 99999999.99999999
+          multipleOf: 0.00000001
+          description: Updated price per stock
+          example: 55
+        coverImageUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          description: Updated cover image URL
+          example: "https://s3.amazonaws.com/bucket/project-images/updated-cover.jpg"
+
+    ProjectStatusTransitionRequest:
+      type: object
+      required:
+        - newStatus
+      properties:
+        newStatus:
+          type: string
+          enum: ["draft", "minting", "active", "paused", "completed"]
+          description: New status for the project
+          example: "paused"
+        reason:
+          type: string
+          maxLength: 500
+          description: Optional reason for the status change
+          example: "Temporary pause for maintenance"
+
+    MintStocksRequest:
+      type: object
+      required:
+        - walletAddress
+      properties:
+        walletAddress:
+          type: string
+          pattern: '^0\.0\.[0-9]+$'
+          description: Hedera wallet address in format 0.0.accountId
+          example: "0.0.123456"
+          minLength: 5
+          maxLength: 20
+
+    CreateProjectRequest:
+      type: object
+      required:
+        - name
+        - description
+        - category
+        - stockSupply
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9\s\-_.&()]+$'
+          description: Project name (3-100 characters, alphanumeric with basic punctuation)
+          example: "EcoTech Solutions"
+        description:
+          type: string
+          minLength: 50
+          maxLength: 2000
+          description: Detailed project description (50-2000 characters)
+          example: "Revolutionary solar panel technology that increases efficiency by 40% while reducing manufacturing costs."
+        category:
+          type: string
+          enum:
+            [
+              "Technology",
+              "Healthcare",
+              "FinTech",
+              "CleanTech",
+              "Education",
+              "E-commerce",
+              "Manufacturing",
+              "Agriculture",
+              "Real Estate",
+              "Entertainment",
+              "Food & Beverage",
+              "Transportation",
+              "Other",
+            ]
+          description: Project category/industry
+          example: "CleanTech"
+        stockSupply:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          description: Total number of stock-NFTs to issue
+          example: 10000
+        targetFundingGoal:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+          description: Optional target funding amount (maximum 2 decimal places)
+          example: 500000
+        pricePerStock:
+          type: number
+          minimum: 0
+          maximum: 99999999.99999999
+          multipleOf: 0.00000001
+          description: Optional price per stock (maximum 8 decimal places)
+          example: 50
+
+    GetProjectsResponse:
+      type: object
+      required:
+        - projects
+        - pagination
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectWithStats"
+          description: List of projects matching the query criteria
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+        aggregations:
+          $ref: "#/components/schemas/ProjectAggregations"
+          description: Optional aggregated statistics (included on first page or when requested)
+
+    GetProjectResponse:
+      type: object
+      required:
+        - project
+      properties:
+        project:
+          $ref: "#/components/schemas/ProjectWithStats"
+          description: Detailed project information with optional statistics
+
+    ProjectWithStats:
+      allOf:
+        - $ref: "#/components/schemas/Project"
+        - type: object
+          properties:
+            stats:
+              $ref: "#/components/schemas/ProjectStats"
+              description: Optional project statistics (performance metrics)
+            recentActivity:
+              type: object
+              properties:
+                lastUpdatedAt:
+                  type: string
+                  format: date-time
+                  description: Timestamp of last project update
+                  example: "2024-01-16T09:15:00Z"
+
+    Project:
+      type: object
+      required:
+        - projectId
+        - name
+        - description
+        - category
+        - status
+        - stockSupply
+        - entrepreneurId
+        - createdAt
+        - updatedAt
+      properties:
+        projectId:
+          type: string
+          pattern: "^proj-[a-zA-Z0-9]+$"
+          description: Unique project identifier
+          example: "proj-789"
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Project name
+          example: "EcoTech Solutions"
+        description:
+          type: string
+          minLength: 50
+          maxLength: 2000
+          description: Detailed project description
+          example: "Revolutionary solar panel technology that increases efficiency by 40%"
+        category:
+          type: string
+          enum: [Technology, Healthcare, FinTech, CleanTech, Education, E-commerce, Manufacturing, Agriculture, Real Estate, Entertainment, Food & Beverage, Transportation, Other]
+          description: Project category/industry
+          example: "CleanTech"
+        status:
+          type: string
+          enum: [draft, minting, active, paused, completed]
+          description: Current project status
+          example: "active"
+        stockSupply:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          description: Total number of stock-NFTs to issue
+          example: 10000
+        targetFundingGoal:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+          description: Optional target funding amount
+          example: 500000
+        pricePerStock:
+          type: number
+          minimum: 0
+          maximum: 99999999.99999999
+          multipleOf: 0.00000001
+          description: Optional price per stock
+          example: 50
+        coverImageUrl:
+          type: string
+          format: uri
+          description: URL to project cover image
+          example: "https://s3.amazonaws.com/sachain-images/proj-789/cover.jpg"
+        entrepreneurId:
+          type: string
+          description: ID of the entrepreneur who created the project
+          example: "user-123"
+        createdAt:
+          type: string
+          format: date-time
+          description: Project creation timestamp
+          example: "2024-01-15T14:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-16T09:15:00Z"
+
+    ProjectStats:
+      type: object
+      required:
+        - totalStocks
+        - mintedStocks
+        - availableStocks
+        - soldStocks
+        - totalRaised
+        - lastUpdated
+      properties:
+        totalStocks:
+          type: integer
+          minimum: 0
+          description: Total number of stocks defined for the project
+          example: 10000
+        mintedStocks:
+          type: integer
+          minimum: 0
+          description: Number of stocks that have been minted as NFTs
+          example: 10000
+        availableStocks:
+          type: integer
+          minimum: 0
+          description: Number of stocks available for purchase
+          example: 8500
+        soldStocks:
+          type: integer
+          minimum: 0
+          description: Number of stocks that have been sold to investors
+          example: 1500
+        totalRaised:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          description: Total amount raised from stock sales
+          example: 75000
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Timestamp when statistics were last calculated
+          example: "2024-01-16T09:15:00Z"
+
+    ProjectAggregations:
+      type: object
+      required:
+        - totalProjects
+        - projectsByStatus
+        - projectsByCategory
+      properties:
+        totalProjects:
+          type: integer
+          minimum: 0
+          description: Total number of projects accessible to the user
+          example: 15
+        projectsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          description: Count of projects grouped by status
+          example:
+            active: 8
+            draft: 5
+            minting: 1
+            paused: 1
+        projectsByCategory:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          description: Count of projects grouped by category
+          example:
+            CleanTech: 5
+            Healthcare: 4
+            Technology: 6
+
+    PaginationInfo:
+      type: object
+      required:
+        - limit
+        - count
+        - hasMore
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Maximum number of items requested
+          example: 20
+        count:
+          type: integer
+          minimum: 0
+          description: Actual number of items returned in this response
+          example: 15
+        lastEvaluatedKey:
+          type: object
+          description: Cursor for pagination (opaque to client)
+          example:
+            PK: "PROJECT#proj-123"
+            SK: "METADATA"
+        hasMore:
+          type: boolean
+          description: Whether there are more items available
+          example: true
+
+    CreateProjectResponse:
+      type: object
+      required:
+        - projectId
+        - message
+        - project
+      properties:
+        projectId:
+          type: string
+          pattern: "^proj-[a-zA-Z0-9]+$"
+          description: Unique identifier of the created project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project created successfully"
+        project:
+          $ref: "#/components/schemas/Project"
+          description: The created project details
+
+    ProjectErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Project validation failed"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "INVALID_PROJECT_DATA"
+        details:
+          type: object
+          description: Additional error details and context
+          example:
+            errors:
+              - "Project name must be between 3-100 characters"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-123"
+        coverImageUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          description: Optional URL to project cover image
+          example: "https://s3.amazonaws.com/bucket/project-images/cover.jpg"
+
     PresignedUrlRequest:
       type: object
       required:
@@ -478,6 +2275,622 @@ components:
           example: "Document verified successfully"
 
     # Response Schemas
+    UpdateProjectResponse:
+      type: object
+      required:
+        - projectId
+        - message
+        - changes
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier of the updated project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project updated successfully"
+        changes:
+          type: array
+          items:
+            type: string
+          description: List of fields that were changed
+          example: ["name", "description", "pricePerStock"]
+
+    ProjectStatusTransitionResponse:
+      type: object
+      required:
+        - projectId
+        - message
+        - previousStatus
+        - newStatus
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier of the project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project status updated successfully"
+        previousStatus:
+          type: string
+          enum: ["draft", "minting", "active", "paused", "completed"]
+          description: Previous status of the project
+          example: "active"
+        newStatus:
+          type: string
+          enum: ["draft", "minting", "active", "paused", "completed"]
+          description: New status of the project
+          example: "paused"
+
+    DeleteProjectResponse:
+      type: object
+      required:
+        - projectId
+        - message
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier of the deleted project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project deleted successfully"
+
+    ProjectManagementErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Only draft projects can be updated"
+        code:
+          type: string
+          enum:
+            [
+              "AUTHENTICATION_FAILED",
+              "PROJECT_NOT_FOUND",
+              "UNAUTHORIZED_ACCESS",
+              "INVALID_PROJECT_STATUS",
+              "INVALID_STATUS_TRANSITION",
+              "INVALID_PROJECT_DATA",
+              "CASCADE_DELETION_FAILED",
+              "METHOD_NOT_ALLOWED",
+              "ROUTE_NOT_FOUND",
+              "DATABASE_ERROR",
+            ]
+          description: Error code for programmatic handling
+          example: "INVALID_PROJECT_STATUS"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            projectId: "proj-789"
+            currentStatus: "active"
+            allowedStatus: "draft"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-422"
+
+    MintStocksResponse:
+      type: object
+      required:
+        - message
+        - tokenId
+        - totalMinted
+        - mintingBatches
+        - transactionIds
+        - progress
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: "Stock minting completed successfully"
+        tokenId:
+          type: string
+          description: Hedera token ID for the project
+          example: "0.0.123456"
+        totalMinted:
+          type: integer
+          minimum: 1
+          description: Total number of NFTs minted
+          example: 10000
+        mintingBatches:
+          type: integer
+          minimum: 1
+          description: Number of batches used for minting
+          example: 200
+        transactionIds:
+          type: array
+          items:
+            type: string
+          description: Array of Hedera transaction IDs
+          example:
+            [
+              "0.0.123456@1234567890.123456789",
+              "0.0.123456@1234567891.123456789",
+            ]
+        progress:
+          $ref: "#/components/schemas/MintingProgress"
+
+    MintingStatusResponse:
+      type: object
+      required:
+        - projectId
+        - status
+        - progress
+      properties:
+        projectId:
+          type: string
+          description: Unique project identifier
+          example: "proj-789"
+        status:
+          type: string
+          enum: [draft, minting, active, paused, completed]
+          description: Current project status
+          example: "minting"
+        progress:
+          $ref: "#/components/schemas/MintingProgress"
+        tokenId:
+          type: string
+          nullable: true
+          description: Hedera token ID (available after token creation)
+          example: "0.0.123456"
+        totalMinted:
+          type: integer
+          nullable: true
+          description: Total NFTs minted (available when completed)
+          example: 10000
+        mintingBatches:
+          type: integer
+          nullable: true
+          description: Number of batches used (available when completed)
+          example: 200
+        transactionIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Transaction IDs (available when completed)
+          example: ["0.0.123456@1234567890.123456789"]
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Minting start timestamp
+          example: "2024-01-15T14:30:00Z"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Minting completion timestamp
+          example: "2024-01-15T15:00:00Z"
+        estimatedCompletion:
+          type: string
+          format: date-time
+          nullable: true
+          description: Estimated completion time (for in-progress operations)
+          example: "2024-01-15T15:00:00Z"
+        error:
+          type: string
+          nullable: true
+          description: Error message (if minting failed)
+          example: "Network timeout during batch processing"
+
+    MintingProgress:
+      type: object
+      required:
+        - completed
+        - total
+        - percentage
+        - status
+      properties:
+        completed:
+          type: integer
+          minimum: 0
+          description: Number of NFTs minted so far
+          example: 5000
+        total:
+          type: integer
+          minimum: 1
+          description: Total number of NFTs to mint
+          example: 10000
+        percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Completion percentage
+          example: 50
+        status:
+          type: string
+          enum: [in_progress, completed, failed]
+          description: Current minting status
+          example: "in_progress"
+        currentBatch:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Current batch being processed
+          example: 100
+        totalBatches:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Total number of batches
+          example: 200
+
+    StockMintingErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Invalid wallet address"
+        code:
+          type: string
+          enum:
+            [
+              "AUTHENTICATION_FAILED",
+              "INVALID_REQUEST",
+              "PROJECT_NOT_FOUND",
+              "UNAUTHORIZED_ACCESS",
+              "INVALID_PROJECT_STATUS",
+              "INVALID_STOCK_SUPPLY",
+              "INVALID_WALLET_ADDRESS",
+              "INSUFFICIENT_BALANCE",
+              "TOKEN_CREATION_FAILED",
+              "NFT_MINTING_FAILED",
+              "METADATA_STORAGE_FAILED",
+              "DATABASE_ERROR",
+              "HEDERA_SERVICE_ERROR",
+              "IPFS_SERVICE_ERROR",
+              "PARTIAL_MINTING_FAILURE",
+              "MINTING_IN_PROGRESS",
+            ]
+          description: Error code for programmatic handling
+          example: "INVALID_WALLET_ADDRESS"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            walletAddress: "invalid-address"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-123"
+
+    GetStocksResponse:
+      type: object
+      required:
+        - stocks
+        - pagination
+      properties:
+        stocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockWithMetadata"
+          description: List of stocks matching the query criteria
+        pagination:
+          $ref: "#/components/schemas/PaginationInfo"
+          description: Pagination information for the query
+
+    GetStockResponse:
+      type: object
+      required:
+        - stock
+      properties:
+        stock:
+          $ref: "#/components/schemas/StockWithMetadata"
+          description: Detailed stock information with optional project metadata
+
+    GetPortfolioResponse:
+      type: object
+      required:
+        - portfolio
+      properties:
+        portfolio:
+          $ref: "#/components/schemas/StockPortfolio"
+          description: Complete portfolio information for the wallet address
+
+    StockWithMetadata:
+      allOf:
+        - $ref: "#/components/schemas/StockNFT"
+        - type: object
+          properties:
+            project:
+              type: object
+              nullable: true
+              description: Optional project metadata
+              properties:
+                name:
+                  type: string
+                  description: Project name
+                  example: "EcoTech Solutions"
+                category:
+                  type: string
+                  description: Project category
+                  example: "CleanTech"
+                status:
+                  type: string
+                  description: Project status
+                  example: "active"
+
+    StockNFT:
+      type: object
+      required:
+        - PK
+        - SK
+        - projectId
+        - stockNumber
+        - tokenId
+        - serialNumber
+        - ownerWalletAddress
+        - mintedAt
+        - metadataUri
+        - status
+        - GSI4PK
+        - GSI4SK
+      properties:
+        PK:
+          type: string
+          description: DynamoDB partition key
+          example: "PROJECT#proj-789"
+        SK:
+          type: string
+          description: DynamoDB sort key
+          example: "STOCK#42"
+        projectId:
+          type: string
+          description: Unique identifier of the project
+          example: "proj-789"
+        stockNumber:
+          type: integer
+          minimum: 1
+          description: Stock number within the project
+          example: 42
+        tokenId:
+          type: string
+          description: Hedera token ID
+          example: "0.0.123456"
+        serialNumber:
+          type: integer
+          minimum: 1
+          description: Hedera NFT serial number
+          example: 42
+        ownerWalletAddress:
+          type: string
+          pattern: '^0\.0\.[0-9]+$'
+          description: Current owner's Hedera wallet address
+          example: "0.0.987654"
+        mintedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the stock was minted
+          example: "2024-01-15T15:00:00Z"
+        metadataUri:
+          type: string
+          format: uri
+          description: IPFS URI containing stock metadata
+          example: "ipfs://QmHash123"
+        status:
+          type: string
+          enum: [minted, listed, sold, transferred]
+          description: Current status of the stock
+          example: "minted"
+        GSI4PK:
+          type: string
+          description: GSI4 partition key for owner queries
+          example: "OWNER#0.0.987654"
+        GSI4SK:
+          type: string
+          format: date-time
+          description: GSI4 sort key for owner queries
+          example: "2024-01-15T15:00:00Z"
+
+    StockPortfolio:
+      type: object
+      required:
+        - walletAddress
+        - totalStocks
+        - stocksByProject
+        - stocksByStatus
+        - stocks
+      properties:
+        walletAddress:
+          type: string
+          pattern: '^0\.0\.[0-9]+$'
+          description: Hedera wallet address
+          example: "0.0.987654"
+        totalStocks:
+          type: integer
+          minimum: 0
+          description: Total number of stocks owned
+          example: 150
+        stocksByProject:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          description: Number of stocks owned per project
+          example:
+            "proj-789": 50
+            "proj-456": 75
+            "proj-123": 25
+        stocksByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          description: Number of stocks by status
+          example:
+            minted: 120
+            listed: 20
+            sold: 10
+        stocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockNFT"
+          description: List of all stocks owned by the wallet
+
+    StockQueryErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Stock not found"
+        code:
+          type: string
+          enum:
+            [
+              "AUTHENTICATION_FAILED",
+              "STOCK_NOT_FOUND",
+              "PROJECT_NOT_FOUND",
+              "INVALID_QUERY_PARAMETERS",
+              "UNAUTHORIZED_ACCESS",
+              "DATABASE_ERROR",
+            ]
+          description: Error code for programmatic handling
+          example: "STOCK_NOT_FOUND"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            projectId: "proj-789"
+            stockNumber: 42
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-404"
+
+    CreateProjectResponse:
+      type: object
+      required:
+        - projectId
+        - message
+        - project
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier for the created project
+          example: "proj-789"
+        message:
+          type: string
+          description: Success message
+          example: "Project created successfully"
+        project:
+          $ref: "#/components/schemas/ProjectSummary"
+
+    ProjectSummary:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - category
+        - stockSupply
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Unique project identifier
+          example: "proj-789"
+        name:
+          type: string
+          description: Project name
+          example: "EcoTech Solutions"
+        description:
+          type: string
+          description: Project description
+          example: "Revolutionary solar panel technology..."
+        category:
+          type: string
+          description: Project category
+          example: "CleanTech"
+        stockSupply:
+          type: integer
+          description: Total number of stocks
+          example: 10000
+        targetFundingGoal:
+          type: number
+          nullable: true
+          description: Target funding amount
+          example: 500000
+        pricePerStock:
+          type: number
+          nullable: true
+          description: Price per stock
+          example: 50
+        status:
+          type: string
+          enum: [draft, minting, active, paused, completed]
+          description: Current project status
+          example: "draft"
+        createdAt:
+          type: string
+          format: date-time
+          description: Project creation timestamp
+          example: "2024-01-15T14:30:00Z"
+        coverImageUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Project cover image URL
+          example: "https://s3.amazonaws.com/bucket/project-images/cover.jpg"
+
+    ProjectErrorResponse:
+      type: object
+      required:
+        - message
+        - code
+        - requestId
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Project validation failed"
+        code:
+          type: string
+          enum:
+            [
+              "AUTHENTICATION_FAILED",
+              "INVALID_PROJECT_DATA",
+              "KYC_NOT_VERIFIED",
+              "KYC_VALIDATION_ERROR",
+              "USER_NOT_FOUND",
+              "PROJECT_NAME_EXISTS",
+              "DATABASE_ERROR",
+              "EVENT_PUBLISHING_ERROR",
+            ]
+          description: Error code for programmatic handling
+          example: "INVALID_PROJECT_DATA"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            errors:
+              - "Project name must be between 3-100 characters"
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: "req-123"
+
     UploadResponse:
       type: object
       required:
@@ -701,3 +3114,15 @@ tags:
     description: |
       Administrative endpoints for reviewing and managing KYC documents.
       Requires admin authentication and permissions.
+  - name: Project Creation
+    description: |
+      Endpoints for creating and managing entrepreneurial projects.
+      Enables entrepreneurs to tokenize their business shares using Hedera Token Service.
+  - name: Project Management
+    description: |
+      Endpoints for managing existing projects including updates, status transitions, and deletion.
+      Only project owners can perform management operations on their projects.
+  - name: Stock Query
+    description: |
+      Endpoints for querying and retrieving stock NFT information.
+      Supports project-specific stock queries, individual stock details, and investor portfolio views.

@@ -72,28 +72,15 @@ interface SignupStep2Props {
 }
 
 export default function SignupStep2({ onVerify, onBack, loading, email }: SignupStep2Props) {
+
   const translate = useTranslate("getStartedModal");
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<SignupStep2Data>({
+  const { handleSubmit, setValue, watch, formState: { errors } } = useForm<SignupStep2Data>({
     resolver: zodResolver(signupStep2Schema),
   });
 
   const [error, setError] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isCodeSent, setIsCodeSent] = useState(false);
-
-  const codeValue = watch("code") || "";
-
-  useEffect(() => {
-    // send code immediately on mount
-    sendVerificationCode();
-  }, []);
-
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
 
   const sendVerificationCode = async () => {
     try {
@@ -106,6 +93,20 @@ export default function SignupStep2({ onVerify, onBack, loading, email }: Signup
       setError("Failed to send verification code. Please try again.");
     }
   };
+
+  const codeValue = watch("code") || "";
+
+  useEffect(() => {
+    // send code immediately on mount
+    sendVerificationCode();
+  }, [sendVerificationCode]);
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const onSubmit = (data: SignupStep2Data) => {
     if (data.code.length !== 6) {

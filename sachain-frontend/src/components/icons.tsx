@@ -13,7 +13,6 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { LucideIcon } from 'lucide-react';
 
 interface IconProps {
   size?: number;
