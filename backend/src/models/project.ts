@@ -175,3 +175,99 @@ export const PROJECT_VALIDATION_RULES = {
   MAX_DECIMAL_PLACES: 8,
   MAX_FUNDING_GOAL_DECIMAL_PLACES: 2,
 } as const;
+
+// Stock listing for marketplace
+export interface StockListing {
+  PK: string; // LISTING#${listingId}
+  SK: string; // METADATA
+  listingId: string;
+  projectId: string;
+  stockNumber: number;
+  sellerId: string; // wallet address
+  pricePerStock: number; // in HBAR
+  quantity: number; // number of stocks being sold
+  status: "active" | "sold" | "cancelled" | "expired";
+  listedAt: string;
+  expiresAt?: string;
+
+  // GSI5 for marketplace queries
+  GSI5PK: string; // MARKETPLACE#${projectId}
+  GSI5SK: string; // ${pricePerStock}#${listedAt}
+}
+
+// Stock transfer/sale transaction
+export interface StockTransaction {
+  PK: string; // TRANSACTION#${transactionId}
+  SK: string; // METADATA
+  transactionId: string;
+  projectId: string;
+  stockNumber: number;
+  fromWallet: string;
+  toWallet: string;
+  pricePerStock: number;
+  quantity: number;
+  totalAmount: number;
+  transactionType: "sale" | "transfer";
+  hederaTransactionId: string;
+  status: "pending" | "completed" | "failed";
+  createdAt: string;
+  completedAt?: string;
+}
+
+// Input types
+export interface CreateStockListingInput {
+  projectId: string;
+  stockNumber: number;
+  sellerId: string;
+  pricePerStock: number;
+  quantity: number;
+  expiresAt?: string;
+}
+
+export interface CreateStockTransactionInput {
+  projectId: string;
+  stockNumber: number;
+  fromWallet: string;
+  toWallet: string;
+  pricePerStock: number;
+  quantity: number;
+}
+
+export interface ScheduledTransaction {
+  PK: string; // SCHEDULED_TX#${transactionId}
+  SK: string; // METADATA
+  transactionId: string;
+  projectId: string;
+  investorId: string;
+  entrepreneurId: string;
+  sharesRequested: number;
+  sharesAvailable: number;
+  pricePerShare: number;
+  totalAmount: number;
+  hederaScheduledTxId?: string;
+  investorPrivateKey: string; // Encrypted
+  status: "pending" | "approved" | "rejected" | "expired";
+  createdAt: string;
+  expiresAt: string; // 30 minutes from creation
+
+  // GSI6 for entrepreneur queries
+  GSI6PK: string; // ENTREPRENEUR#${entrepreneurId}
+  GSI6SK: string; // ${createdAt}
+}
+
+export interface BuySharesRequest {
+  projectId: string;
+  sharesRequested: number;
+  investorWalletAddress: string;
+  investorPrivateKey: string;
+}
+
+export interface CreateScheduledTransactionInput {
+  projectId: string;
+  investorId: string;
+  entrepreneurId: string;
+  sharesRequested: number;
+  sharesAvailable: number;
+  pricePerShare: number;
+  investorPrivateKey: string;
+}

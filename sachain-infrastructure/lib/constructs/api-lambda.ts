@@ -39,6 +39,8 @@ export class ApiLambdaConstruct extends Construct {
   public readonly omPaymentsLambda: lambda.Function;
   public readonly omCallBackLambda: lambda.Function;
   public readonly sendHbarLambda: lambda.Function;
+  public readonly stockTradingLambda: lambda.Function;
+  public readonly stockTradingApproval: lambda.Function;
   public readonly api: apigateway.RestApi;
   public readonly adminResource: apigateway.Resource;
   private cognitoAuthorizer?: apigateway.CognitoUserPoolsAuthorizer;
@@ -480,6 +482,99 @@ export class ApiLambdaConstruct extends Construct {
       tracing: lambda.Tracing.ACTIVE,
     });
 
+    // stockTradingLambda
+    this.stockTradingLambda = new NodejsFunction(this, "StockTradingLambda", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "handler",
+      entry: path.join(
+        __dirname,
+        "../../..",
+        "backend/src/lambdas/stock-trading/index.ts"
+      ),
+      // role: props.securityConstruct?.omPaymentsRole, // change this role later
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node20",
+        externalModules: [
+          "aws-lambda",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/lib-dynamodb",
+          "@aws-sdk/client-cloudwatch",
+        ],
+      },
+      projectRoot: path.join(__dirname, "../../.."),
+      environment: {
+        TABLE_NAME: props.table.tableName,
+        ENVIRONMENT: props.environment,
+        HEDERA_OPERATOR_ID: "0.0.6621818",
+        HEDERA_OPERATOR_KEY:
+          "3030020100300706052b8104000a04220420d0be273e8cc795c37696efeee5c06a3b7755f3229601b4b3d8681d44fca63152",
+        HEDERA_NETWORK: "testnet",
+        HEDERA_MAX_TRANSACTION_FEE: "100",
+        HEDERA_MAX_QUERY_PAYMENT: "1",
+      },
+      timeout: cdk.Duration.minutes(2),
+      memorySize: 512,
+      tracing: lambda.Tracing.ACTIVE,
+    });
+
+    props.table.grantReadWriteData(this.stockTradingLambda);
+
+    this.stockTradingLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        sid: "SESNotification",
+        effect: iam.Effect.ALLOW,
+        actions: ["ses:SendEmail"],
+        resources: [
+          `arn:aws:ses:us-east-1:${cdk.Aws.ACCOUNT_ID}:identity/emmasandjio.com`,
+          `arn:aws:ses:us-east-1:${cdk.Aws.ACCOUNT_ID}:configuration-set/my-first-configuration-set`,
+        ],
+      })
+    );
+
+    this.stockTradingApproval = new NodejsFunction(
+      this,
+      "StockTradingApproval",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "handler",
+        entry: path.join(
+          __dirname,
+          "../../..",
+          "backend/src/lambdas/trade-approvals/index.ts"
+        ),
+        // role: props.securityConstruct?.omPaymentsRole, // change this role later
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          target: "node20",
+          externalModules: [
+            "aws-lambda",
+            "@aws-sdk/client-dynamodb",
+            "@aws-sdk/lib-dynamodb",
+            "@aws-sdk/client-cloudwatch",
+          ],
+        },
+        projectRoot: path.join(__dirname, "../../.."),
+        environment: {
+          TABLE_NAME: props.table.tableName,
+          ENVIRONMENT: props.environment,
+          HEDERA_OPERATOR_ID: "0.0.6621818",
+          HEDERA_OPERATOR_KEY:
+            "3030020100300706052b8104000a04220420d0be273e8cc795c37696efeee5c06a3b7755f3229601b4b3d8681d44fca63152",
+          HEDERA_NETWORK: "testnet",
+          HEDERA_MAX_TRANSACTION_FEE: "100",
+          HEDERA_MAX_QUERY_PAYMENT: "1",
+        },
+        timeout: cdk.Duration.minutes(2),
+        memorySize: 512,
+        tracing: lambda.Tracing.ACTIVE,
+      }
+    );
+
+    props.table.grantReadWriteData(this.stockTradingApproval);
+
     // Create unified API Gateway
     this.api = new apigateway.RestApi(this, "SachainApi", {
       restApiName: `sachain-api-${props.environment}`,
@@ -646,6 +741,44 @@ export class ApiLambdaConstruct extends Construct {
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
 
+    // POST /projects/{projectId}/buy -  Buy stock
+    const buyProjectResource = projectIdResource.addResource("buy");
+    buyProjectResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(this.stockTradingLambda),
+      {
+        authorizer: this.cognitoAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
+    buyProjectResource.addMethod(
+      "OPTIONS",
+      new apigateway.LambdaIntegration(this.stockTradingLambda)
+    );
+
+    //POST /projects/trades
+    const tradeResource = projectsResource.addResource("trades");
+    tradeResource.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(this.stockTradingApproval),
+      {
+        authorizer: this.cognitoAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
+    tradeResource.addMethod(
+      "OPTIONS",
+      new apigateway.LambdaIntegration(this.stockTradingApproval)
+    );
+    tradeResource.addMethod(
+      "GET",
+      new apigateway.LambdaIntegration(this.stockTradingApproval),
+      {
+        authorizer: this.cognitoAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
+
     // PUT /projects/{projectId}/status - Update project status
     const projectStatusResource = projectIdResource.addResource("status");
     projectStatusResource.addMethod("PUT", projectManagementIntegration, {
@@ -686,5 +819,93 @@ export class ApiLambdaConstruct extends Construct {
     // Orange Money Callback URL
     const omCallbackResource = omPaymentsResource.addResource("callback");
     omCallbackResource.addMethod("POST", omCallbackIntegration);
+
+    // const stockTradingResource = projectsResource.addResource("trading");
+
+    // const listStockResource = stockTradingResource.addResource("list");
+
+    // listStockResource.addMethod(
+    //   "POST",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda),
+    //   {
+    //     authorizationType: apigateway.AuthorizationType.COGNITO,
+    //     authorizer: this.cognitoAuthorizer,
+    //   }
+    // );
+    // stockTradingResource.addMethod(
+    //   "POST",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda),
+    //   {
+    //     authorizationType: apigateway.AuthorizationType.COGNITO,
+    //     authorizer: this.cognitoAuthorizer,
+    //   }
+    // );
+
+    // const buyStockResource = stockTradingResource.addResource("buy");
+    // buyStockResource.addMethod(
+    //   "POST",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda),
+    //   {
+    //     authorizationType: apigateway.AuthorizationType.COGNITO,
+    //     authorizer: this.cognitoAuthorizer,
+    //   }
+    // );
+
+    // const marketplaceResource = stockTradingResource.addResource("marketplace");
+    // marketplaceResource
+    //   .addResource("{projectId}")
+    //   .addMethod(
+    //     "GET",
+    //     new apigateway.LambdaIntegration(this.stockTradingLambda),
+    //     {
+    //       authorizationType: apigateway.AuthorizationType.COGNITO,
+    //       authorizer: this.cognitoAuthorizer,
+    //     }
+    //   );
+
+    // const portfolioResource = stockTradingResource.addResource("portfolio");
+    // portfolioResource.addMethod(
+    //   "GET",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda),
+    //   {
+    //     authorizationType: apigateway.AuthorizationType.COGNITO,
+    //     authorizer: this.cognitoAuthorizer,
+    //   }
+    // );
+
+    // const transactionsResource =
+    //   stockTradingResource.addResource("transactions");
+    // transactionsResource.addMethod(
+    //   "GET",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda),
+    //   {
+    //     authorizationType: apigateway.AuthorizationType.COGNITO,
+    //     authorizer: this.cognitoAuthorizer,
+    //   }
+    // );
+    // stockTradingResource.addMethod(
+    //   "OPTIONS",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda)
+    // );
+    // listStockResource.addMethod(
+    //   "OPTIONS",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda)
+    // );
+    // buyStockResource.addMethod(
+    //   "OPTIONS",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda)
+    // );
+    // portfolioResource.addMethod(
+    //   "OPTIONS",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda)
+    // );
+    // transactionsResource.addMethod(
+    //   "OPTIONS",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda)
+    // );
+    // marketplaceResource.addMethod(
+    //   "OPTIONS",
+    //   new apigateway.LambdaIntegration(this.stockTradingLambda)
+    // );
   }
 }
