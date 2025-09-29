@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 import type { AuthUser } from "@/features/auth/types/authTypes";
 import type { CognitoTokens } from "@/features/auth/core/cognitoProvider";
@@ -10,6 +9,8 @@ interface AuthState {
   login: (user: AuthUser, tokens: CognitoTokens) => void;
   logout: () => void;
   hydrate: () => void;
+  setRole: (role: "startup" | "investor") => void;
+  setUser: (userData: Partial<AuthUser>) => void; 
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -28,7 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined") { 
       localStorage.removeItem("auth_user");
       localStorage.removeItem("auth_tokens");
     }
@@ -36,8 +37,40 @@ export const useAuthStore = create<AuthState>((set) => ({
     console.log("User logged out, cleared localStorage and store");
   },
 
+  setRole: (role) => {
+    set((state) => {
+      if (role !== "startup" && role !== "investor") return {}; //if invalid role, do nothing
+
+      let updatedUser: AuthUser;
+
+      if (state.user) {
+        updatedUser = { ...state.user, role }; 
+      } else {
+        
+        updatedUser = { email: "", role };
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_user", JSON.stringify(updatedUser));
+      }
+
+      return { user: updatedUser };
+    });
+  },
+
+  setUser: (userData) => {
+    set((state) => {
+      if (!state.user) return {};
+      const updatedUser: AuthUser = { ...state.user, ...userData };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_user", JSON.stringify(updatedUser));
+      }
+      return { user: updatedUser };
+    });
+  },
+
   hydrate: () => {
-    if (typeof window === "undefined") return; 
+    if (typeof window === "undefined") return;
 
     try {
       const storedUser = localStorage.getItem("auth_user");
@@ -56,11 +89,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (user && tokens) {
         set({ user, tokens, isHydrated: true });
         console.log("Store hydrated with user and tokens");
+      } else if (user) {
+        set({ user, tokens: null, isHydrated: true });
+        console.log("Store hydrated with user (no tokens found)");
       } else {
         set({ isHydrated: true });
         console.log("Store hydrated but no user or tokens found");
       }
-
       console.groupEnd();
     } catch (error) {
       console.error("Failed to hydrate auth store:", error);

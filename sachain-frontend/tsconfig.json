@@ -1,4 +1,5 @@
 {
+  // No $schema property included to avoid schema fetch errors
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -11,12 +12,14 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
     "jsx": "preserve",
     "incremental": true,
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "src/pages/api/hcs-messages.ts "],
   "exclude": ["node_modules"]
 }

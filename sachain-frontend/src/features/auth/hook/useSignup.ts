@@ -1,7 +1,5 @@
 
-
-
-// src/features/auth/hook/useSignup.ts
+// // src/features/auth/hook/useSignup.ts
 // import { useState } from "react";
 // import {
 //   cognitoSignUp,
@@ -95,7 +93,7 @@
 // }
 
 
-// src/features/auth/hook/useSignup.ts
+
 import { useState } from "react";
 import {
   cognitoSignUp,
@@ -105,31 +103,8 @@ import {
 import type { SignupPayload, ConfirmSignupPayload, AuthUser } from "../types/authTypes";
 import { useAuthStore } from "@/store/authStore";
 
-// Define interfaces for better type safety
-interface SignupResult {
-  ok: boolean;
-}
 
-interface ConfirmResult {
-  ok: boolean;
-  tokens: unknown; // Can be made more specific with proper tokens interface
-}
-
-// Helper function to safely extract error message
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === 'string') {
-    return error;
-  }
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String((error as { message: unknown }).message);
-  }
-  return "An unknown error occurred";
-}
-
-export function useSignup(role: "startup" | "investor") {
+export function useSignup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,9 +113,14 @@ export function useSignup(role: "startup" | "investor") {
   const [passwordForFlow, setPasswordForFlow] = useState<string | null>(null);
 
   const loginToStore = useAuthStore((s) => s.login);
+  const role = useAuthStore((state) => state.user?.role);
 
   // Step 1: Sign up
-  const signup = async (params: SignupPayload): Promise<SignupResult> => {
+  const signup = async (params: SignupPayload) => {
+    if (!role) {
+      throw new Error("User role is not set");
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -149,7 +129,7 @@ export function useSignup(role: "startup" | "investor") {
         password: params.password,
         givenName: params.givenName,
         familyName: params.familyName,
-        role,
+        role, // use role from auth store directly
       });
 
       // Save for later use in confirm step
@@ -162,9 +142,8 @@ export function useSignup(role: "startup" | "investor") {
       setPasswordForFlow(params.password);
 
       return { ok: true };
-    } catch (err: unknown) {
-      const errorMessage = getErrorMessage(err);
-      setError(errorMessage || "Signup failed");
+    } catch (err: any) {
+      setError(err.message || "Signup failed");
       throw err;
     } finally {
       setLoading(false);
@@ -172,7 +151,7 @@ export function useSignup(role: "startup" | "investor") {
   };
 
   // Step 2: Confirm signup + auto-login
-  const confirm = async ({ email, code }: ConfirmSignupPayload): Promise<ConfirmResult> => {
+  const confirm = async ({ email, code }: ConfirmSignupPayload) => {
     if (!userForFlow || !passwordForFlow) {
       throw new Error("User info not available for auto-login");
     }
@@ -196,9 +175,8 @@ export function useSignup(role: "startup" | "investor") {
       console.log("User information:", userForFlow);
 
       return { ok: true, tokens };
-    } catch (err: unknown) {
-      const errorMessage = getErrorMessage(err);
-      setError(errorMessage || "Confirmation or login failed");
+    } catch (err: any) {
+      setError(err.message || "Confirmation or login failed");
       throw err;
     } finally {
       setLoading(false);

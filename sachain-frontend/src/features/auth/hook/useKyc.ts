@@ -1,58 +1,4 @@
 
-// // src/features/auth/hook/useKyc.ts
-// import { useState } from "react";
-// import { uploadKycDocument } from "@/features/auth/core/kycService";
-// import { useAuthStore } from "@/store/authStore";
-
-// export type DocumentType = "national_id" | "passport" | "driver_license";
-
-// interface UploadDocumentParams {
-//   file: File;
-//   documentType: DocumentType;
-// }
-
-// export function useKyc() {
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-  
-//   // Get tokens from auth store
-//   const tokens = useAuthStore((state) => state.tokens);
-
-//   const uploadDocument = async ({ file, documentType, idToken }: UploadDocumentParams) => {
-//     setLoading(true);
-//     setError(null);
-
-//     try {
-//       // Check if we have tokens
-//       if (!tokens?.idToken) {
-        
-//         throw new Error("No authentication token available. Please login first.");
-//       }
-// console.log("Using ID Token:", tokens.idToken); // Debug log to verify token presence
-//       const res = await uploadKycDocument({
-//         idToken: tokens.idToken,
-//         file,
-//         documentType,
-//       });
-
-//       return res;
-//     } catch (err: any) {
-//       setError(err.message || "Upload failed");
-//       throw err;
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return { 
-//     uploadDocument, 
-//     loading, 
-//     error,
-//     hasToken: !!tokens?.idToken // Helper to check if token is available
-//   };
-// }
-
-
 // src/features/auth/hook/useKyc.ts
 import { useState } from "react";
 import { uploadKycDocument } from "@/features/auth/core/kycService";
@@ -91,13 +37,16 @@ export function useKyc() {
     setLoading(true);
     setError(null);
 
+
     try {
       // Check if we have tokens
       if (!tokens?.idToken) {
         throw new Error("No authentication token available. Please login first.");
       }
       
-      console.log("Using ID Token:", tokens.idToken); // Debug log to verify token presence
+      console.log("Using ID Token:", tokens.idToken);
+
+   
       
       const res = await uploadKycDocument({
         idToken: tokens.idToken,
@@ -106,6 +55,10 @@ export function useKyc() {
       });
 
       return res;
+
+      console.log("Document ID:", res.documentId);
+      console.log("Upload successful:", res);
+      
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
       setError(errorMessage);

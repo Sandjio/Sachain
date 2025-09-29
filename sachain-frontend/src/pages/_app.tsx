@@ -3,7 +3,7 @@
 import { AppProps } from 'next/app';
 import { IntlProvider } from 'next-intl';
 import { AuthProvider } from '@/provider/AuthProvider';
-import '@/styles/globals.css';
+import '../styles/globals.css';
 
 export default function App({ Component, pageProps }: AppProps) {
   const { messages, locale = 'en' } = pageProps;
