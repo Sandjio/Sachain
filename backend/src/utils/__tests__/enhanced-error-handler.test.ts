@@ -1,281 +1,385 @@
 /**
- * Unit tests for enhanced error handler with S3 and DynamoDB error classification
+ * Unit tests for enhanced error handler
  */
 
-import { ErrorClassifier, AWSServiceError, ErrorCategory } from '../error-handler';
+import {
+  ProjectError,
+  ProjectErrorCategory,
+  ErrorSeverity,
+  RecoveryStrategy,
+  ProjectErrorClassifier,
+  ErrorRecoveryManager,
+  withErrorHandling
+} from '../enhanced-error-handler';
 
-describe('ErrorClassifier', () => {
-  describe('S3 Error Classification', () => {
-    it('should classify NoSuchBucket as system error', () => {
-      const error = {
-        name: 'NoSuchBucket',
-        message: 'The specified bucket does not exist',
-        code: 'NoSuchBucket',
-        $metadata: { httpStatusCode: 404, service: 'S3' },
-      };
+describe('ProjectErrorClassifier', () => {
+  const mockContext = {
+    operation: 'test-operation',
+    requestId: 'test-request-id',
+    userId: 'test-user-id',
+    projectId: 'test-project-id'
+  };
 
-      const result = ErrorClassifier.classify(error);
+  describe('classify', () => {
+    it('should classify validation errors correctly', () => {
+      const validationError = new Error('Validation failed: required field missing');
+      const result = ProjectErrorClassifier.classify(validationError, mockContext);
 
-      expect(result.category).toBe(ErrorCategory.SYSTEM);
+      expect(result).toBeInstanceOf(ProjectError);
+      expect(result.category).toBe(ProjectErrorCategory.VALIDATION);
+      expect(result.severity).toBe(ErrorSeverity.LOW);
       expect(result.retryable).toBe(false);
-      expect(result.userMessage).toContain('Storage service configuration error');
-      expect(result.technicalMessage).toBe('S3 bucket does not exist');
+      expect(result.httpStatusCode).toBe(400);
+      expect(result.errorCode).toBe('VALIDATION_ERROR');
     });
 
-    it('should classify AccessDenied as authorization error', () => {
-      const error = {
-        name: 'AccessDenied',
-        message: 'Access Denied',
-        code: 'AccessDenied',
-        $metadata: { httpStatusCode: 403, service: 'S3' },
-      };
+    it('should classify authentication errors correctly', () => {
+      const authError = new Error('Invalid token provided');
+      const result = ProjectErrorClassifier.classify(authError, mockContext);
 
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.AUTHORIZATION);
+      expect(result.category).toBe(ProjectErrorCategory.AUTHENTICATION);
+      expect(result.severity).toBe(ErrorSeverity.MEDIUM);
       expect(result.retryable).toBe(false);
-      expect(result.userMessage).toContain('permission');
-      expect(result.technicalMessage).toBe('S3 access denied');
+      expect(result.httpStatusCode).toBe(401);
+      expect(result.errorCode).toBe('AUTHENTICATION_ERROR');
     });
 
-    it('should classify EntityTooLarge as validation error', () => {
-      const error = {
-        name: 'EntityTooLarge',
-        message: 'Your proposed upload exceeds the maximum allowed size',
-        code: 'EntityTooLarge',
-        $metadata: { httpStatusCode: 400, service: 'S3' },
-      };
+    it('should classify authorization errors correctly', () => {
+      const authzError = new Error('Access denied to resource');
+      const result = ProjectErrorClassifier.classify(authzError, mockContext);
 
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.VALIDATION);
+      expect(result.category).toBe(ProjectErrorCategory.AUTHORIZATION);
+      expect(result.severity).toBe(ErrorSeverity.MEDIUM);
       expect(result.retryable).toBe(false);
-      expect(result.userMessage).toContain('too large');
-      expect(result.technicalMessage).toBe('S3 entity too large');
+      expect(result.httpStatusCode).toBe(403);
+      expect(result.errorCode).toBe('AUTHORIZATION_ERROR');
     });
 
-    it('should classify SlowDown as rate limit error', () => {
-      const error = {
-        name: 'SlowDown',
-        message: 'Please reduce your request rate',
-        code: 'SlowDown',
-        $metadata: { httpStatusCode: 503, service: 'S3' },
-      };
+    it('should classify business logic errors correctly', () => {
+      const businessError = new Error('KYC not verified for user');
+      const result = ProjectErrorClassifier.classify(businessError, mockContext);
 
-      const result = ErrorClassifier.classify(error);
+      expect(result.category).toBe(ProjectErrorCategory.BUSINESS_LOGIC);
+      expect(result.severity).toBe(ErrorSeverity.MEDIUM);
+      expect(result.retryable).toBe(false);
+      expect(result.httpStatusCode).toBe(422);
+      expect(result.errorCode).toBe('BUSINESS_LOGIC_ERROR');
+    });
 
-      expect(result.category).toBe(ErrorCategory.RATE_LIMIT);
+    it('should classify Hedera errors correctly', () => {
+      const hederaError = new Error('Hedera token service unavailable');
+      const result = ProjectErrorClassifier.classify(hederaError, mockContext);
+
+      expect(result.category).toBe(ProjectErrorCategory.EXTERNAL_SERVICE);
+      expect(result.severity).toBe(ErrorSeverity.HIGH);
       expect(result.retryable).toBe(true);
-      expect(result.userMessage).toContain('busy');
-      expect(result.technicalMessage).toBe('S3 slow down error');
+      expect(result.recoveryStrategy).toBe(RecoveryStrategy.RETRY);
+      expect(result.httpStatusCode).toBe(503);
+      expect(result.errorCode).toBe('HEDERA_SERVICE_ERROR');
     });
 
-    it('should classify ServiceUnavailable as retryable system error', () => {
-      const error = {
-        name: 'ServiceUnavailable',
-        message: 'Service is temporarily unavailable',
-        code: 'ServiceUnavailable',
-        $metadata: { httpStatusCode: 503, service: 'S3' },
-      };
+    it('should classify IPFS errors correctly', () => {
+      const ipfsError = new Error('IPFS upload failed');
+      const result = ProjectErrorClassifier.classify(ipfsError, mockContext);
 
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.SYSTEM);
+      expect(result.category).toBe(ProjectErrorCategory.EXTERNAL_SERVICE);
+      expect(result.severity).toBe(ErrorSeverity.MEDIUM);
       expect(result.retryable).toBe(true);
-      expect(result.userMessage).toContain('temporarily unavailable');
-      expect(result.technicalMessage).toBe('S3 service unavailable');
+      expect(result.recoveryStrategy).toBe(RecoveryStrategy.RETRY);
+      expect(result.httpStatusCode).toBe(503);
+      expect(result.errorCode).toBe('IPFS_SERVICE_ERROR');
     });
-  });
 
-  describe('DynamoDB Error Classification', () => {
-    it('should classify ProvisionedThroughputExceededException as rate limit', () => {
-      const error = {
-        name: 'ProvisionedThroughputExceededException',
-        message: 'The level of configured provisioned throughput for the table was exceeded',
-        code: 'ProvisionedThroughputExceededException',
-        $metadata: { httpStatusCode: 400 },
-      };
+    it('should classify DynamoDB throttling errors correctly', () => {
+      const throttleError = new Error('ProvisionedThroughputExceededException');
+      throttleError.name = 'ProvisionedThroughputExceededException';
+      const result = ProjectErrorClassifier.classify(throttleError, mockContext);
 
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.RATE_LIMIT);
+      expect(result.category).toBe(ProjectErrorCategory.RATE_LIMIT);
+      expect(result.severity).toBe(ErrorSeverity.MEDIUM);
       expect(result.retryable).toBe(true);
-      expect(result.userMessage).toContain('temporarily busy');
-      expect(result.technicalMessage).toBe('DynamoDB provisioned throughput exceeded');
+      expect(result.recoveryStrategy).toBe(RecoveryStrategy.RETRY);
+      expect(result.httpStatusCode).toBe(429);
+      expect(result.errorCode).toBe('DATABASE_ERROR');
     });
 
-    it('should classify ConditionalCheckFailedException as validation error', () => {
-      const error = {
-        name: 'ConditionalCheckFailedException',
-        message: 'The conditional request failed',
-        code: 'ConditionalCheckFailedException',
-        $metadata: { httpStatusCode: 400 },
-      };
+    it('should classify DynamoDB system errors correctly', () => {
+      const systemError = new Error('InternalServerError');
+      systemError.name = 'InternalServerError';
+      const result = ProjectErrorClassifier.classify(systemError, mockContext);
 
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.VALIDATION);
-      expect(result.retryable).toBe(false);
-      expect(result.userMessage).toContain('conflict');
-      expect(result.technicalMessage).toBe('DynamoDB conditional check failed');
-    });
-
-    it('should classify ResourceNotFoundException as resource not found', () => {
-      const error = {
-        name: 'ResourceNotFoundException',
-        message: 'Requested resource not found',
-        code: 'ResourceNotFoundException',
-        $metadata: { httpStatusCode: 400 },
-      };
-
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.RESOURCE_NOT_FOUND);
-      expect(result.retryable).toBe(false);
-      expect(result.userMessage).toContain('not found');
-      expect(result.technicalMessage).toBe('DynamoDB resource not found');
-    });
-  });
-
-  describe('Generic Error Classification', () => {
-    it('should classify 500 errors as retryable system errors', () => {
-      const error = {
-        name: 'InternalServerError',
-        message: 'Internal server error',
-        $metadata: { httpStatusCode: 500 },
-      };
-
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.SYSTEM);
+      expect(result.category).toBe(ProjectErrorCategory.SYSTEM);
+      expect(result.severity).toBe(ErrorSeverity.HIGH);
       expect(result.retryable).toBe(true);
-      expect(result.userMessage).toContain('temporarily unavailable');
+      expect(result.recoveryStrategy).toBe(RecoveryStrategy.RETRY);
+      expect(result.httpStatusCode).toBe(503);
+      expect(result.errorCode).toBe('DATABASE_ERROR');
     });
 
-    it('should classify 429 errors as rate limit', () => {
-      const error = {
-        name: 'TooManyRequests',
-        message: 'Too many requests',
-        $metadata: { httpStatusCode: 429 },
-      };
+    it('should classify S3 errors correctly', () => {
+      const s3Error = new Error('NoSuchBucket');
+      s3Error.name = 'NoSuchBucket';
+      const result = ProjectErrorClassifier.classify(s3Error, mockContext);
 
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.RATE_LIMIT);
+      expect(result.category).toBe(ProjectErrorCategory.SYSTEM);
+      expect(result.severity).toBe(ErrorSeverity.MEDIUM);
       expect(result.retryable).toBe(true);
-      expect(result.userMessage).toContain('Too many requests');
+      expect(result.recoveryStrategy).toBe(RecoveryStrategy.RETRY);
+      expect(result.httpStatusCode).toBe(503);
+      expect(result.errorCode).toBe('STORAGE_ERROR');
     });
 
-    it('should classify 400 errors as validation errors', () => {
-      const error = {
-        name: 'BadRequest',
-        message: 'Bad request',
-        $metadata: { httpStatusCode: 400 },
-      };
+    it('should classify network errors correctly', () => {
+      const networkError = new Error('ECONNRESET: Connection reset by peer');
+      const result = ProjectErrorClassifier.classify(networkError, mockContext);
 
-      const result = ErrorClassifier.classify(error);
+      expect(result.category).toBe(ProjectErrorCategory.NETWORK);
+      expect(result.severity).toBe(ErrorSeverity.MEDIUM);
+      expect(result.retryable).toBe(true);
+      expect(result.recoveryStrategy).toBe(RecoveryStrategy.RETRY);
+      expect(result.httpStatusCode).toBe(503);
+      expect(result.errorCode).toBe('NETWORK_ERROR');
+    });
 
-      expect(result.category).toBe(ErrorCategory.VALIDATION);
+    it('should classify timeout errors correctly', () => {
+      const timeoutError = new Error('Request timed out');
+      const result = ProjectErrorClassifier.classify(timeoutError, mockContext);
+
+      expect(result.category).toBe(ProjectErrorCategory.TIMEOUT);
+      expect(result.severity).toBe(ErrorSeverity.MEDIUM);
+      expect(result.retryable).toBe(true);
+      expect(result.recoveryStrategy).toBe(RecoveryStrategy.RETRY);
+      expect(result.httpStatusCode).toBe(504);
+      expect(result.errorCode).toBe('TIMEOUT_ERROR');
+    });
+
+    it('should classify unknown errors as system errors', () => {
+      const unknownError = new Error('Some unknown error occurred');
+      const result = ProjectErrorClassifier.classify(unknownError, mockContext);
+
+      expect(result.category).toBe(ProjectErrorCategory.SYSTEM);
+      expect(result.severity).toBe(ErrorSeverity.HIGH);
       expect(result.retryable).toBe(false);
-      expect(result.userMessage).toContain('Invalid request');
+      expect(result.recoveryStrategy).toBe(RecoveryStrategy.MANUAL_INTERVENTION);
+      expect(result.httpStatusCode).toBe(500);
+      expect(result.errorCode).toBe('SYSTEM_ERROR');
     });
 
-    it('should handle unknown errors gracefully', () => {
-      const error = {
-        name: 'UnknownError',
-        message: 'Something went wrong',
-      };
+    it('should return existing ProjectError unchanged', () => {
+      const existingError = new ProjectError({
+        category: ProjectErrorCategory.VALIDATION,
+        severity: ErrorSeverity.LOW,
+        retryable: false,
+        recoveryStrategy: RecoveryStrategy.NONE,
+        userMessage: 'Test error',
+        technicalMessage: 'Test technical message',
+        errorCode: 'TEST_ERROR',
+        httpStatusCode: 400,
+        context: {
+          operation: 'test',
+          timestamp: new Date().toISOString(),
+          environment: 'test',
+          service: 'test'
+        }
+      });
 
-      const result = ErrorClassifier.classify(error);
-
-      expect(result.category).toBe(ErrorCategory.SYSTEM);
-      expect(result.retryable).toBe(false);
-      expect(result.userMessage).toContain('unexpected error');
-      expect(result.technicalMessage).toContain('Unknown AWS error');
-    });
-  });
-
-  describe('Context handling', () => {
-    it('should include context in error details', () => {
-      const error = {
-        name: 'TestError',
-        message: 'Test error message',
-      };
-      const context = {
-        operation: 'TestOperation',
-        userId: 'user123',
-        documentId: 'doc456',
-      };
-
-      const result = ErrorClassifier.classify(error, context);
-
-      expect(result.context).toEqual(context);
-    });
-  });
-
-  describe('Utility methods', () => {
-    it('should correctly identify retryable errors', () => {
-      const retryableError = {
-        name: 'ThrottlingException',
-        message: 'Rate exceeded',
-      };
-      const nonRetryableError = {
-        name: 'ValidationException',
-        message: 'Invalid input',
-      };
-
-      expect(ErrorClassifier.isRetryable(retryableError)).toBe(true);
-      expect(ErrorClassifier.isRetryable(nonRetryableError)).toBe(false);
+      const result = ProjectErrorClassifier.classify(existingError, mockContext);
+      expect(result).toBe(existingError);
     });
 
-    it('should return appropriate user messages', () => {
-      const error = {
-        name: 'AccessDenied',
-        message: 'Access denied',
-        $metadata: { service: 'S3' },
-      };
+    it('should include suggested actions in classified errors', () => {
+      const validationError = new Error('Invalid input format');
+      const result = ProjectErrorClassifier.classify(validationError, mockContext);
 
-      const userMessage = ErrorClassifier.getUserMessage(error);
-      expect(userMessage).toContain('permission');
+      expect(result.suggestedActions).toBeDefined();
+      expect(result.suggestedActions).toContain('Verify all required fields are provided');
+      expect(result.suggestedActions).toContain('Check field formats and constraints');
     });
 
-    it('should return technical messages for logging', () => {
-      const error = {
-        name: 'ServiceUnavailable',
-        message: 'Service unavailable',
-        $metadata: { service: 'S3' },
-      };
+    it('should preserve error context', () => {
+      const error = new Error('Test error');
+      const result = ProjectErrorClassifier.classify(error, mockContext);
 
-      const technicalMessage = ErrorClassifier.getTechnicalMessage(error);
-      expect(technicalMessage).toBe('S3 service unavailable');
+      expect(result.context.operation).toBe(mockContext.operation);
+      expect(result.context.requestId).toBe(mockContext.requestId);
+      expect(result.context.userId).toBe(mockContext.userId);
+      expect(result.context.projectId).toBe(mockContext.projectId);
+      expect(result.context.timestamp).toBeDefined();
+      expect(result.context.environment).toBeDefined();
+      expect(result.context.service).toBe('ProjectService');
     });
   });
 });
 
-describe('AWSServiceError', () => {
+describe('ErrorRecoveryManager', () => {
+  describe('executeWithRecovery', () => {
+    it('should execute operation successfully without recovery', async () => {
+      const mockOperation = jest.fn().mockResolvedValue('success');
+      const context = { operation: 'test-operation' };
+
+      const result = await ErrorRecoveryManager.executeWithRecovery(
+        mockOperation,
+        context
+      );
+
+      expect(result).toBe('success');
+      expect(mockOperation).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry retryable errors', async () => {
+      const retryableError = new Error('Hedera service unavailable');
+      const mockOperation = jest.fn()
+        .mockRejectedValueOnce(retryableError)
+        .mockRejectedValueOnce(retryableError)
+        .mockResolvedValue('success');
+
+      const context = { operation: 'test-operation' };
+
+      const result = await ErrorRecoveryManager.executeWithRecovery(
+        mockOperation,
+        context
+      );
+
+      expect(result).toBe('success');
+      expect(mockOperation).toHaveBeenCalledTimes(3);
+    });
+
+    it('should use fallback operation when provided', async () => {
+      const nonRetryableError = new Error('Validation failed');
+      const mockOperation = jest.fn().mockRejectedValue(nonRetryableError);
+      const mockFallback = jest.fn().mockResolvedValue('fallback-success');
+      const context = { operation: 'test-operation' };
+
+      const result = await ErrorRecoveryManager.executeWithRecovery(
+        mockOperation,
+        context,
+        mockFallback
+      );
+
+      expect(result).toBe('fallback-success');
+      expect(mockOperation).toHaveBeenCalledTimes(1);
+      expect(mockFallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error when retry exhausted', async () => {
+      const retryableError = new Error('Network timeout');
+      const mockOperation = jest.fn().mockRejectedValue(retryableError);
+      const context = { operation: 'test-operation' };
+
+      await expect(
+        ErrorRecoveryManager.executeWithRecovery(mockOperation, context)
+      ).rejects.toThrow(ProjectError);
+
+      expect(mockOperation).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error when fallback fails', async () => {
+      const originalError = new Error('Original error');
+      const fallbackError = new Error('Fallback failed');
+      const mockOperation = jest.fn().mockRejectedValue(originalError);
+      const mockFallback = jest.fn().mockRejectedValue(fallbackError);
+      const context = { operation: 'test-operation' };
+
+      await expect(
+        ErrorRecoveryManager.executeWithRecovery(
+          mockOperation,
+          context,
+          mockFallback
+        )
+      ).rejects.toThrow(ProjectError);
+
+      expect(mockOperation).toHaveBeenCalledTimes(1);
+      expect(mockFallback).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe('withErrorHandling decorator', () => {
+  it('should handle errors automatically', async () => {
+    class TestClass {
+      @withErrorHandling('test-operation')
+      async testMethod(): Promise<string> {
+        throw new Error('Test error');
+      }
+    }
+
+    const instance = new TestClass();
+
+    await expect(instance.testMethod()).rejects.toThrow(ProjectError);
+  });
+
+  it('should pass through successful operations', async () => {
+    class TestClass {
+      @withErrorHandling('test-operation')
+      async testMethod(): Promise<string> {
+        return 'success';
+      }
+    }
+
+    const instance = new TestClass();
+    const result = await instance.testMethod();
+
+    expect(result).toBe('success');
+  });
+
+  it('should use fallback operation when provided', async () => {
+    const fallbackOperation = jest.fn().mockResolvedValue('fallback-result');
+
+    class TestClass {
+      @withErrorHandling('test-operation', fallbackOperation)
+      async testMethod(): Promise<string> {
+        throw new Error('Test error');
+      }
+    }
+
+    const instance = new TestClass();
+    const result = await instance.testMethod();
+
+    expect(result).toBe('fallback-result');
+    expect(fallbackOperation).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ProjectError', () => {
   it('should create error with all properties', () => {
-    const errorDetails = {
-      category: ErrorCategory.VALIDATION,
-      retryable: false,
-      userMessage: 'Invalid input',
-      technicalMessage: 'Validation failed',
-      errorCode: 'ValidationException',
-      httpStatusCode: 400,
-      context: { operation: 'TestOp' },
+    const context = {
+      operation: 'test-operation',
+      requestId: 'test-request-id',
+      timestamp: new Date().toISOString(),
+      environment: 'test',
+      service: 'test-service'
     };
+
+    const errorDetails = {
+      category: ProjectErrorCategory.VALIDATION,
+      severity: ErrorSeverity.LOW,
+      retryable: false,
+      recoveryStrategy: RecoveryStrategy.NONE,
+      userMessage: 'User friendly message',
+      technicalMessage: 'Technical error message',
+      errorCode: 'TEST_ERROR',
+      httpStatusCode: 400,
+      context,
+      suggestedActions: ['Action 1', 'Action 2'],
+      rollbackRequired: true
+    };
+
     const originalError = new Error('Original error');
+    const projectError = new ProjectError(errorDetails, originalError);
 
-    const awsError = new AWSServiceError(errorDetails, originalError);
-
-    expect(awsError.name).toBe('AWSServiceError');
-    expect(awsError.category).toBe(ErrorCategory.VALIDATION);
-    expect(awsError.retryable).toBe(false);
-    expect(awsError.userMessage).toBe('Invalid input');
-    expect(awsError.technicalMessage).toBe('Validation failed');
-    expect(awsError.errorCode).toBe('ValidationException');
-    expect(awsError.httpStatusCode).toBe(400);
-    expect(awsError.context).toEqual({ operation: 'TestOp' });
-    expect(awsError.originalError).toBe(originalError);
-    expect(awsError.message).toBe('Validation failed');
+    expect(projectError.name).toBe('ProjectError');
+    expect(projectError.category).toBe(ProjectErrorCategory.VALIDATION);
+    expect(projectError.severity).toBe(ErrorSeverity.LOW);
+    expect(projectError.retryable).toBe(false);
+    expect(projectError.recoveryStrategy).toBe(RecoveryStrategy.NONE);
+    expect(projectError.userMessage).toBe('User friendly message');
+    expect(projectError.technicalMessage).toBe('Technical error message');
+    expect(projectError.errorCode).toBe('TEST_ERROR');
+    expect(projectError.httpStatusCode).toBe(400);
+    expect(projectError.context).toBe(context);
+    expect(projectError.suggestedActions).toEqual(['Action 1', 'Action 2']);
+    expect(projectError.rollbackRequired).toBe(true);
+    expect(projectError.originalError).toBe(originalError);
+    expect(projectError.message).toBe('Technical error message');
   });
 });

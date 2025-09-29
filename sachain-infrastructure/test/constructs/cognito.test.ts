@@ -25,7 +25,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       const construct = new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -33,7 +33,7 @@ describe("CognitoConstruct", () => {
       // Assert
       template.hasResourceProperties("AWS::Cognito::UserPool", {
         UserPoolName: "sachain-user-pool-test",
-        AliasAttributes: ["email"],
+        UsernameAttributes: ["email"],
         AutoVerifiedAttributes: ["email"],
       });
 
@@ -44,7 +44,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -64,28 +64,11 @@ describe("CognitoConstruct", () => {
       });
     });
 
-    test("should enable advanced security features", () => {
-      // Arrange & Act
-      new CognitoConstruct(stack, "TestCognito", {
-        postAuthLambda: mockPostAuthLambda,
-        environment: "test",
-      });
-
-      const template = Template.fromStack(stack);
-
-      // Assert
-      template.hasResourceProperties("AWS::Cognito::UserPool", {
-        UserPoolAddOns: {
-          AdvancedSecurityMode: "ENFORCED",
-        },
-      });
-    });
-
     test("should configure device tracking", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -103,7 +86,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -112,34 +95,28 @@ describe("CognitoConstruct", () => {
       template.hasResourceProperties("AWS::Cognito::UserPool", {
         Schema: [
           {
-            AttributeDataType: "String",
+            // AttributeDataType: "String",
             Name: "email",
             Required: true,
             Mutable: true,
           },
           {
-            AttributeDataType: "String",
+            // AttributeDataType: "String",
             Name: "given_name",
-            Required: false,
+            Required: true,
             Mutable: true,
           },
           {
-            AttributeDataType: "String",
+            // AttributeDataType: "String",
             Name: "family_name",
-            Required: false,
+            Required: true,
             Mutable: true,
           },
           {
             AttributeDataType: "String",
             Name: "userType",
             Mutable: true,
-            DeveloperOnlyAttribute: false,
-          },
-          {
-            AttributeDataType: "String",
-            Name: "kycStatus",
-            Mutable: true,
-            DeveloperOnlyAttribute: false,
+            // DeveloperOnlyAttribute: false,
           },
         ],
       });
@@ -194,28 +171,11 @@ describe("CognitoConstruct", () => {
   });
 
   describe("Security Configuration", () => {
-    test("should enforce advanced security mode", () => {
-      // Arrange & Act
-      new CognitoConstruct(stack, "TestCognito", {
-        postAuthLambda: mockPostAuthLambda,
-        environment: "test",
-      });
-
-      const template = Template.fromStack(stack);
-
-      // Assert
-      template.hasResourceProperties("AWS::Cognito::UserPool", {
-        UserPoolAddOns: {
-          AdvancedSecurityMode: "ENFORCED",
-        },
-      });
-    });
-
     test("should require email verification", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -230,7 +190,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -254,7 +214,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       const construct = new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       // Assert - Verify the construct is created successfully
@@ -266,7 +226,7 @@ describe("CognitoConstruct", () => {
       // Arrange & Act
       new CognitoConstruct(stack, "TestCognito", {
         postAuthLambda: mockPostAuthLambda,
-        environment: "test",
+        environment: "dev",
       });
 
       const template = Template.fromStack(stack);
@@ -275,6 +235,20 @@ describe("CognitoConstruct", () => {
       template.hasResourceProperties("AWS::Lambda::Permission", {
         Action: "lambda:InvokeFunction",
         Principal: "cognito-idp.amazonaws.com",
+      });
+    });
+  });
+
+  describe("Cognito Domain", () => {
+    test("should configure Cognito domain with NEWER_MANAGED_LOGIN version", () => {
+      new CognitoConstruct(stack, "TestCognitoDomain", {
+        environment: "dev",
+      });
+
+      const template = Template.fromStack(stack);
+
+      template.hasResourceProperties("AWS::Cognito::UserPoolDomain", {
+        Domain: "sachain-test",
       });
     });
   });

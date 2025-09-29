@@ -33,7 +33,7 @@ export interface KYCStatusChangeEvent extends BaseKYCEvent {
   reviewedBy: string;
   reviewComments?: string;
   documentType: "national_id";
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
 }
 
 // KYC Document Uploaded Event - published when user uploads a document
@@ -43,7 +43,7 @@ export interface KYCDocumentUploadedEvent extends BaseKYCEvent {
   fileSize: number;
   mimeType: string;
   s3Key: string;
-  userType: "entrepreneur" | "investor";
+  userType: "startup" | "investor";
 }
 
 // KYC Review Started Event - published when admin starts reviewing

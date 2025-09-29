@@ -10,24 +10,21 @@ import { Construct } from "constructs";
 export interface EventBridgeConstructProps {
   environment: string;
   adminEmails?: string[];
-  userNotificationLambda?: lambda.Function;
 }
 
 export class EventBridgeConstruct extends Construct {
   public readonly eventBus: events.EventBus;
   public readonly notificationTopic: sns.Topic;
-  public readonly userNotificationTopic: sns.Topic;
   public readonly kycStatusChangeRule: events.Rule;
   public readonly kycDocumentUploadedRule: events.Rule;
   public readonly kycReviewCompletedRule: events.Rule;
+  public readonly paymentCompletedRule: events.Rule;
 
   constructor(scope: Construct, id: string, props: EventBridgeConstructProps) {
     super(scope, id);
 
     // Custom EventBridge bus for KYC events
-    this.eventBus = new events.EventBus(this, "KYCEventBus", {
-      eventBusName: `sachain-kyc-events-${props.environment}`,
-    });
+    this.eventBus = new events.EventBus(this, "KYCEventBus", {});
 
     // SNS topic for KYC admin notifications
     this.notificationTopic = new sns.Topic(this, "AdminNotificationTopic", {
@@ -36,16 +33,10 @@ export class EventBridgeConstruct extends Construct {
       fifo: false,
     });
 
-    // SNS topic for user notifications
-    this.userNotificationTopic = new sns.Topic(this, "UserNotificationTopic", {
-      topicName: `sachain-kyc-user-notifications-${props.environment}`,
-      displayName: "Sachain KYC User Notifications",
-      fifo: false,
-    });
-
     // Add email subscriptions for admin notifications
     const defaultAdminEmails = props.adminEmails || [
       `sandjioemmanuel@protonmail.com`,
+      "joanchacha01@gmail.com",
     ];
 
     defaultAdminEmails.forEach((email, index) => {
@@ -79,23 +70,6 @@ export class EventBridgeConstruct extends Construct {
         },
       },
     });
-
-    // Add targets for KYC status change events
-    this.kycStatusChangeRule.addTarget(
-      new targets.SnsTopic(this.userNotificationTopic, {
-        message: events.RuleTargetInput.fromObject({
-          eventType: events.EventField.fromPath("$.detail.eventType"),
-          userId: events.EventField.fromPath("$.detail.userId"),
-          documentId: events.EventField.fromPath("$.detail.documentId"),
-          newStatus: events.EventField.fromPath("$.detail.newStatus"),
-          reviewedBy: events.EventField.fromPath("$.detail.reviewedBy"),
-          reviewComments: events.EventField.fromPath("$.detail.reviewComments"),
-          timestamp: events.EventField.fromPath("$.detail.timestamp"),
-        }),
-      })
-    );
-
-    // User Notification Lambda target will be added later in the stack
 
     // Add CloudWatch Logs target for debugging
     this.kycStatusChangeRule.addTarget(
@@ -195,15 +169,26 @@ export class EventBridgeConstruct extends Construct {
       })
     );
 
+    // Event Rule: Payment Completed Events
+    this.paymentCompletedRule = new events.Rule(this, "PaymentCompletedRule", {
+      ruleName: `sachain-payment-completed-${props.environment}`,
+      description: "Route payment completion events to HBAR transfer",
+      eventBus: this.eventBus,
+      eventPattern: {
+        source: ["sachain.payments"],
+        detailType: ["Payment Completed"],
+        detail: {
+          eventType: ["PAYMENT_COMPLETED"],
+        },
+      },
+    });
+
     // Add tags for resource management
     cdk.Tags.of(this.notificationTopic).add(
       "Purpose",
       "KYC-Admin-Notifications"
     );
-    cdk.Tags.of(this.userNotificationTopic).add(
-      "Purpose",
-      "KYC-User-Notifications"
-    );
+
     cdk.Tags.of(this.eventBus).add("Purpose", "KYC-Events");
     cdk.Tags.of(eventLogGroup).add("Purpose", "KYC-Event-Logging");
 
@@ -217,16 +202,12 @@ export class EventBridgeConstruct extends Construct {
       value: this.notificationTopic.topicArn,
       description: "Admin Notification SNS Topic ARN",
     });
-
-    new cdk.CfnOutput(this, "UserNotificationTopicArn", {
-      value: this.userNotificationTopic.topicArn,
-      description: "User Notification SNS Topic ARN",
-    });
   }
 
   public addLambdaTargets(
     kycProcessingLambda: lambda.Function,
-    userNotificationLambda: lambda.Function
+    userNotificationLambda: lambda.Function,
+    sendHbarLambda: lambda.Function
   ): void {
     // Add lambda targets to event rules
     this.kycDocumentUploadedRule.addTarget(
@@ -240,6 +221,13 @@ export class EventBridgeConstruct extends Construct {
       new targets.LambdaFunction(userNotificationLambda, {
         retryAttempts: 2,
         maxEventAge: cdk.Duration.hours(1),
+      })
+    );
+
+    this.paymentCompletedRule.addTarget(
+      new targets.LambdaFunction(sendHbarLambda, {
+        retryAttempts: 3,
+        maxEventAge: cdk.Duration.hours(2),
       })
     );
   }

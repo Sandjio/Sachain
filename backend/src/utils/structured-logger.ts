@@ -91,7 +91,7 @@ export class StructuredLogger {
 
   private log(entry: LogEntry): void {
     const logString = JSON.stringify(entry);
-    
+
     switch (entry.level) {
       case LogLevel.DEBUG:
         console.debug(logString);
@@ -117,20 +117,35 @@ export class StructuredLogger {
     this.log(this.createLogEntry(LogLevel.INFO, message, context));
   }
 
-  warn(message: string, context: Partial<LogContext> = {}, error?: Error): void {
+  warn(
+    message: string,
+    context: Partial<LogContext> = {},
+    error?: Error
+  ): void {
     this.log(this.createLogEntry(LogLevel.WARN, message, context, error));
   }
 
-  error(message: string, context: Partial<LogContext> = {}, error?: Error): void {
+  error(
+    message: string,
+    context: Partial<LogContext> = {},
+    error?: Error
+  ): void {
     this.log(this.createLogEntry(LogLevel.ERROR, message, context, error));
   }
 
-  fatal(message: string, context: Partial<LogContext> = {}, error?: Error): void {
+  fatal(
+    message: string,
+    context: Partial<LogContext> = {},
+    error?: Error
+  ): void {
     this.log(this.createLogEntry(LogLevel.FATAL, message, context, error));
   }
 
   // Operation-specific logging methods
-  logOperationStart(operation: string, context: Partial<LogContext> = {}): void {
+  logOperationStart(
+    operation: string,
+    context: Partial<LogContext> = {}
+  ): void {
     this.info(`${operation} started`, {
       operation,
       ...context,
@@ -154,10 +169,14 @@ export class StructuredLogger {
     error: Error,
     context: Partial<LogContext> = {}
   ): void {
-    this.error(`${operation} failed`, {
-      operation,
-      ...context,
-    }, error);
+    this.error(
+      `${operation} failed`,
+      {
+        operation,
+        ...context,
+      },
+      error
+    );
   }
 
   logRetryAttempt(
@@ -168,13 +187,17 @@ export class StructuredLogger {
     error: Error,
     context: Partial<LogContext> = {}
   ): void {
-    this.warn(`${operation} retry attempt ${attempt}/${maxRetries}`, {
-      operation,
-      attempt,
-      maxRetries,
-      delay,
-      ...context,
-    }, error);
+    this.warn(
+      `${operation} retry attempt ${attempt}/${maxRetries}`,
+      {
+        operation,
+        attempt,
+        maxRetries,
+        delay,
+        ...context,
+      },
+      error
+    );
   }
 
   logS3Upload(
@@ -207,11 +230,11 @@ export class StructuredLogger {
     error?: Error
   ): void {
     const message = `DynamoDB ${operation}`;
-    const logContext = { 
-      operation: "DynamoDBOperation", 
-      tableName, 
+    const logContext = {
+      operation: "DynamoDBOperation",
+      tableName,
       key: JSON.stringify(key),
-      ...context 
+      ...context,
     };
 
     switch (operation) {
@@ -240,21 +263,32 @@ export class StructuredLogger {
         value,
       });
     } else {
-      this.warn("Failed to publish CloudWatch metric", {
-        operation: "PublishMetric",
-        metricName,
-        value,
-      }, error);
+      this.warn(
+        "Failed to publish CloudWatch metric",
+        {
+          operation: "PublishMetric",
+          metricName,
+          value,
+        },
+        error
+      );
     }
   }
 }
 
 // Factory functions for common services
-export const createKYCLogger = (): StructuredLogger => 
+export const createKYCLogger = (): StructuredLogger =>
   StructuredLogger.getInstance("KYCService");
 
-export const createS3Logger = (): StructuredLogger => 
+export const createS3Logger = (): StructuredLogger =>
   StructuredLogger.getInstance("S3Service");
 
-export const createDynamoDBLogger = (): StructuredLogger => 
+export const createDynamoDBLogger = (): StructuredLogger =>
   StructuredLogger.getInstance("DynamoDBService");
+
+export const createProjectLogger = (): StructuredLogger =>
+  StructuredLogger.getInstance("ProjectService");
+
+// Default logger instance for general use
+export const structuredLogger =
+  StructuredLogger.getInstance("HBARRechargeSystem");

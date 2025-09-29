@@ -54,7 +54,6 @@
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
     "react-resizable-panels": "^3.0.5",
-    "react-slider@": "link:radix-ui/react-slider@",
     "recharts": "2.15.2",
     "section": "^0.4.2",
     "sonner": "^2.0.7",

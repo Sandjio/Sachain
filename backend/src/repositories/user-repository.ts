@@ -96,6 +96,12 @@ export class UserRepository extends BaseRepository {
       expressionAttributeValues[":lastLoginAt"] = input.lastLoginAt;
     }
 
+    if (input.walletAddress !== undefined) {
+      updateExpressions.push("#walletAddress = :walletAddress");
+      expressionAttributeNames["#walletAddress"] = "walletAddress";
+      expressionAttributeValues[":walletAddress"] = input.walletAddress;
+    }
+
     const updateExpression = `SET ${updateExpressions.join(", ")}`;
 
     await this.updateItem(
