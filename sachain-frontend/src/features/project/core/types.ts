@@ -10,6 +10,8 @@ export interface ProjectPayload {
 }
 
 export interface Project {
+  currentFunding: number;
+  fundingGoal: number;
   projectId: string;
   id: string;
   name: string;

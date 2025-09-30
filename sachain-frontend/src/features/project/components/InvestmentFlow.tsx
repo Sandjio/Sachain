@@ -7,6 +7,7 @@ import Step2Balances from './investment/Step2Balances';
 import Step3Payment from './investment/Step3Payment';
 import Step4Purchase from './investment/Step4Purchase';
 import Step5Success from './investment/Step5Success';
+import { X } from 'lucide-react';
 
 interface InvestmentFlowProps {
   onClose: () => void;

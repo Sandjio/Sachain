@@ -1,7 +1,5 @@
-
-
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,19 +19,15 @@ export default function Step5Success({
   onSuccess,
   formatCurrency,
 }: Step5Props) {
-  // Local state to simulate approval and timeout
   const [notificationReceived, setNotificationReceived] = useState(false);
-  const [timeoutReached, setTimeoutReached] = useState(false);
   const [waitingTime, setWaitingTime] = useState(0);
 
   useEffect(() => {
-    
+    const approveTimeout = setTimeout(() => setNotificationReceived(true), 60000); // 60 seconds
     const timer = setInterval(() => setWaitingTime(t => t + 1), 1000);
-    const timeout = setTimeout(() => setTimeoutReached(true), 300000); 
-
     return () => {
+      clearTimeout(approveTimeout);
       clearInterval(timer);
-      clearTimeout(timeout);
     };
   }, []);
 
@@ -46,12 +40,6 @@ export default function Step5Success({
   const handleFinish = () => {
     onSuccess?.();
     onClose();
-  };
-
-  const handleTryAgain = () => {
-    setTimeoutReached(false);
-    setWaitingTime(0);
-    setNotificationReceived(false);
   };
 
   if (notificationReceived) {
@@ -87,42 +75,7 @@ export default function Step5Success({
     );
   }
 
-  if (timeoutReached) {
-    return (
-      <div className="text-center space-y-6">
-        <AlertTriangle className="mx-auto h-16 w-16 text-orange-600" />
-        <h3 className="text-xl font-semibold text-orange-600">Waiting for Approval</h3>
-        <p>Your investment request is still pending approval. This might take some time.</p>
-
-        <Card>
-          <CardContent>
-            <div className="flex justify-between">
-              <span>Status:</span>
-              <Badge variant="outline" className="text-orange-600">Pending Approval</Badge>
-            </div>
-            <div className="flex justify-between">
-              <span>Waiting time:</span>
-              <span>{formatWaitingTime(waitingTime)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Amount:</span>
-              <span>{calculation ? formatCurrency(calculation.finalTotal) : 'N/A'}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleTryAgain} className="flex-1">
-            Continue Waiting
-          </Button>
-          <Button onClick={onClose} className="flex-1">
-            Close & Check Later
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+  // While waiting for "approval"
   return (
     <div className="text-center space-y-6">
       <Clock className="mx-auto h-16 w-16 text-blue-600 animate-spin" />
