@@ -45,12 +45,7 @@ function StatCard({ value, label, description, icon }: StatCardProps) {
 
 export function AfricanOpportunity() {
   const stats = [
-    {
-      value: "500K+",
-      label: "African Startups",
-      description: "Seeking funding opportunities",
-      icon: <Building2 className="w-8 h-8 text-primary" />
-    },
+   
     {
       value: "$2.3B",
       label: "Funding Gap",
@@ -63,12 +58,7 @@ export function AfricanOpportunity() {
       description: "African diaspora worldwide",
       icon: <Users className="w-8 h-8 text-primary" />
     },
-    {
-      value: "25%",
-      label: "Annual Growth",
-      description: "Ready for digital investment",
-      icon: <TrendingUp className="w-8 h-8 text-primary" />
-    },
+   
     {
       value: "54",
       label: "African Countries",

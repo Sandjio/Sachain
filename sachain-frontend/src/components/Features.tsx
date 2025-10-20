@@ -46,12 +46,7 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
 
 export function PlatformFeatures() {
   const features = [
-    {
-      icon: <Shield className="w-10 h-10 text-primary-foreground" />,
-      title: "Blockchain Security",
-      description:
-        "Built on Hedera network with enterprise-grade security for all transactions and smart contracts.",
-    },
+    
     {
       icon: <Zap className="w-10 h-10 text-primary-foreground" />,
       title: "Instant HBAR Transactions",
@@ -64,12 +59,7 @@ export function PlatformFeatures() {
       description:
         "Connect with investors and entrepreneurs across Africa to build the future together.",
     },
-    {
-      icon: <TrendingUp className="w-10 h-10 text-primary-foreground" />,
-      title: "Smart Investment Tracking",
-      description:
-        "Real-time portfolio tracking with detailed analytics and performance insights.",
-    },
+  
     {
       icon: <Globe className="w-10 h-10 text-primary-foreground" />,
       title: "Pan-African Focus",
@@ -103,7 +93,7 @@ export function PlatformFeatures() {
       subtitle="SACHAIN combines cutting-edge blockchain technology with user-friendly design to create the most powerful crowdfunding platform for African innovation."
     />
     {/* Features Grid */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4  gap-6 lg:gap-8 lg:mb-24 p-12 lg:px-10">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3  gap-6 lg:gap-8 lg:mb-24 p-12 lg:px-10">
       {features.map((feature, index) => (
         <FeatureCard
           key={index}

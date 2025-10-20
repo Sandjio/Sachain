@@ -94,7 +94,7 @@ export function Navbar({ showBackButton = false, onBack }: NavbarProps) {
               </button>
               <button
                 onClick={() => setShowGetStarted(true)}
-                className="bg-secondary rounded-md px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-secondary/90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2"
+                className="bg-chart-1 rounded-md px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-secondary/90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2"
               >
                 Register
               </button>

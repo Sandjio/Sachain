@@ -48,7 +48,7 @@ export function HeroSection() {
               </h1>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight">
                 <span className="text-primary">Innovation</span>{' '}
-                <span className="text-secondary">Future</span>
+                <span className="text-chart-1">Future</span>
               </h1>
             </div>
 
@@ -61,7 +61,7 @@ export function HeroSection() {
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 lg:gap-6">
-              <button className="group bg-secondary hover:bg-secondary/90 text-primary-foreground rounded-lg px-8 py-4 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 flex items-center justify-center gap-2">
+              <button className="group bg-chart-1 hover:bg-secondary/90 text-primary-foreground rounded-lg px-8 py-4 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 flex items-center justify-center gap-2">
                 Start Investing
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
