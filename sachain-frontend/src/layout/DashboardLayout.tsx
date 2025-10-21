@@ -41,7 +41,7 @@ export function DashboardLayout({
   };
 
   return (
-    <div className="flex-1 flex min-w-0 h-screen">
+    <div className="flex-1 flex min-w-0 h-[calc(100vh-0px)]">
 
       {/* Desktop Sidebar - Hidden on mobile */}
       <div className="hidden lg:flex lg:w-64">
