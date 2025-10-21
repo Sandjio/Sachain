@@ -32,11 +32,11 @@ export function Sidebar({
     <div className=" relative flex flex-col bg-[#123962] text-white h-full w-full lg:w-64 ">
       {/* Logo/Brand */}
 
-       {/* <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/biglogo.png')", maxWidth: '100%', maxHeight: '50%' }}
+       <div
+        className="absolute inset-0 bg-contain bg-no-repeat bg-bottom top-120 w-full"
+        style={{ backgroundImage: "url('/images/biglogo.png')", maxWidth: '100%' }}
         aria-hidden="true"
-      /> */}
+      />
 
       <div className="p-6 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-3">

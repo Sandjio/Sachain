@@ -33,7 +33,7 @@ export default function TabAuthWrapper() {
 
   const role = useAuthStore((state) => state.user?.role) as "startup" | "investor" | undefined;
   const setRole = useAuthStore((state) => state.setRole);
-  const translate = useTranslate("getStartedModal");
+  //const translate = useTranslate("getStartedModal");
 
   // Sync the role from query param to Zustand store, if different or not set
   useEffect(() => {
@@ -75,55 +75,51 @@ export default function TabAuthWrapper() {
 
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+   
+  <div className="min-h-screen flex flex-col">
+    <Navbar showBackButton={true} onBack={() => router.back()} />
+    
+    {/* Auth Card - Remove min-h-screen and use flex-1 */}
+    <div className="flex-1 flex items-center justify-center bg-muted p-4">
+      <Card className="w-full max-w-md shadow-lg border-2 border-border">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handleBack}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <CardTitle className="text-lg font-semibold">
+              {role === "investor" ? "Investor" : "Startup"} Account
+            </CardTitle>
+          </div>
+          <CardDescription className="text-sm">
+            {role === "investor"
+              ? "Login or sign up to explore African startups."
+              : "Login or sign up to raise capital for your venture."}
+          </CardDescription>
+        </CardHeader>
 
-      <Navbar showBackButton={true} onBack={() => router.back()} />
-      {/* Header */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200">
-       
-      </div>
+        <CardContent className="pt-0">
+          <Tabs
+            value={tab}
+            onValueChange={(value) => handleTabChange(value as "login" | "signup")}
+            className="w-full"
+          >
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
 
-      {/* Auth Card */}
-      <div className="min-h-screen flex items-center justify-center bg-muted p-4">
-        <Card className="w-full max-w-md shadow-lg border-2 border-border">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={handleBack}>
-                ←
-              </Button>
-              <CardTitle className="text-lg font-semibold">
-                {role === "investor" ? "Investor" : "Startup"} {translate("account")}
-              </CardTitle>
-            </div>
-            <CardDescription>
-              {role === "investor"
-                ? "Login or sign up to explore African startups."
-                : "Login or sign up to raise capital for your venture."}
-            </CardDescription>
-          </CardHeader>
+            <TabsContent value="login" className="mt-4">
+              <LoginForm />
+            </TabsContent>
 
-          <CardContent>
-            <Tabs
-              value={tab}
-              onValueChange={(value) => handleTabChange(value as "login" | "signup")}
-              className="w-full"
-            >
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="login" className="mt-6">
-                <LoginForm />
-              </TabsContent>
-
-              <TabsContent value="signup" className="mt-6">
-                <SignupFormWizard />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      </div>
+            <TabsContent value="signup" className="mt-4">
+              <SignupFormWizard />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
-  );
+  </div>
+);
 }

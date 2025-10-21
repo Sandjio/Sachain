@@ -61,7 +61,7 @@ export default function GetStartedModal({
               <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
               </div>
-              <CardTitle>Investor</CardTitle>
+              <CardTitle className="text-2xl text-primary">Investor</CardTitle>
               <CardDescription>
                 Discover and invest in promising African startups
               </CardDescription>
@@ -69,11 +69,11 @@ export default function GetStartedModal({
             <CardContent className="pt-0">
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-green-500" />
+                  <Shield className="w-6 h-6 text-primary" />
                   <span className="text-sm">Secure HBAR investments</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-green-500" />
+                  <Users className="w-6 h-6 text-primary" />
                   <span className="text-sm">
                     Diverse portfolio opportunities
                   </span>
@@ -86,10 +86,10 @@ export default function GetStartedModal({
             onClick={() => handleChooseRole('startup')}
           >
             <CardHeader className="text-center pb-4">
-              <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                <Building2 className="w-6 h-6 text-green-600" />
+              <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-3">
+                <Building2 className="w-6 h-6 text-primary" />
               </div>
-              <CardTitle>Entrepreneur</CardTitle>
+              <CardTitle className="text-2xl text-primary">Entrepreneur</CardTitle>
               <CardDescription>
                 Raise capital for your innovative venture
               </CardDescription>
@@ -97,12 +97,12 @@ export default function GetStartedModal({
             <CardContent className="pt-0">
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-green-500" />
-                  <span className="text-sm">Blockchain-powered funding</span>
+                  <Shield className="w-6 h-6 text-primary" />
+                  <span className="text-sm">Hashgraph-powered funding</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-green-500" />
-                  <span className="text-sm">Global investor network</span>
+                  <Users className="w-6 h-6 text-primary" />
+                  <span className="text-sm">African investor network</span>
                 </li>
               </ul>
             </CardContent>

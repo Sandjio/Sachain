@@ -23,7 +23,7 @@ export async function getStaticProps({ locale = 'en' }) {
 export default function Home() {
   return (
     <PublicLayout>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen">
         {/* <Navbar /> */}
         <HeroSection />
         <Partners />

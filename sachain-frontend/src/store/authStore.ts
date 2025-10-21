@@ -3,6 +3,7 @@ import type { AuthUser } from "@/features/auth/types/authTypes";
 import type { CognitoTokens } from "@/features/auth/core/cognitoProvider";
 
 interface AuthState {
+  [x: string]: any;
   user: AuthUser | null;
   tokens: CognitoTokens | null;
   isHydrated: boolean;

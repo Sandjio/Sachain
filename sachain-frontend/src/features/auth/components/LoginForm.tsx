@@ -56,9 +56,12 @@ export default function LoginForm() {
   }, [isSuccess, user, router]);
 
 
-  const role = user?.role ?? "";
+  //const role = user?.role ?? "";
+  const role = (isSuccess && user?.role) ? user.role : "";
+
 
   return (
+      <div className=" flex items-center justify-center p-2">
     <Card className="w-full max-w-md mx-auto mt-10 p-6 shadow-lg rounded-2xl bg-background">
       <CardHeader className="space-y-1 text-center">
         <CardTitle>Welcome Back</CardTitle>
@@ -134,5 +137,6 @@ export default function LoginForm() {
         </form>
       </CardContent>
     </Card>
+    </div>
   );
 }

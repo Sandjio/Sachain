@@ -159,7 +159,7 @@ export function Navbar({ showBackButton = false, onBack }: NavbarProps) {
                     setIsMenuOpen(false);
                     router.push('/auth/login');
                   }}
-                  className="w-full bg-transparent border border-primary rounded-md px-4 py-3 text-base font-medium text-foreground hover:bg-primary hover:text-primary-foreground transition-colors duration-200"
+                  className="w-full bg-transparent rounded-md px-4 py-3 text-base font-medium text-foreground hover:bg-primary transition-colors duration-200"
                 >
                   Login
                 </button>
