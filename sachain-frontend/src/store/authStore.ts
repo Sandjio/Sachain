@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AuthUser } from "@/features/auth/types/authTypes";
 import type { CognitoTokens } from "@/features/auth/core/cognitoProvider";
+import { useWalletStore } from "@/features/wallet/store/walletStore";
 
 interface AuthState {
   [x: string]: any;
@@ -35,6 +36,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.removeItem("auth_tokens");
     }
     set({ user: null, tokens: null });
+    useWalletStore.getState().disconnectWallet();
     console.log("User logged out, cleared localStorage and store");
   },
 

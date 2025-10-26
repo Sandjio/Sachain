@@ -33,7 +33,7 @@ export function Sidebar({
       {/* Logo/Brand */}
 
        <div
-        className="absolute inset-0 bg-contain bg-no-repeat bg-bottom top-120 w-full"
+        className="absolute inset-0 bg-contain bg-no-repeat bg-bottom top-110 w-full pointer-events-none"
         style={{ backgroundImage: "url('/images/biglogo.png')", maxWidth: '100%' }}
         aria-hidden="true"
       />

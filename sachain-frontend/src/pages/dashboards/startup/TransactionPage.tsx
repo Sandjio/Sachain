@@ -5,7 +5,6 @@ import ScheduleDashboard from '@/features/transactions/components/ScheduleDashbo
 export default function TransactionsPage() {
   return (
     <div style={{ padding: '20px' }}>
-      <h2>My Transactions</h2>
       <ScheduleDashboard />
     </div>
   );

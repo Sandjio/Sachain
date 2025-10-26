@@ -124,7 +124,7 @@ export function MultiStepProjectForm({ onCancel }: MultiStepProjectFormProps) {
       {step !== 4 && (
         <button
           onClick={onCancel}
-          className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 self-start"
+          className="h-9 sm:h-11 px-4 sm:px-8 w-full sm:w-auto bg-gradient-to-r from-[#123962] to-[#90A5FB] hover:from-[#0d2630] hover:to-[#7088e8] text-white border-0 shadow-lg rounded-lg shadow-[#90A5FB]/30 transition-all hover:scale-105 active:scale-95"
         >
           Back to Projects
         </button>
