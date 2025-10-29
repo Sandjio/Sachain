@@ -1,6 +1,6 @@
 // src/features/auth/store/signup.store.ts
-import { create } from "zustand";
-import type { SignupPayload } from "../types/authTypes";
+import { create } from 'zustand';
+import type { SignupPayload } from '../types/authTypes';
 
 export interface SignupState {
   step: 1 | 2; // 1: form, 2: confirmation
@@ -14,7 +14,6 @@ export const useSignupStore = create<SignupState>((set) => ({
   step: 1,
   data: {},
   setStep: (step) => set({ step }),
-  updateData: (partial) =>
-    set((s) => ({ data: { ...s.data, ...partial } })),
+  updateData: (partial) => set((s) => ({ data: { ...s.data, ...partial } })),
   reset: () => set({ step: 1, data: {} }),
 }));

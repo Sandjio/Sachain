@@ -1,5 +1,3 @@
-
-
 import { AppProps } from 'next/app';
 import { IntlProvider } from 'next-intl';
 import { AuthProvider } from '@/provider/AuthProvider';

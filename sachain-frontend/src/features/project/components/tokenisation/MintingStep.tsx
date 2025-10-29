@@ -51,9 +51,7 @@ export function MintingStep({
       return;
     }
 
-    triggerMint(walletAddress, privateKey).catch(() => {
-      
-    });
+    triggerMint(walletAddress, privateKey).catch(() => {});
   };
 
   return (

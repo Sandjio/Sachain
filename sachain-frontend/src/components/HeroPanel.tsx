@@ -1,8 +1,26 @@
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { Badge } from "./ui/badge"
-import { Progress } from "./ui/progress"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, Award, Target, Users, DollarSign } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import {
+  TrendingUp,
+  TrendingDown,
+  Award,
+  Target,
+  Users,
+  DollarSign,
+} from 'lucide-react';
 
 const chartData = [
   { name: 'Jan', value: 2400, projects: 12 },
@@ -11,14 +29,14 @@ const chartData = [
   { name: 'Apr', value: 3908, projects: 11 },
   { name: 'May', value: 4800, projects: 18 },
   { name: 'Jun', value: 3800, projects: 14 },
-]
+];
 
 const pieData = [
   { name: 'Completed', value: 45, color: 'hsl(var(--chart-1))' },
   { name: 'In Progress', value: 30, color: 'hsl(var(--chart-2))' },
   { name: 'Planning', value: 15, color: 'hsl(var(--chart-3))' },
   { name: 'On Hold', value: 10, color: 'hsl(var(--chart-4))' },
-]
+];
 
 export function HeroPanel() {
   return (
@@ -51,7 +69,9 @@ export function HeroPanel() {
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <Target className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Active Projects</span>
+                <span className="text-sm text-muted-foreground">
+                  Active Projects
+                </span>
               </div>
               <div className="text-2xl font-bold">23</div>
               <div className="flex items-center space-x-1 text-xs">
@@ -65,7 +85,9 @@ export function HeroPanel() {
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Team Members</span>
+                <span className="text-sm text-muted-foreground">
+                  Team Members
+                </span>
               </div>
               <div className="text-2xl font-bold">156</div>
               <div className="flex items-center space-x-1 text-xs">
@@ -79,7 +101,9 @@ export function HeroPanel() {
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <Award className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Completion Rate</span>
+                <span className="text-sm text-muted-foreground">
+                  Completion Rate
+                </span>
               </div>
               <div className="text-2xl font-bold">94.5%</div>
               <div className="flex items-center space-x-1 text-xs">
@@ -122,7 +146,9 @@ export function HeroPanel() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) =>
+                  `${name} ${(percent * 100).toFixed(0)}%`
+                }
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -199,5 +225,5 @@ export function HeroPanel() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

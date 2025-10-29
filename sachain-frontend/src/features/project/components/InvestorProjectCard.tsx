@@ -1,4 +1,3 @@
-
 // import { useState } from 'react';
 // import { Button } from '@/components/ui/button';
 // import { Card, CardContent } from '@/components/ui/card';
@@ -6,7 +5,6 @@
 // import { Progress } from '@/components/ui/progress';
 // import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 // import { ArrowRight, Star } from 'lucide-react';
-
 
 // export interface APIProject {
 //   projectId: string;
@@ -32,7 +30,6 @@
 //   onInvestNow,
 //   onViewDetails,
 // }: InvestorProjectCardProps) {
-  
 
 //   const transformedProject = {
 //     id: project.projectId,
@@ -40,24 +37,24 @@
 //     description: project.description,
 //     category: project.category,
 //     status: project.status,
-    
+
 //     // Financial calculations
 //     sharePrice: project.pricePerStock,
 //     totalShares: project.stockSupply,
 //     soldShares: 0,
 //     targetAmount: project.targetFundingGoal,
 //     totalRaised: 0, // TODO: Calculate from actual investments
-    
+
 //     // Display data
 //     image: project.coverImageUrl || '/placeholder-project.jpg',
-//     location: 'Remote', 
-//     investorCount: 0, 
-//     expectedROI: '15-25%', 
-//     duration: '12-24 months', 
-//     riskLevel: 'Medium', 
-//     minInvestment: project.pricePerStock, 
+//     location: 'Remote',
+//     investorCount: 0,
+//     expectedROI: '15-25%',
+//     duration: '12-24 months',
+//     riskLevel: 'Medium',
+//     minInvestment: project.pricePerStock,
 //     launchDate: project.createdAt,
-//     featured: false 
+//     featured: false
 //   };
 
 //   const calculateFundingProgress = (soldShares: number, totalShares: number) => {
@@ -88,17 +85,17 @@
 //   };
 
 //   const fundingProgress = calculateFundingProgress(
-//     transformedProject.soldShares, 
+//     transformedProject.soldShares,
 //     transformedProject.totalShares
 //   );
 
 //   return (
 //     <Card className="group hover:shadow-lg transition-shadow overflow-hidden">
 //       <div className="relative">
-//         <ImageWithFallback 
-//           src={transformedProject.image} 
-//           alt={transformedProject.name} 
-//           className="w-full h-48 object-cover" 
+//         <ImageWithFallback
+//           src={transformedProject.image}
+//           alt={transformedProject.name}
+//           className="w-full h-48 object-cover"
 //         />
 //         {transformedProject.featured && (
 //           <div className="absolute top-3 left-3">
@@ -119,7 +116,7 @@
 //           </Badge>
 //         </div>
 //       </div>
-      
+
 //       <CardContent className="p-6">
 //         {/* Project Info */}
 //         <div className="flex items-start justify-between mb-3">
@@ -177,7 +174,7 @@
 
 //         {/* Actions */}
 //         <div className="flex space-x-2">
-//           <Button 
+//           <Button
 //             className="flex-1 bg-[#123962] hover:bg-[#90A5FB] text-white"
 //             onClick={() => onInvestNow(project)}
 //           >
@@ -195,22 +192,21 @@
 //   );
 // }
 
-
 import { useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
-import { 
-  ArrowRight, 
-  Star, 
-  DollarSign, 
-  Users, 
-  TrendingUp, 
+import {
+  ArrowRight,
+  Star,
+  DollarSign,
+  Users,
+  TrendingUp,
   Target,
   Activity,
-  BarChart3
+  BarChart3,
 } from 'lucide-react';
 
 export interface APIProject {
@@ -233,7 +229,10 @@ interface InvestorProjectCardProps {
 }
 
 // Move helper functions outside component to avoid recreation
-const calculateFundingProgress = (soldShares: number, totalShares: number): number => {
+const calculateFundingProgress = (
+  soldShares: number,
+  totalShares: number
+): number => {
   if (totalShares === 0) return 0;
   return Math.round((soldShares / totalShares) * 100);
 };
@@ -246,7 +245,6 @@ const formatCurrency = (amount: number): string => {
     maximumFractionDigits: 0,
   }).format(amount);
 };
-
 
 const getRiskColor = (risk: string): string => {
   switch (risk.toLowerCase()) {
@@ -266,44 +264,50 @@ export function InvestorProjectCard({
   onInvestNow,
   onViewDetails,
 }: InvestorProjectCardProps) {
-  
   // Memoize transformed project data to avoid recalculation on every render
-  const transformedProject = useMemo(() => ({
-    id: project.projectId,
-    name: project.name,
-    description: project.description,
-    category: project.category,
-    status: project.status,
-    sharePrice: project.pricePerStock,
-    totalShares: project.stockSupply,
-    soldShares: 0,
-    targetAmount: project.targetFundingGoal,
-    totalRaised: 0,
-    image: project.coverImageUrl || '/placeholder-project.jpg',
-    location: 'Remote', 
-    investorCount: 0, 
-    expectedROI: '15-25%', 
-    duration: '12-24 months', 
-    riskLevel: 'Medium', 
-    minInvestment: project.pricePerStock, 
-    launchDate: project.createdAt,
-    featured: false 
-  }), [
-    project.projectId,
-    project.name,
-    project.description,
-    project.category,
-    project.status,
-    project.pricePerStock,
-    project.stockSupply,
-    project.targetFundingGoal,
-    project.coverImageUrl,
-    project.createdAt
-  ]);
+  const transformedProject = useMemo(
+    () => ({
+      id: project.projectId,
+      name: project.name,
+      description: project.description,
+      category: project.category,
+      status: project.status,
+      sharePrice: project.pricePerStock,
+      totalShares: project.stockSupply,
+      soldShares: 0,
+      targetAmount: project.targetFundingGoal,
+      totalRaised: 0,
+      image: project.coverImageUrl || '/placeholder-project.jpg',
+      location: 'Remote',
+      investorCount: 0,
+      expectedROI: '15-25%',
+      duration: '12-24 months',
+      riskLevel: 'Medium',
+      minInvestment: project.pricePerStock,
+      launchDate: project.createdAt,
+      featured: false,
+    }),
+    [
+      project.projectId,
+      project.name,
+      project.description,
+      project.category,
+      project.status,
+      project.pricePerStock,
+      project.stockSupply,
+      project.targetFundingGoal,
+      project.coverImageUrl,
+      project.createdAt,
+    ]
+  );
 
   // Memoize funding progress calculation
   const fundingProgress = useMemo(
-    () => calculateFundingProgress(transformedProject.soldShares, transformedProject.totalShares),
+    () =>
+      calculateFundingProgress(
+        transformedProject.soldShares,
+        transformedProject.totalShares
+      ),
     [transformedProject.soldShares, transformedProject.totalShares]
   );
 
@@ -314,17 +318,20 @@ export function InvestorProjectCard({
   );
 
   // Memoize formatted currency values
-  const formattedValues = useMemo(() => ({
-    totalRaised: formatCurrency(transformedProject.totalRaised),
-    targetAmount: formatCurrency(transformedProject.targetAmount),
-    sharePrice: formatCurrency(transformedProject.sharePrice),
-    minInvestment: formatCurrency(transformedProject.minInvestment),
-  }), [
-    transformedProject.totalRaised,
-    transformedProject.targetAmount,
-    transformedProject.sharePrice,
-    transformedProject.minInvestment
-  ]);
+  const formattedValues = useMemo(
+    () => ({
+      totalRaised: formatCurrency(transformedProject.totalRaised),
+      targetAmount: formatCurrency(transformedProject.targetAmount),
+      sharePrice: formatCurrency(transformedProject.sharePrice),
+      minInvestment: formatCurrency(transformedProject.minInvestment),
+    }),
+    [
+      transformedProject.totalRaised,
+      transformedProject.targetAmount,
+      transformedProject.sharePrice,
+      transformedProject.minInvestment,
+    ]
+  );
 
   // Memoize callback handlers to prevent recreation on every render
   const handleInvestNow = useCallback(() => {
@@ -338,10 +345,10 @@ export function InvestorProjectCard({
   return (
     <Card className="group bg-white border border-gray-200 hover:border-[#90A5FB]/50 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
       <div className="relative">
-        <ImageWithFallback 
-          src={transformedProject.image} 
-          alt={transformedProject.name} 
-          className="w-full h-48 object-cover" 
+        <ImageWithFallback
+          src={transformedProject.image}
+          alt={transformedProject.name}
+          className="w-full h-48 object-cover"
         />
         {transformedProject.featured && (
           <div className="absolute top-3 left-3">
@@ -364,7 +371,7 @@ export function InvestorProjectCard({
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
       </div>
-      
+
       <CardContent className="p-6">
         {/* Project Info */}
         <div className="flex items-start justify-between mb-3">
@@ -402,7 +409,9 @@ export function InvestorProjectCard({
               <DollarSign className="h-3 w-3 text-emerald-600" />
               {formattedValues.totalRaised} raised
             </span>
-            <span className="text-gray-500">{formattedValues.targetAmount} target</span>
+            <span className="text-gray-500">
+              {formattedValues.targetAmount} target
+            </span>
           </div>
         </div>
 
@@ -426,7 +435,9 @@ export function InvestorProjectCard({
               </div>
               <p className="text-xs text-gray-600">Available Shares</p>
             </div>
-            <p className="font-semibold text-gray-900">{transformedProject.totalShares}</p>
+            <p className="font-semibold text-gray-900">
+              {transformedProject.totalShares}
+            </p>
           </div>
           <div className="p-3 bg-gradient-to-br from-purple-50/50 to-violet-50/30 border border-purple-100 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
@@ -446,13 +457,15 @@ export function InvestorProjectCard({
               </div>
               <p className="text-xs text-gray-600">Investors</p>
             </div>
-            <p className="font-semibold text-gray-900">{transformedProject.investorCount}</p>
+            <p className="font-semibold text-gray-900">
+              {transformedProject.investorCount}
+            </p>
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex space-x-2">
-          <Button 
+          <Button
             className="flex-1 bg-gradient-to-r from-[#123962] to-[#90A5FB] hover:from-[#123962]/90 hover:to-[#90A5FB]/90 text-white shadow-lg hover:shadow-xl transition-all duration-300"
             onClick={handleInvestNow}
           >
@@ -460,9 +473,9 @@ export function InvestorProjectCard({
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
           {onViewDetails && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleViewDetails}
               className=" flex-1"
             >

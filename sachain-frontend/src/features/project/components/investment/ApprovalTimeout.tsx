@@ -24,14 +24,21 @@ export default function ApprovalTimeout({
   return (
     <div className="text-center space-y-6">
       <AlertTriangle className="mx-auto h-16 w-16 text-orange-600" />
-      <h3 className="text-xl font-semibold text-orange-600">Waiting for Approval</h3>
-      <p>Your investment request is still pending approval. This might take some time.</p>
+      <h3 className="text-xl font-semibold text-orange-600">
+        Waiting for Approval
+      </h3>
+      <p>
+        Your investment request is still pending approval. This might take some
+        time.
+      </p>
 
       <Card>
         <CardContent>
           <div className="flex justify-between">
             <span>Status:</span>
-            <Badge variant="outline" className="text-orange-600">Pending Approval</Badge>
+            <Badge variant="outline" className="text-orange-600">
+              Pending Approval
+            </Badge>
           </div>
           <div className="flex justify-between">
             <span>Waiting time:</span>
@@ -39,7 +46,9 @@ export default function ApprovalTimeout({
           </div>
           <div className="flex justify-between">
             <span>Amount:</span>
-            <span>{calculation ? formatCurrency(calculation.finalTotal) : 'N/A'}</span>
+            <span>
+              {calculation ? formatCurrency(calculation.finalTotal) : 'N/A'}
+            </span>
           </div>
         </CardContent>
       </Card>

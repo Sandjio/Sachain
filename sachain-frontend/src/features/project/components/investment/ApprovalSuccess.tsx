@@ -19,18 +19,24 @@ export default function ApprovalSuccess({
   return (
     <div className="text-center space-y-6">
       <CheckCircle className="mx-auto h-16 w-16 text-green-600 animate-bounce" />
-      <h3 className="text-xl font-semibold text-green-600">Investment Approved!</h3>
+      <h3 className="text-xl font-semibold text-green-600">
+        Investment Approved!
+      </h3>
       <p>Your investment has been approved and tokens transferred.</p>
 
       <Card>
         <CardContent>
           <div className="flex justify-between">
             <span>Tokens purchased:</span>
-            <span className="font-bold text-green-600">{calculation.tokensDesired}</span>
+            <span className="font-bold text-green-600">
+              {calculation.tokensDesired}
+            </span>
           </div>
           <div className="flex justify-between">
             <span>Total invested:</span>
-            <span className="font-bold">{formatCurrency(calculation.finalTotal)}</span>
+            <span className="font-bold">
+              {formatCurrency(calculation.finalTotal)}
+            </span>
           </div>
           <div className="flex justify-between">
             <span>Project:</span>
@@ -39,7 +45,10 @@ export default function ApprovalSuccess({
         </CardContent>
       </Card>
 
-      <Button onClick={onFinish} className="w-full bg-[#123962] hover:bg-[#90A5FB] text-white">
+      <Button
+        onClick={onFinish}
+        className="w-full bg-[#123962] hover:bg-[#90A5FB] text-white"
+      >
         View Portfolio
       </Button>
     </div>

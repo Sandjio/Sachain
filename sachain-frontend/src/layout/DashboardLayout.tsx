@@ -1,9 +1,9 @@
-import { useState, ReactNode } from "react";
-import { Sidebar } from "./dashboard/Sidebar";
-import { Header } from "./dashboard/Header";
-import { MainContent } from "./dashboard/MainContent";
-import { MobileMenu } from "./dashboard/MobileMenu";
-import { useAuthStore } from "@/store/authStore";
+import { useState, ReactNode } from 'react';
+import { Sidebar } from './dashboard/Sidebar';
+import { Header } from './dashboard/Header';
+import { MainContent } from './dashboard/MainContent';
+import { MobileMenu } from './dashboard/MobileMenu';
+import { useAuthStore } from '@/store/authStore';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -16,7 +16,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({
   children,
-  activeItem = "dashboard",
+  activeItem = 'dashboard',
   onItemChange,
   pageTitle,
   pageSubtitle,
@@ -31,18 +31,17 @@ export function DashboardLayout({
   }
 
   const handleMobileMenuToggle = () => {
-    console.log("Mobile menu toggle clicked", !isMobileMenuOpen);
+    console.log('Mobile menu toggle clicked', !isMobileMenuOpen);
     setIsMobileMenuOpen((prev) => !prev);
   };
 
   const handleMobileMenuClose = () => {
-    console.log("Mobile menu close called");
+    console.log('Mobile menu close called');
     setIsMobileMenuOpen(false);
   };
 
   return (
     <div className="flex-1 flex min-w-0 h-[calc(100vh-0px)]">
-
       {/* Desktop Sidebar - Hidden on mobile */}
       <div className="hidden lg:flex lg:w-64">
         <Sidebar activeItem={activeItem} onItemChange={onItemChange} />
@@ -57,7 +56,7 @@ export function DashboardLayout({
       />
 
       {/* Main Layout Column */}
-       <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Sticky Header */}
         <div className="sticky top-0 z-40">
           <Header onMobileMenuToggle={handleMobileMenuToggle} />

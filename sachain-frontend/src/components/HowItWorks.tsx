@@ -1,8 +1,6 @@
-
-
-import { Section, SectionHeader } from "./ui/section";
-import { Card, CardContent } from "./ui/card";
-import { Users, Lightbulb } from "lucide-react";
+import { Section, SectionHeader } from './ui/section';
+import { Card, CardContent } from './ui/card';
+import { Users, Lightbulb } from 'lucide-react';
 
 interface StepCardProps {
   stepNumber: string;
@@ -11,13 +9,22 @@ interface StepCardProps {
   isHighlighted?: boolean;
 }
 
-function StepCard({ stepNumber, title, description, isHighlighted = false }: StepCardProps) {
+function StepCard({
+  stepNumber,
+  title,
+  description,
+  isHighlighted = false,
+}: StepCardProps) {
   return (
     <div className="space-y-4">
       {/* Step Badge */}
-      <div className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-brand-light border  text-primary ${
-        isHighlighted ? 'bg-primary/50 text-primary-foreground' : 'bg-primary/50 text-primary-foreground'
-      }`}>
+      <div
+        className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-brand-light border  text-primary ${
+          isHighlighted
+            ? 'bg-primary/50 text-primary-foreground'
+            : 'bg-primary/50 text-primary-foreground'
+        }`}
+      >
         {stepNumber}
       </div>
       {/* Content Card */}
@@ -34,54 +41,58 @@ function StepCard({ stepNumber, title, description, isHighlighted = false }: Ste
 export function HowItWorks() {
   const investorSteps = [
     {
-      stepNumber: "Step 1",
-      title: "Create Account",
-      description: "Sign up and verify your identity to start investing with HBAR.",
+      stepNumber: 'Step 1',
+      title: 'Create Account',
+      description:
+        'Sign up and verify your identity to start investing with HBAR.',
       isHighlighted: true,
     },
     {
-      stepNumber: "Step 2",
-      title: "Browse Projects",
-      description: "Discover vetted African startups and their innovative solutions.",
+      stepNumber: 'Step 2',
+      title: 'Browse Projects',
+      description:
+        'Discover vetted African startups and their innovative solutions.',
     },
     {
-      stepNumber: "Step 3",
-      title: "Invest with HBAR",
-      description: "Use secure Hedera network transactions to purchase equity shares.",
+      stepNumber: 'Step 3',
+      title: 'Invest with HBAR',
+      description:
+        'Use secure Hedera network transactions to purchase equity shares.',
     },
     {
-      stepNumber: "Step 4",
-      title: "Track Growth",
-      description: "Monitor your investments and receive returns transparently.",
+      stepNumber: 'Step 4',
+      title: 'Track Growth',
+      description:
+        'Monitor your investments and receive returns transparently.',
     },
   ];
 
   const startupSteps = [
     {
-      stepNumber: "Step 1",
-      title: "Submit Project",
-      description: "Present your startup idea with a detailed business plan.",
+      stepNumber: 'Step 1',
+      title: 'Submit Project',
+      description: 'Present your startup idea with a detailed business plan.',
     },
     {
-      stepNumber: "Step 2",
-      title: "Get Verified",
-      description: "Our team reviews and verifies your project authenticity.",
+      stepNumber: 'Step 2',
+      title: 'Get Verified',
+      description: 'Our team reviews and verifies your project authenticity.',
     },
     {
-      stepNumber: "Step 3",
-      title: "Raise Funds",
-      description: "Connect with investors and raise capital through HBAR.",
+      stepNumber: 'Step 3',
+      title: 'Raise Funds',
+      description: 'Connect with investors and raise capital through HBAR.',
     },
     {
-      stepNumber: "Step 4",
-      title: "Scale Together",
-      description: "Grow your business with investor support and guidance.",
+      stepNumber: 'Step 4',
+      title: 'Scale Together',
+      description: 'Grow your business with investor support and guidance.',
     },
   ];
 
   return (
     <Section background="muted">
-      <SectionHeader 
+      <SectionHeader
         title="How Sachain Works"
         subtitle="Bridging the gap between African innovation and global capital. Simple, secure, and transparent blockchain-powered crowdfunding."
       />
@@ -95,8 +106,12 @@ export function HowItWorks() {
             </div>
           </div>
           <CardContent className="pt-8 pb-0 space-y-3">
-            <h3 className="text-2xl font-bold text-foreground">For Investors</h3>
-            <p className="text-muted-foreground">Discover and invest in African innovation</p>
+            <h3 className="text-2xl font-bold text-foreground">
+              For Investors
+            </h3>
+            <p className="text-muted-foreground">
+              Discover and invest in African innovation
+            </p>
           </CardContent>
         </Card>
         {/* For Startups */}
@@ -107,8 +122,12 @@ export function HowItWorks() {
             </div>
           </div>
           <CardContent className="pt-8 pb-0 space-y-3">
-            <h3 className="text-2xl font-bold text-foreground">For Entrepreneurs</h3>
-            <p className="text-muted-foreground">Access global capital to scale across Africa</p>
+            <h3 className="text-2xl font-bold text-foreground">
+              For Entrepreneurs
+            </h3>
+            <p className="text-muted-foreground">
+              Access global capital to scale across Africa
+            </p>
           </CardContent>
         </Card>
       </div>

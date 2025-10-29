@@ -1,12 +1,20 @@
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface DeleteSuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function DeleteSuccessModal({ isOpen, onClose }: DeleteSuccessModalProps) {
+export function DeleteSuccessModal({
+  isOpen,
+  onClose,
+}: DeleteSuccessModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>

@@ -1,4 +1,3 @@
-
 // // lib/api.ts - TEMPORARY VERSION FOR TESTING
 // import { useAuthStore } from "@/store/authStore";
 
@@ -6,13 +5,13 @@
 
 // async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 //   const tokens = useAuthStore.getState().tokens;
-  
+
 //   console.log("🔍 API Debug Info:");
 //   console.log("- Base URL:", baseUrl);
 //   console.log("- Full URL:", baseUrl + url);
 //   console.log("- Tokens available:", !!tokens);
 //   console.log("- Access token:", tokens?.accessToken ? "Present" : "Missing");
-  
+
 //   const headers: Record<string, string> = {
 //     "Content-Type": "application/json",
 //   };
@@ -46,7 +45,7 @@
 //       // Try to get response text for debugging
 //       let errorData;
 //       const contentType = res.headers.get('content-type');
-      
+
 //       if (contentType && contentType.includes('application/json')) {
 //         try {
 //           errorData = await res.json();
@@ -56,7 +55,7 @@
 //       } else {
 //         errorData = await res.text();
 //       }
-      
+
 //       console.log("❌ Error response data:", errorData);
 //       console.log("❌ Error status:", res.status);
 //       console.log("❌ Error statusText:", res.statusText);
@@ -69,8 +68,8 @@
 //       }
 
 //       throw new Error(
-//         typeof errorData === 'string' ? errorData : 
-//         errorData?.message || 
+//         typeof errorData === 'string' ? errorData :
+//         errorData?.message ||
 //         `API request failed with status ${res.status}`
 //       );
 //     }
@@ -79,13 +78,13 @@
 //     return res.json();
 //   } catch (error) {
 //     console.log("💥 Request failed:", error);
-    
+
 //     // Check if it's a CORS error specifically
 //     if (error instanceof TypeError && error.message === 'Failed to fetch') {
 //       console.log("🚫 This appears to be a CORS error - check your API Gateway CORS configuration");
 //       throw new Error("CORS error: API Gateway needs CORS configuration for localhost:3001");
 //     }
-    
+
 //     throw error;
 //   }
 // }

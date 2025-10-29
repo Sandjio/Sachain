@@ -1,12 +1,10 @@
-
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Settings, LogOut } from "lucide-react";
-import { navConfig, type NavItem } from "./navConfig";
-import { useAuthStore } from "@/store/authStore";
-import { useSignOut } from "@/features/auth/hook/useSignOut";
-import Image from "next/image";
-
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Settings, LogOut } from 'lucide-react';
+import { navConfig, type NavItem } from './navConfig';
+import { useAuthStore } from '@/store/authStore';
+import { useSignOut } from '@/features/auth/hook/useSignOut';
+import Image from 'next/image';
 
 interface SidebarProps {
   activeItem?: string;
@@ -14,7 +12,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  activeItem = "dashboard",
+  activeItem = 'dashboard',
   onItemChange,
 }: SidebarProps) {
   const role = useAuthStore((state) => state.user?.role);
@@ -32,9 +30,12 @@ export function Sidebar({
     <div className=" relative flex flex-col bg-[#123962] text-white h-full w-full lg:w-64 ">
       {/* Logo/Brand */}
 
-       <div
+      <div
         className="absolute inset-0 bg-contain bg-no-repeat bg-bottom top-110 w-full pointer-events-none"
-        style={{ backgroundImage: "url('/images/biglogo.png')", maxWidth: '100%' }}
+        style={{
+          backgroundImage: "url('/images/biglogo.png')",
+          maxWidth: '100%',
+        }}
         aria-hidden="true"
       />
 
@@ -67,10 +68,10 @@ export function Sidebar({
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200
                   ${
                     activeItem === item.id
-                      ? "bg-[#90A5FB] text-white shadow-lg"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                      ? 'bg-[#90A5FB] text-white shadow-lg'
+                      : 'text-white/80 hover:bg-white/10 hover:text-white'
                   }
-                  ${hoveredItem === item.id ? "translate-x-1" : ""}
+                  ${hoveredItem === item.id ? 'translate-x-1' : ''}
                 `}
               >
                 <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
@@ -90,7 +91,7 @@ export function Sidebar({
       <div className="p-4 border-t border-white/10 space-y-2 shrink-0">
         <Button
           variant="ghost"
-          onClick={() => onItemChange?.("settings")}
+          onClick={() => onItemChange?.('settings')}
           className="w-full justify-start text-white/80 hover:text-white hover:bg-white/10"
         >
           <Settings className="h-4 w-4 mr-3" />

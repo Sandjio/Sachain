@@ -32,14 +32,13 @@ export default function GetStartedModal({
   const setRole = useAuthStore((state) => state.setRole);
 
   const handleChooseRole = (role: 'startup' | 'investor') => {
-  setRole(role);
-  onOpenChange(false); // close modal
-  router.push({
-    pathname: '/auth/signup',
-    query: { role, tab: 'signup' },
-  });
-};
-
+    setRole(role);
+    onOpenChange(false); // close modal
+    router.push({
+      pathname: '/auth/signup',
+      query: { role, tab: 'signup' },
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,7 +88,9 @@ export default function GetStartedModal({
               <div className="mx-auto w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-3">
                 <Building2 className="w-6 h-6 text-primary" />
               </div>
-              <CardTitle className="text-2xl text-primary">Entrepreneur</CardTitle>
+              <CardTitle className="text-2xl text-primary">
+                Entrepreneur
+              </CardTitle>
               <CardDescription>
                 Raise capital for your innovative venture
               </CardDescription>
@@ -112,6 +113,3 @@ export default function GetStartedModal({
     </Dialog>
   );
 }
-
-
-

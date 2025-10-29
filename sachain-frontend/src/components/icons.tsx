@@ -34,4 +34,3 @@ export const Icons = {
   Menu: (props: IconProps) => <Menu {...props} />,
   X: (props: IconProps) => <X {...props} />,
 };
-

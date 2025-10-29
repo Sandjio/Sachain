@@ -58,7 +58,14 @@ export const LazyImage = memo(function LazyImage({
           onLoad={handleLoad}
           onError={handleError}
           loading="lazy"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', position: isLoaded ? 'static' : 'absolute', top: 0, left: 0 }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            position: isLoaded ? 'static' : 'absolute',
+            top: 0,
+            left: 0,
+          }}
         />
       )}
     </div>

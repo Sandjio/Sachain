@@ -1,14 +1,14 @@
 // src/components/auth/RequireAuth.tsx
-import { useEffect } from "react";
-import { useRouter } from "next/router";
-import { useAuthStore } from "@/store/authStore";
-import { Loader2 } from "lucide-react";
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useAuthStore } from '@/store/authStore';
+import { Loader2 } from 'lucide-react';
 
-type Role = "startup" | "investor" | "admin";
+type Role = 'startup' | 'investor' | 'admin';
 
 export default function RequireAuth({
   children,
-  roles, // optional: restrict to certain roles
+  roles,
 }: {
   children: React.ReactNode;
   roles?: Role[];
@@ -18,11 +18,11 @@ export default function RequireAuth({
 
   useEffect(() => {
     if (!user) {
-      router.replace("/auth/login");
+      router.replace('/auth/login');
       return;
     }
     if (roles && user?.role && !roles.includes(user.role as Role)) {
-      router.replace("/"); // or a 403 page
+      router.replace('/'); // or a 403 page
     }
   }, [user, roles, router]);
 

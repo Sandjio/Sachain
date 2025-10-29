@@ -1,8 +1,15 @@
-import { Search, Plus, Bell, Settings, LogOut, User } from "lucide-react"
-import { Button } from "./ui/button"
-import { Input } from "./ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu"
+import { Search, Plus, Bell, Settings, LogOut, User } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 export function Navigation() {
   return (
@@ -18,16 +25,28 @@ export function Navigation() {
 
         {/* Navigation Links */}
         <div className="ml-8 hidden md:flex items-center space-x-6">
-          <a href="#" className="text-foreground/80 hover:text-foreground transition-colors">
+          <a
+            href="#"
+            className="text-foreground/80 hover:text-foreground transition-colors"
+          >
             Overview
           </a>
-          <a href="#" className="text-foreground/80 hover:text-foreground transition-colors">
+          <a
+            href="#"
+            className="text-foreground/80 hover:text-foreground transition-colors"
+          >
             Projects
           </a>
-          <a href="#" className="text-foreground/80 hover:text-foreground transition-colors">
+          <a
+            href="#"
+            className="text-foreground/80 hover:text-foreground transition-colors"
+          >
             Analytics
           </a>
-          <a href="#" className="text-foreground/80 hover:text-foreground transition-colors">
+          <a
+            href="#"
+            className="text-foreground/80 hover:text-foreground transition-colors"
+          >
             Reports
           </a>
         </div>
@@ -49,7 +68,7 @@ export function Navigation() {
             <Plus className="h-4 w-4 mr-2" />
             New Project
           </Button>
-          
+
           <Button variant="ghost" size="icon">
             <Bell className="h-4 w-4" />
           </Button>
@@ -92,5 +111,5 @@ export function Navigation() {
         </div>
       </div>
     </nav>
-  )
+  );
 }

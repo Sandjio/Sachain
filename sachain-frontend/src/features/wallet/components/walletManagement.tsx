@@ -1,7 +1,5 @@
-import React from 'react'
+import React from 'react';
 
 export const WalletManagement = () => {
-  return (
-    <div>Wallet Management here</div>
-  )
-}
+  return <div>Wallet Management here</div>;
+};

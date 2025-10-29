@@ -23,8 +23,11 @@ export default function Step5Success({
   const [waitingTime, setWaitingTime] = useState(0);
 
   useEffect(() => {
-    const approveTimeout = setTimeout(() => setNotificationReceived(true), 60000); // 60 seconds
-    const timer = setInterval(() => setWaitingTime(t => t + 1), 1000);
+    const approveTimeout = setTimeout(
+      () => setNotificationReceived(true),
+      60000
+    ); // 60 seconds
+    const timer = setInterval(() => setWaitingTime((t) => t + 1), 1000);
     return () => {
       clearTimeout(approveTimeout);
       clearInterval(timer);
@@ -46,7 +49,9 @@ export default function Step5Success({
     return (
       <div className="text-center space-y-6">
         <CheckCircle className="mx-auto h-16 w-16 text-green-600" />
-        <h3 className="text-xl font-semibold text-green-600">Investment Approved!</h3>
+        <h3 className="text-xl font-semibold text-green-600">
+          Investment Approved!
+        </h3>
         <p>Your investment has been approved and tokens transferred.</p>
 
         {calculation && (
@@ -54,11 +59,15 @@ export default function Step5Success({
             <CardContent>
               <div className="flex justify-between">
                 <span>Tokens purchased:</span>
-                <span className="font-bold text-green-600">{calculation.tokensDesired}</span>
+                <span className="font-bold text-green-600">
+                  {calculation.tokensDesired}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Total invested:</span>
-                <span className="font-bold">{formatCurrency(calculation.finalTotal)}</span>
+                <span className="font-bold">
+                  {formatCurrency(calculation.finalTotal)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Project:</span>
@@ -68,7 +77,10 @@ export default function Step5Success({
           </Card>
         )}
 
-        <Button onClick={handleFinish} className="w-full bg-[#123962] hover:bg-[#90A5FB] text-white">
+        <Button
+          onClick={handleFinish}
+          className="w-full bg-[#123962] hover:bg-[#90A5FB] text-white"
+        >
           View Portfolio
         </Button>
       </div>
@@ -79,7 +91,9 @@ export default function Step5Success({
   return (
     <div className="text-center space-y-6">
       <Clock className="mx-auto h-16 w-16 text-blue-600 animate-spin" />
-      <h3 className="text-xl font-semibold text-blue-600">Awaiting Startup Approval</h3>
+      <h3 className="text-xl font-semibold text-blue-600">
+        Awaiting Startup Approval
+      </h3>
       <p>Your investment request has been submitted. Waiting for approval.</p>
 
       {calculation && (
@@ -87,7 +101,9 @@ export default function Step5Success({
           <CardContent>
             <div className="flex justify-between">
               <span>Status:</span>
-              <Badge variant="outline" className="text-blue-600">Pending</Badge>
+              <Badge variant="outline" className="text-blue-600">
+                Pending
+              </Badge>
             </div>
             <div className="flex justify-between">
               <span>Tokens requested:</span>
@@ -95,11 +111,15 @@ export default function Step5Success({
             </div>
             <div className="flex justify-between">
               <span>Total amount:</span>
-              <span className="font-bold">{formatCurrency(calculation.finalTotal)}</span>
+              <span className="font-bold">
+                {formatCurrency(calculation.finalTotal)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Waiting time:</span>
-              <span className="text-blue-600">{formatWaitingTime(waitingTime)}</span>
+              <span className="text-blue-600">
+                {formatWaitingTime(waitingTime)}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -107,13 +127,18 @@ export default function Step5Success({
 
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
         <p className="text-blue-700 text-sm">
-          The startup will review and approve your investment. You will be notified automatically.
+          The startup will review and approve your investment. You will be
+          notified automatically.
         </p>
       </div>
 
       <div className="flex gap-3">
-        <Button variant="outline" onClick={onClose} className="flex-1">Close & Wait</Button>
-        <Button disabled className="flex-1 bg-[#123962] text-white">Waiting...</Button>
+        <Button variant="outline" onClick={onClose} className="flex-1">
+          Close & Wait
+        </Button>
+        <Button disabled className="flex-1 bg-[#123962] text-white">
+          Waiting...
+        </Button>
       </div>
     </div>
   );

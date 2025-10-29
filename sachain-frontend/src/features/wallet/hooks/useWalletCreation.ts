@@ -20,7 +20,7 @@ export function useWalletCreation() {
   const [currentStep, setCurrentStep] = useState(0);
   const [state, setState] = useState<'idle' | 'creating' | 'success' | 'error'>(
     'idle'
-  ); 
+  );
   const [error, setError] = useState<string | null>(null);
 
   const client = Client.forTestnet();
@@ -29,12 +29,11 @@ export function useWalletCreation() {
     process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY!
   );
 
-
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (state === 'creating') {
       if (currentStep < creationSteps.length) {
-        timer = setTimeout(() => setCurrentStep((s) => s + 1), 1000); 
+        timer = setTimeout(() => setCurrentStep((s) => s + 1), 1000);
       }
     }
     return () => clearTimeout(timer);

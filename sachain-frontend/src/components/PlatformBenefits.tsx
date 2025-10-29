@@ -1,32 +1,32 @@
 // src/components/PlatformBenefits.tsx
-import { useTranslate } from "@/hooks/useTranslate";
-import { Card, CardContent } from "@/components/ui/card";
-import { Zap, ShieldCheck, Wallet } from "lucide-react";
+import { useTranslate } from '@/hooks/useTranslate';
+import { Card, CardContent } from '@/components/ui/card';
+import { Zap, ShieldCheck, Wallet } from 'lucide-react';
 
 export default function PlatformBenefits() {
-  const translate = useTranslate("benefits");
+  const translate = useTranslate('benefits');
 
   const items = [
     {
       icon: <Wallet className="w-10 h-10 text-primary" />,
-      title: translate("items.lowFees.title"),
-      description: translate("items.lowFees.description"),
+      title: translate('items.lowFees.title'),
+      description: translate('items.lowFees.description'),
     },
     {
       icon: <ShieldCheck className="w-10 h-10 text-primary" />,
-      title: translate("items.transparency.title"),
-      description: translate("items.transparency.description"),
+      title: translate('items.transparency.title'),
+      description: translate('items.transparency.description'),
     },
     {
       icon: <Zap className="w-10 h-10 text-primary" />,
-      title: translate("items.speed.title"),
-      description: translate("items.speed.description"),
+      title: translate('items.speed.title'),
+      description: translate('items.speed.description'),
     },
   ];
 
   return (
     <section className="container-max py-20 md:py-28 text-center">
-      <h2 className="text-4xl font-bold mb-12">{translate("title")}</h2>
+      <h2 className="text-4xl font-bold mb-12">{translate('title')}</h2>
       <div className="grid gap-8 md:grid-cols-3">
         {items.map((item, i) => (
           <Card
@@ -46,5 +46,3 @@ export default function PlatformBenefits() {
     </section>
   );
 }
-
-

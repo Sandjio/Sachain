@@ -1,12 +1,10 @@
 // src/layout/PublicLayout.tsx
-import { Navbar } from "@/components/Navbar";
-import { ReactNode } from "react";
-//import Header from "@/components/Header";
+import { Navbar } from '@/components/Navbar';
+import { ReactNode } from 'react';
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background text-text">
-      {/* Skip link for accessibility */}
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-primary text-primary-foreground px-3 py-2 rounded"
@@ -15,7 +13,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       </a>
 
       {/* Header */}
-      <Navbar /> 
+      <Navbar />
 
       {/* Main content */}
       <main id="main" className="flex-1">

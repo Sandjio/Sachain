@@ -103,14 +103,12 @@
 //   );
 // }
 
-
-
 // src/features/project/components/investment-steps/Step1Calculator.tsx
-// import { 
-//   Calculator, 
-//   ArrowRight, 
-//   DollarSign, 
-//   Coins, 
+// import {
+//   Calculator,
+//   ArrowRight,
+//   DollarSign,
+//   Coins,
 //   Receipt,
 //   Sparkles,
 //   Info
@@ -182,7 +180,7 @@
 //               Number of tokens
 //             </label>
 //           </div>
-          
+
 //           <Input
 //             id="tokens"
 //             type="number"
@@ -194,7 +192,7 @@
 //             aria-describedby="tokenInputHelp"
 //             className="text-center text-xl h-14 border-gray-200 focus:border-[#90A5FB] focus:ring-[#90A5FB]/20"
 //           />
-          
+
 //           <div className="flex items-center gap-2 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
 //             <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
 //             <p id="tokenInputHelp" className="text-sm text-gray-600">
@@ -214,7 +212,7 @@
 //               </div>
 //               <h4 className="font-semibold text-gray-900">Investment Breakdown</h4>
 //             </div>
-            
+
 //             <div className="space-y-3">
 //               {/* Price per token */}
 //               <div className="flex items-center justify-between p-3 bg-white/60 rounded-lg">
@@ -287,19 +285,15 @@
 //   );
 // }
 
-
-
-
-
 // src/features/project/components/investment-steps/Step1Calculator.tsx
-import { 
-  Calculator, 
-  ArrowRight, 
-  DollarSign, 
-  Coins, 
+import {
+  Calculator,
+  ArrowRight,
+  DollarSign,
+  Coins,
   Receipt,
   Sparkles,
-  Info
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -330,15 +324,15 @@ export default function Step1Calculator({
   const handleTokensChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Parse as integer only
     let tokens = parseInt(e.target.value, 10);
-    
+
     // Handle invalid input
     if (isNaN(tokens) || tokens < 1) {
       tokens = 1;
     }
-    
+
     // Ensure tokens don't exceed available supply
     tokens = Math.min(tokens, project.stockSupply);
-    
+
     onUpdateTokens(tokens);
   };
 
@@ -376,7 +370,7 @@ export default function Step1Calculator({
               Number of tokens
             </label>
           </div>
-          
+
           <Input
             id="tokens"
             type="number"
@@ -388,7 +382,7 @@ export default function Step1Calculator({
             aria-describedby="tokenInputHelp"
             className="text-center text-xl h-14 border-gray-200 focus:border-[#90A5FB] focus:ring-[#90A5FB]/20"
           />
-          
+
           <div className="flex items-center gap-2 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
             <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
             <p id="tokenInputHelp" className="text-sm text-gray-600">
@@ -406,9 +400,11 @@ export default function Step1Calculator({
               <div className="w-8 h-8 bg-[#123962]/10 rounded-lg flex items-center justify-center">
                 <Receipt className="h-4 w-4 text-[#123962]" />
               </div>
-              <h4 className="font-semibold text-gray-900">Investment Breakdown</h4>
+              <h4 className="font-semibold text-gray-900">
+                Investment Breakdown
+              </h4>
             </div>
-            
+
             <div className="space-y-3">
               {/* Tokens quantity */}
               <div className="flex items-center justify-between p-3 bg-white/60 rounded-lg">
@@ -455,7 +451,9 @@ export default function Step1Calculator({
                   <div className="w-6 h-6 bg-orange-500/10 rounded flex items-center justify-center">
                     <Receipt className="h-3 w-3 text-orange-600" />
                   </div>
-                  <span className="text-sm text-gray-600">Orange Money fee (2%)</span>
+                  <span className="text-sm text-gray-600">
+                    Orange Money fee (2%)
+                  </span>
                 </div>
                 <span className="text-sm text-gray-700">
                   {formatCurrency(calculation.orangeMoneyFee)}
@@ -468,7 +466,9 @@ export default function Step1Calculator({
                   <div className="w-7 h-7 bg-emerald-500/10 rounded-lg flex items-center justify-center">
                     <Sparkles className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <span className="font-semibold text-gray-900">Total Amount</span>
+                  <span className="font-semibold text-gray-900">
+                    Total Amount
+                  </span>
                 </div>
                 <span className="text-xl font-semibold text-emerald-600">
                   {formatCurrency(calculation.finalTotal)}

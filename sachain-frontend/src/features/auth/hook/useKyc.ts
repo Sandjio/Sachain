@@ -1,10 +1,9 @@
-
 // src/features/auth/hook/useKyc.ts
-import { useState } from "react";
-import { uploadKycDocument } from "@/features/auth/core/kycService";
-import { useAuthStore } from "@/store/authStore";
+import { useState } from 'react';
+import { uploadKycDocument } from '@/features/auth/core/kycService';
+import { useAuthStore } from '@/store/authStore';
 
-export type DocumentType = "national_id" | "passport" | "driver_license";
+export type DocumentType = 'national_id' | 'passport' | 'driver_license';
 
 interface UploadDocumentParams {
   file: File;
@@ -23,31 +22,34 @@ function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
     return String((error as { message: unknown }).message);
   }
-  return "Upload failed";
+  return 'Upload failed';
 }
 
 export function useKyc() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Get tokens from auth store
   const tokens = useAuthStore((state) => state.tokens);
 
-  const uploadDocument = async ({ file, documentType, idToken }: UploadDocumentParams) => {
+  const uploadDocument = async ({
+    file,
+    documentType,
+    idToken,
+  }: UploadDocumentParams) => {
     setLoading(true);
     setError(null);
-
 
     try {
       // Check if we have tokens
       if (!tokens?.idToken) {
-        throw new Error("No authentication token available. Please login first.");
+        throw new Error(
+          'No authentication token available. Please login first.'
+        );
       }
-      
-      console.log("Using ID Token:", tokens.idToken);
 
-   
-      
+      console.log('Using ID Token:', tokens.idToken);
+
       const res = await uploadKycDocument({
         idToken: tokens.idToken,
         file,
@@ -55,10 +57,6 @@ export function useKyc() {
       });
 
       return res;
-
-      console.log("Document ID:", res.documentId);
-      console.log("Upload successful:", res);
-      
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
       setError(errorMessage);
@@ -68,10 +66,10 @@ export function useKyc() {
     }
   };
 
-  return { 
-    uploadDocument, 
-    loading, 
+  return {
+    uploadDocument,
+    loading,
     error,
-    hasToken: !!tokens?.idToken
+    hasToken: !!tokens?.idToken,
   };
 }

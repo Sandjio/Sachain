@@ -26,7 +26,9 @@ export default function WaitingApproval({
   return (
     <div className="text-center space-y-6">
       <Clock className="mx-auto h-16 w-16 text-blue-600 animate-spin" />
-      <h3 className="text-xl font-semibold text-blue-600">Awaiting Startup Approval</h3>
+      <h3 className="text-xl font-semibold text-blue-600">
+        Awaiting Startup Approval
+      </h3>
       <p>Your investment request has been submitted. Waiting for approval.</p>
 
       {calculation && (
@@ -34,7 +36,9 @@ export default function WaitingApproval({
           <CardContent>
             <div className="flex justify-between">
               <span>Status:</span>
-              <Badge variant="outline" className="text-blue-600">Pending</Badge>
+              <Badge variant="outline" className="text-blue-600">
+                Pending
+              </Badge>
             </div>
             <div className="flex justify-between">
               <span>Tokens requested:</span>
@@ -42,11 +46,15 @@ export default function WaitingApproval({
             </div>
             <div className="flex justify-between">
               <span>Total amount:</span>
-              <span className="font-bold">{formatCurrency(calculation.finalTotal)}</span>
+              <span className="font-bold">
+                {formatCurrency(calculation.finalTotal)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Waiting time:</span>
-              <span className="text-blue-600">{formatWaitingTime(waitingTime)}</span>
+              <span className="text-blue-600">
+                {formatWaitingTime(waitingTime)}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -56,7 +64,9 @@ export default function WaitingApproval({
         {isConnected ? (
           <>
             <Wifi className="h-4 w-4 text-green-600" />
-            <span className="text-green-600">Connected to notification service</span>
+            <span className="text-green-600">
+              Connected to notification service
+            </span>
           </>
         ) : (
           <>
@@ -70,13 +80,18 @@ export default function WaitingApproval({
 
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
         <p className="text-blue-700 text-sm">
-          The startup will review and approve your investment. You will be notified automatically.
+          The startup will review and approve your investment. You will be
+          notified automatically.
         </p>
       </div>
 
       <div className="flex gap-3">
-        <Button variant="outline" onClick={onClose} className="flex-1">Close & Wait</Button>
-        <Button disabled className="flex-1 bg-[#123962] text-white">Complete (Waiting...)</Button>
+        <Button variant="outline" onClick={onClose} className="flex-1">
+          Close & Wait
+        </Button>
+        <Button disabled className="flex-1 bg-[#123962] text-white">
+          Complete (Waiting...)
+        </Button>
       </div>
     </div>
   );

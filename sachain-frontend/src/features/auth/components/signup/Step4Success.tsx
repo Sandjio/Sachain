@@ -1,18 +1,20 @@
-
-import { Button } from "@/components/ui/button";
-import { CheckCircle, Sparkles } from "lucide-react";
-import { defaultRoleConfig, RoleConfigMap } from "@/data/step4SuccessData";
-import { useRouter } from "next/router";
-import { useAuthStore } from "@/store/authStore";
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Sparkles } from 'lucide-react';
+import { defaultRoleConfig, RoleConfigMap } from '@/data/step4SuccessData';
+import { useRouter } from 'next/router';
+import { useAuthStore } from '@/store/authStore';
 
 interface Step4SuccessProps {
   onClose: () => void;
   roleConfig?: RoleConfigMap;
 }
 
-export default function Step4Success({ onClose, roleConfig = defaultRoleConfig }: Step4SuccessProps) {
+export default function Step4Success({
+  onClose,
+  roleConfig = defaultRoleConfig,
+}: Step4SuccessProps) {
   // Assume role is always defined if this component is shown
-  const role = useAuthStore((state) => state.user?.role)!; 
+  const role = useAuthStore((state) => state.user?.role)!;
   const config = roleConfig[role];
   const IconComponent = config.icon;
 
@@ -20,7 +22,7 @@ export default function Step4Success({ onClose, roleConfig = defaultRoleConfig }
 
   const handleProceedToPlatform = () => {
     onClose();
-    router.push("/dashboards");
+    router.push('/dashboards');
   };
 
   return (

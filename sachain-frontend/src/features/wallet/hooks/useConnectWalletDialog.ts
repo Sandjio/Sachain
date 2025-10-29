@@ -57,7 +57,6 @@ export function useConnectWalletDialog(
     }
   }, [flow]);
 
-
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (state === 'connecting') {
@@ -83,19 +82,16 @@ export function useConnectWalletDialog(
     setShowManualConnect(true);
   };
 
-
   const handleAccountValidated = (accountId: string, balance: string) => {
     setPendingConnectedAccount({ accountId, balance });
     setShowManualConnect(false);
     setState('connecting');
   };
 
-
   const handleWalletCreated = (
     accountId: string,
     publicKey?: string,
     privateKey?: string
-
   ) => {
     // Create a connected account object with the new wallet details
     const newAccount: ConnectedAccount = {
@@ -113,7 +109,6 @@ export function useConnectWalletDialog(
     // Don't change flow here - let the component handle that
   };
 
-  
   const handleContinueFromCreate = () => {
     setFlow('connect');
     // Keep the success state and connected account to show in connect flow

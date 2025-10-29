@@ -1,5 +1,3 @@
-
-
 // import React, { useState } from "react";
 // import { Button } from "@/components/ui/button";
 // import ConnectWalletDialog from '@/features/wallet/components/ConnectWalletDialog';
@@ -51,8 +49,6 @@
 //   );
 // }
 
-
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,10 +70,7 @@ interface ConnectWalletStepProps {
   onBack: () => void;
 }
 
-export function ConnectWalletStep({
-  onNext,
-  onBack,
-}: ConnectWalletStepProps) {
+export function ConnectWalletStep({ onNext, onBack }: ConnectWalletStepProps) {
   const walletAddress = useWalletStore((state) => state.walletAddress);
   const isConnected = useWalletStore((state) => state.isConnected);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
@@ -126,7 +119,6 @@ export function ConnectWalletStep({
                       <div className="font-medium text-sm text-gray-900">
                         Secure
                       </div>
-                     
                     </div>
                   </div>
 
@@ -138,7 +130,6 @@ export function ConnectWalletStep({
                       <div className="font-medium text-sm text-gray-900">
                         Fast
                       </div>
-                      
                     </div>
                   </div>
 
@@ -150,7 +141,6 @@ export function ConnectWalletStep({
                       <div className="font-medium text-sm text-gray-900">
                         Easy
                       </div>
-                     
                     </div>
                   </div>
                 </div>
@@ -193,7 +183,11 @@ export function ConnectWalletStep({
 
           {/* Back Button */}
           <div className="flex justify-start">
-            <Button variant="outline" onClick={onBack} className="border-gray-200 hover:bg-gray-50">
+            <Button
+              variant="outline"
+              onClick={onBack}
+              className="border-gray-200 hover:bg-gray-50"
+            >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Cancel
             </Button>
@@ -269,7 +263,11 @@ export function ConnectWalletStep({
 
           {/* Back Button */}
           <div className="flex justify-start">
-            <Button variant="outline" onClick={onBack} className="border-gray-200 hover:bg-gray-50">
+            <Button
+              variant="outline"
+              onClick={onBack}
+              className="border-gray-200 hover:bg-gray-50"
+            >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
             </Button>

@@ -1,7 +1,7 @@
-import { create } from "zustand";
-import type { AuthUser } from "@/features/auth/types/authTypes";
-import type { CognitoTokens } from "@/features/auth/core/cognitoProvider";
-import { useWalletStore } from "@/features/wallet/store/walletStore";
+import { create } from 'zustand';
+import type { AuthUser } from '@/features/auth/types/authTypes';
+import type { CognitoTokens } from '@/features/auth/core/cognitoProvider';
+import { useWalletStore } from '@/features/wallet/store/walletStore';
 
 interface AuthState {
   [x: string]: any;
@@ -11,8 +11,8 @@ interface AuthState {
   login: (user: AuthUser, tokens: CognitoTokens) => void;
   logout: () => void;
   hydrate: () => void;
-  setRole: (role: "startup" | "investor") => void;
-  setUser: (userData: Partial<AuthUser>) => void; 
+  setRole: (role: 'startup' | 'investor') => void;
+  setUser: (userData: Partial<AuthUser>) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -21,40 +21,39 @@ export const useAuthStore = create<AuthState>((set) => ({
   isHydrated: false,
 
   login: (user, tokens) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("auth_user", JSON.stringify(user));
-      localStorage.setItem("auth_tokens", JSON.stringify(tokens));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_user', JSON.stringify(user));
+      localStorage.setItem('auth_tokens', JSON.stringify(tokens));
     }
     set({ user, tokens });
-    console.log("User logged in:", user);
-    console.log("Tokens stored:", tokens);
+    console.log('User logged in:', user);
+    console.log('Tokens stored:', tokens);
   },
 
   logout: () => {
-    if (typeof window !== "undefined") { 
-      localStorage.removeItem("auth_user");
-      localStorage.removeItem("auth_tokens");
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_tokens');
     }
     set({ user: null, tokens: null });
     useWalletStore.getState().disconnectWallet();
-    console.log("User logged out, cleared localStorage and store");
+    console.log('User logged out, cleared localStorage and store');
   },
 
   setRole: (role) => {
     set((state) => {
-      if (role !== "startup" && role !== "investor") return {}; //if invalid role, do nothing
+      if (role !== 'startup' && role !== 'investor') return {}; //if invalid role, do nothing
 
       let updatedUser: AuthUser;
 
       if (state.user) {
-        updatedUser = { ...state.user, role }; 
+        updatedUser = { ...state.user, role };
       } else {
-        
-        updatedUser = { email: "", role };
+        updatedUser = { email: '', role };
       }
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("auth_user", JSON.stringify(updatedUser));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_user', JSON.stringify(updatedUser));
       }
 
       return { user: updatedUser };
@@ -65,45 +64,45 @@ export const useAuthStore = create<AuthState>((set) => ({
     set((state) => {
       if (!state.user) return {};
       const updatedUser: AuthUser = { ...state.user, ...userData };
-      if (typeof window !== "undefined") {
-        localStorage.setItem("auth_user", JSON.stringify(updatedUser));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_user', JSON.stringify(updatedUser));
       }
       return { user: updatedUser };
     });
   },
 
   hydrate: () => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
 
     try {
-      const storedUser = localStorage.getItem("auth_user");
-      const storedTokens = localStorage.getItem("auth_tokens");
+      const storedUser = localStorage.getItem('auth_user');
+      const storedTokens = localStorage.getItem('auth_tokens');
 
-      console.group("Hydrating auth store from localStorage");
-      console.log("Raw stored user:", storedUser);
-      console.log("Raw stored tokens:", storedTokens);
+      console.group('Hydrating auth store from localStorage');
+      console.log('Raw stored user:', storedUser);
+      console.log('Raw stored tokens:', storedTokens);
 
       const user = storedUser ? JSON.parse(storedUser) : null;
       const tokens = storedTokens ? JSON.parse(storedTokens) : null;
 
-      console.log("Parsed stored user:", user);
-      console.log("Parsed stored tokens:", tokens);
+      console.log('Parsed stored user:', user);
+      console.log('Parsed stored tokens:', tokens);
 
       if (user && tokens) {
         set({ user, tokens, isHydrated: true });
-        console.log("Store hydrated with user and tokens");
+        console.log('Store hydrated with user and tokens');
       } else if (user) {
         set({ user, tokens: null, isHydrated: true });
-        console.log("Store hydrated with user (no tokens found)");
+        console.log('Store hydrated with user (no tokens found)');
       } else {
         set({ isHydrated: true });
-        console.log("Store hydrated but no user or tokens found");
+        console.log('Store hydrated but no user or tokens found');
       }
       console.groupEnd();
     } catch (error) {
-      console.error("Failed to hydrate auth store:", error);
-      localStorage.removeItem("auth_user");
-      localStorage.removeItem("auth_tokens");
+      console.error('Failed to hydrate auth store:', error);
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_tokens');
       set({ isHydrated: true });
     }
   },

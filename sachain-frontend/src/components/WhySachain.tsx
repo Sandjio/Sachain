@@ -1,7 +1,7 @@
-import { Section, SectionHeader } from "./ui/section";
-import { Card, CardContent } from "./ui/card";
-import { Building, Building2, Lightbulb, Plane } from "lucide-react";
-import svgPaths from "@/utils/svg-tzs4efenma";
+import { Section, SectionHeader } from './ui/section';
+import { Card, CardContent } from './ui/card';
+import { Building, Building2, Lightbulb, Plane } from 'lucide-react';
+import svgPaths from '@/utils/svg-tzs4efenma';
 
 interface ReasonCardProps {
   title: string;
@@ -34,29 +34,43 @@ function ReasonCard({ title, description, icon }: ReasonCardProps) {
   );
 }
 
-
 export function WhySachain() {
   const reasons = [
     {
-      title: "Diaspora\nConnection",
-      description: "Connecting African diaspora investors with homeland innovations to build economic bridges.",
-      icon: <Building2 className="w-10 h-10 text-primary-foreground" color="#123962" />
+      title: 'Diaspora\nConnection',
+      description:
+        'Connecting African diaspora investors with homeland innovations to build economic bridges.',
+      icon: (
+        <Building2
+          className="w-10 h-10 text-primary-foreground"
+          color="#123962"
+        />
+      ),
     },
     {
-      title: "Local\nImpact",
-      description: "Every investment creates jobs and drives economic growth across African communities.",
-      icon: <Plane className="w-10 h-10 text-primary-foreground" color="#123962" />
+      title: 'Local\nImpact',
+      description:
+        'Every investment creates jobs and drives economic growth across African communities.',
+      icon: (
+        <Plane className="w-10 h-10 text-primary-foreground" color="#123962" />
+      ),
     },
     {
-      title: "Cultural\nUnderstanding",
-      description: "Built by Africans for Africans with deep market understanding and cultural context.",
-      icon: <Lightbulb className="w-10 h-10 text-primary-foreground" color="#123962" />
-    }
+      title: 'Cultural\nUnderstanding',
+      description:
+        'Built by Africans for Africans with deep market understanding and cultural context.',
+      icon: (
+        <Lightbulb
+          className="w-10 h-10 text-primary-foreground"
+          color="#123962"
+        />
+      ),
+    },
   ];
 
   return (
     <Section background="muted" size="lg">
-      <SectionHeader 
+      <SectionHeader
         title="Why Sachain for Africa?"
         className="bg-[#E3E3E3]/50 p-4"
         subtitle="Purpose-built to unlock Africa's innovation potential through accessible, secure crowdfunding that understands the continent's unique opportunities and challenges."
@@ -65,7 +79,7 @@ export function WhySachain() {
       {/* Reasons Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-2">
         {reasons.map((reason, index) => (
-          <ReasonCard 
+          <ReasonCard
             key={index}
             title={reason.title}
             description={reason.description}

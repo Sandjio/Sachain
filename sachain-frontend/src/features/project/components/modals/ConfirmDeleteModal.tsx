@@ -6,10 +6,8 @@ import {
   DialogDescription,
   DialogOverlay,
   DialogPortal,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-
-
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -22,8 +20,8 @@ interface ConfirmDeleteModalProps {
 
 export function ConfirmDeleteModal({
   isOpen,
-  title = "Delete Project",
-  description = "Are you sure you want to delete this project? This action cannot be undone.",
+  title = 'Delete Project',
+  description = 'Are you sure you want to delete this project? This action cannot be undone.',
   onConfirm,
   onCancel,
   loading = false,
@@ -38,7 +36,7 @@ export function ConfirmDeleteModal({
             Cancel
           </Button>
           <Button onClick={onConfirm} disabled={loading}>
-            {loading ? "Deleting..." : "Delete"}
+            {loading ? 'Deleting...' : 'Delete'}
           </Button>
         </div>
       </DialogContent>

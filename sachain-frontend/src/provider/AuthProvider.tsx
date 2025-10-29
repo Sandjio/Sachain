@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 
@@ -26,7 +25,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initializeAuth();
   }, [hydrate]);
 
-
   if (!isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -37,4 +35,3 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   return <>{children}</>;
 }
-

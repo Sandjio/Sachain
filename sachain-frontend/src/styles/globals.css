@@ -1,5 +1,7 @@
-@import "tailwindcss";
-@import "tw-animate-css"; /* Remove if not used */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@100..900&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css'; 
+
 
 /* Custom Backgrounds */
 .bg-hero-svg {
@@ -50,7 +52,7 @@
   --muted: #ececf0;
   --muted-foreground: #717182;
 
-  --accent: #90A5FB;
+  --accent: #90a5fb;
   --accent-foreground: #ffffff;
 
   --destructive: #d4183d;
@@ -66,7 +68,7 @@
 
   --ring: oklch(0.708 0 0);
 
-  --chart-1: #90A5FB;
+  --chart-1: #90a5fb;
   --chart-2: #123962;
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
@@ -88,8 +90,8 @@
 
   /* Web3 brand colors */
   --web3-primary: #123962;
-  --web3-secondary: #90A5FB;
-  --web3-gradient: linear-gradient(135deg, #123962 0%, #90A5FB 100%);
+  --web3-secondary: #90a5fb;
+  --web3-gradient: linear-gradient(135deg, #123962 0%, #90a5fb 100%);
 }
 
 /* Dark Mode Overrides */
@@ -190,12 +192,13 @@
   body {
     @apply bg-background text-foreground;
     font-size: var(--font-size);
+    font-family: 'Open Sans', 'Outfit', sans-serif;  /* Added font family */
   }
 }
 
 /* Base typography where no Tailwind text classes are used */
 @layer base {
-  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
     h1 {
       font-size: var(--text-2xl);
       font-weight: var(--font-weight-medium);

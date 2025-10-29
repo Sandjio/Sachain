@@ -1,8 +1,8 @@
 // src/pages/dashboards/index.tsx
-import { useEffect } from "react";
-import { useRouter } from "next/router";
-import { useAuthStore } from "@/store/authStore";
-import { Loader2 } from "lucide-react";
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useAuthStore } from '@/store/authStore';
+import { Loader2 } from 'lucide-react';
 
 export default function DashboardsIndex() {
   const router = useRouter();
@@ -10,15 +10,15 @@ export default function DashboardsIndex() {
 
   useEffect(() => {
     if (!user) {
-      router.replace("/auth/login");
+      router.replace('/auth/login');
       return;
     }
-    
+
     const role = user.role;
-    if (role === "investor") router.replace("/dashboards/investor");
-    else if (role === "startup") router.replace("/dashboards/startup");
-    else if (role === "admin") router.replace("/dashboards/admin");
-    else router.replace("/auth/login");
+    if (role === 'investor') router.replace('/dashboards/investor');
+    else if (role === 'startup') router.replace('/dashboards/startup');
+    else if (role === 'admin') router.replace('/dashboards/admin');
+    else router.replace('/auth/login');
   }, [user, router]);
 
   return (

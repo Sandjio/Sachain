@@ -309,7 +309,6 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
                       <span className="hidden sm:inline font-medium">
                         OM Recharge
                       </span>
-                     
                     </div>
                   </Button>
 

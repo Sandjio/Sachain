@@ -23,7 +23,6 @@ export function VerificationStep({
   const canMint = balance !== null && balance >= requiredFeeHbar;
   const [showRechargeForm, setShowRechargeForm] = useState(false);
 
- 
   const handleRechargeSuccess = () => {
     setShowRechargeForm(false);
     onProceed();

@@ -1,6 +1,5 @@
-
 // src/features/projects/hooks/useProjects.ts
-import { useProjectStore } from "@/features/project/store/projectStore";
+import { useProjectStore } from '@/features/project/store/projectStore';
 
 export function useProjects() {
   const { projects, loading, error, fetchProjects, clearProjects } =
@@ -8,8 +7,3 @@ export function useProjects() {
 
   return { projects, loading, error, fetchProjects, clearProjects };
 }
-
-
-
-
-

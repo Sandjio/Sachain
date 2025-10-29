@@ -21,40 +21,42 @@ export function useInvestorProjects() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-const fetchLiveProjects = async () => {
-  setLoading(true);
-  setError(null);
+  const fetchLiveProjects = async () => {
+    setLoading(true);
+    setError(null);
 
-  try {
-    const response = await getProjects();
-    
-    const allProjects = response.projects || response || [];
+    try {
+      const response = await getProjects();
 
-const activeProjects = allProjects.filter((project: any) => project.status === 'active');
+      const allProjects = response.projects || response || [];
 
-    console.log('All projects:', allProjects);
-    console.log('Active projects:', activeProjects);
+      const activeProjects = allProjects.filter(
+        (project: any) => project.status === 'active'
+      );
 
-    setProjects(activeProjects);
-  } catch (err: any) {
-    setError(err.message || 'Failed to fetch active projects');
-  } finally {
-    setLoading(false);
-  }
-};
+      console.log('All projects:', allProjects);
+      console.log('Active projects:', activeProjects);
+
+      setProjects(activeProjects);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch active projects');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchLiveProjects();
   }, []);
 
   const refetch = () => {
-    fetchLiveProjects(); 
+    fetchLiveProjects();
   };
 
   return {
     projects,
     loading,
     error,
-    refetch
+    refetch,
   };
 }

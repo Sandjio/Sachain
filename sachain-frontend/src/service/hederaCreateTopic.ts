@@ -7,8 +7,9 @@ const client = Client.forTestnet();
 client.setOperator(OPERATOR_ID, OPERATOR_KEY);
 
 export async function createConsensusTopic() {
-  const transaction = new TopicCreateTransaction()
-    .setTopicMemo('Notifications for project share purchases');
+  const transaction = new TopicCreateTransaction().setTopicMemo(
+    'Notifications for project share purchases'
+  );
 
   const response = await transaction.execute(client);
   const receipt = await response.getReceipt(client);

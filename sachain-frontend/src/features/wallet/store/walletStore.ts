@@ -1,4 +1,4 @@
-import {create }from 'zustand';
+import { create } from 'zustand';
 
 interface WalletState {
   walletAddress: string | null;
@@ -10,6 +10,7 @@ interface WalletState {
 export const useWalletStore = create<WalletState>((set) => ({
   walletAddress: null,
   isConnected: false,
-  connectWallet: (address: string) => set({ walletAddress: address, isConnected: true }),
+  connectWallet: (address: string) =>
+    set({ walletAddress: address, isConnected: true }),
   disconnectWallet: () => set({ walletAddress: null, isConnected: false }),
 }));

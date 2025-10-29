@@ -53,14 +53,16 @@
 //   return { balance, tokenBalance, loading, error };
 // }
 
-
 import { useState, useEffect } from 'react';
 
 interface HederaBalanceResponse {
   hbarBalance: number | null;
 }
 
-export function useHederaBalance(walletAddress: string | null, refreshTrigger = 0) {
+export function useHederaBalance(
+  walletAddress: string | null,
+  refreshTrigger = 0
+) {
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,9 @@ export function useHederaBalance(walletAddress: string | null, refreshTrigger = 
     }
 
     setLoading(true);
-    fetch(`/api/get-hedera-balance?walletAddress=${encodeURIComponent(walletAddress)}`)
+    fetch(
+      `/api/get-hedera-balance?walletAddress=${encodeURIComponent(walletAddress)}`
+    )
       .then((res) => res.json())
       .then((data: HederaBalanceResponse & { error?: string }) => {
         if (data.error) {

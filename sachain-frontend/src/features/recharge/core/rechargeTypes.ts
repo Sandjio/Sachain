@@ -4,8 +4,8 @@ export interface RechargeRequest {
   customerNumber: string;
   amount: string;
   description: string;
-  idempotencyKey: string; 
-  walletAddress: string; 
+  idempotencyKey: string;
+  walletAddress: string;
 }
 
 export interface RechargeResponseData {
@@ -20,14 +20,14 @@ export interface RechargeResponseData {
   inittxnstatus: string;
   confirmtxnstatus: string | null;
   confirmtxnmessage: string | null;
-  status: string;          
-  notifUrl: string;       
+  status: string;
+  notifUrl: string;
   description: string;
   channelUserMsisdn: string;
 }
 
 export interface RechargeResponse {
-  message: string;                    
+  message: string;
   result: {
     message: string;
     data: RechargeResponseData;

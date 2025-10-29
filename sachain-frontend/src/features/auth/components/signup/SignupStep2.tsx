@@ -1,18 +1,20 @@
-
-
 // src/components/auth/signup/SignupStep2.tsx
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Mail, CheckCircle, Loader2 } from "lucide-react";
-import { useTranslate } from "@/hooks/useTranslate";
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
+import { Mail, CheckCircle, Loader2 } from 'lucide-react';
+import { useTranslate } from '@/hooks/useTranslate';
 
 const signupStep2Schema = z.object({
-  code: z.string().length(6, "Code must be 6 digits"),
+  code: z.string().length(6, 'Code must be 6 digits'),
 });
 
 type SignupStep2Data = z.infer<typeof signupStep2Schema>;
@@ -24,14 +26,23 @@ interface SignupStep2Props {
   email?: string;
 }
 
-export default function SignupStep2({ onVerify, onBack, loading, email }: SignupStep2Props) {
-
-  const translate = useTranslate("getStartedModal");
-  const { handleSubmit, setValue, watch, formState: { errors } } = useForm<SignupStep2Data>({
+export default function SignupStep2({
+  onVerify,
+  onBack,
+  loading,
+  email,
+}: SignupStep2Props) {
+  const translate = useTranslate('getStartedModal');
+  const {
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<SignupStep2Data>({
     resolver: zodResolver(signupStep2Schema),
   });
 
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isCodeSent, setIsCodeSent] = useState(false);
 
@@ -39,15 +50,14 @@ export default function SignupStep2({ onVerify, onBack, loading, email }: Signup
     try {
       await new Promise((res) => setTimeout(res, 1000));
       setIsCodeSent(true);
-      console.log("Verification code sent to:", email);
+      console.log('Verification code sent to:', email);
       setResendCooldown(30);
-      
     } catch {
-      setError("Failed to send verification code. Please try again.");
+      setError('Failed to send verification code. Please try again.');
     }
   };
 
-  const codeValue = watch("code") || "";
+  const codeValue = watch('code') || '';
 
   useEffect(() => {
     // send code immediately on mount
@@ -56,17 +66,20 @@ export default function SignupStep2({ onVerify, onBack, loading, email }: Signup
 
   useEffect(() => {
     if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+      const timer = setTimeout(
+        () => setResendCooldown((prev) => prev - 1),
+        1000
+      );
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
 
   const onSubmit = (data: SignupStep2Data) => {
     if (data.code.length !== 6) {
-      setError("Please enter the complete 6-digit code");
+      setError('Please enter the complete 6-digit code');
       return;
     }
-    setError("");
+    setError('');
     onVerify(data);
   };
 
@@ -81,8 +94,12 @@ export default function SignupStep2({ onVerify, onBack, loading, email }: Signup
             <Mail className="w-6 h-6 text-blue-600" />
           )}
         </div>
-        <h3 className="text-lg font-semibold">{translate("steps.verifyTitle")}</h3>
-        <p className="text-muted-foreground">{translate("steps.verifySubtitle")}</p>
+        <h3 className="text-lg font-semibold">
+          {translate('steps.verifyTitle')}
+        </h3>
+        <p className="text-muted-foreground">
+          {translate('steps.verifySubtitle')}
+        </p>
         {email && <p className="font-medium">{email}</p>}
       </div>
 
@@ -103,7 +120,7 @@ export default function SignupStep2({ onVerify, onBack, loading, email }: Signup
         <InputOTP
           maxLength={6}
           value={codeValue}
-          onChange={(val) => setValue("code", val, { shouldValidate: true })}
+          onChange={(val) => setValue('code', val, { shouldValidate: true })}
         >
           <InputOTPGroup>
             {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -116,7 +133,7 @@ export default function SignupStep2({ onVerify, onBack, loading, email }: Signup
       {/* Resend Code */}
       <div className="text-center">
         <p className="text-sm text-muted-foreground mb-2">
-          {translate("steps.didntReceive")}
+          {translate('steps.didntReceive')}
         </p>
         <Button
           variant="link"
@@ -125,7 +142,9 @@ export default function SignupStep2({ onVerify, onBack, loading, email }: Signup
           disabled={resendCooldown > 0}
           onClick={sendVerificationCode}
         >
-          {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : translate("actions.resendCode")}
+          {resendCooldown > 0
+            ? `Resend in ${resendCooldown}s`
+            : translate('actions.resendCode')}
         </Button>
       </div>
 
@@ -139,14 +158,22 @@ export default function SignupStep2({ onVerify, onBack, loading, email }: Signup
           {translate("actions.verify")}
         </Button> */}
 
-        <Button type="button" variant="outline" className="flex-1" onClick={onBack}>
-  Back
-</Button>
-<Button type="submit" className="flex-1" disabled={loading || codeValue.length !== 6}>
-  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-  Verify
-</Button>
-
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1"
+          onClick={onBack}
+        >
+          Back
+        </Button>
+        <Button
+          type="submit"
+          className="flex-1"
+          disabled={loading || codeValue.length !== 6}
+        >
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Verify
+        </Button>
       </div>
     </form>
   );

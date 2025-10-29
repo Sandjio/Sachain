@@ -1,45 +1,49 @@
-
-import { useState } from "react";
-import { DashboardLayout } from "@/layout/DashboardLayout";
-import StartupDashboardHome from "./StartupHome";
-import { WalletManagement } from "@/features/wallet/components/walletManagement";
-import { ProfilPage } from "@/features/profil/ProfilPage";
-import ProjectPage from "./projects/index";
-import { MultiStepProjectForm } from "@/features/project/form/MultiStepProjectForm";
-import RequireAuth from "@/components/auth/RequireAuth";
-import TransactionsPage from "./TransactionPage";
+import { useState } from 'react';
+import { DashboardLayout } from '@/layout/DashboardLayout';
+import StartupDashboardHome from './StartupHome';
+import { WalletManagement } from '@/features/wallet/components/walletManagement';
+import { ProfilPage } from '@/features/profil/ProfilPage';
+import ProjectPage from './projects/index';
+import { MultiStepProjectForm } from '@/features/project/form/MultiStepProjectForm';
+import RequireAuth from '@/components/auth/RequireAuth';
+import TransactionsPage from './TransactionPage';
 
 export default function StartupDashboard() {
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "projects" | "wallet" | "profile" | "create-project" | "transactions"
-  >("dashboard");
+    | 'dashboard'
+    | 'projects'
+    | 'wallet'
+    | 'profile'
+    | 'create-project'
+    | 'transactions'
+  >('dashboard');
 
   const pageTitleMap = {
-    dashboard: "Startup Dashboard",
-    projects: "My Projects",
-    wallet: "Wallet Management",
-    profile: "Profile",
-    transactions: "Transactions",
-    "create-project": "Create New Project",
+    dashboard: 'Startup Dashboard',
+    projects: 'My Projects',
+    wallet: 'Wallet Management',
+    profile: 'Profile',
+    transactions: 'Transactions',
+    'create-project': 'Create New Project',
   };
 
   const renderContent = () => {
     switch (activeTab) {
-      case "dashboard":
+      case 'dashboard':
         return <StartupDashboardHome />;
-      case "projects":
+      case 'projects':
         return (
-          <ProjectPage
-            onCreateProject={() => setActiveTab("create-project")}
-          />
+          <ProjectPage onCreateProject={() => setActiveTab('create-project')} />
         );
-      case "create-project":
-        return <MultiStepProjectForm onCancel={() => setActiveTab("projects")} />;
-      case "wallet":
+      case 'create-project':
+        return (
+          <MultiStepProjectForm onCancel={() => setActiveTab('projects')} />
+        );
+      case 'wallet':
         return <WalletManagement />;
-      case "profile":
+      case 'profile':
         return <ProfilPage />;
-      case "transactions":
+      case 'transactions':
         return <TransactionsPage />;
       default:
         return <StartupDashboardHome />;
@@ -47,7 +51,7 @@ export default function StartupDashboard() {
   };
 
   return (
-    <RequireAuth roles={["startup", "admin"]}>
+    <RequireAuth roles={['startup', 'admin']}>
       <DashboardLayout
         activeItem={activeTab}
         onItemChange={setActiveTab}

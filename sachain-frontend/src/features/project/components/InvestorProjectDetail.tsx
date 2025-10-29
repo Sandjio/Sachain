@@ -7,13 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
-import { 
+import {
   ArrowLeft,
-  ArrowRight, 
-  Star, 
-  DollarSign, 
-  Users, 
-  TrendingUp, 
+  ArrowRight,
+  Star,
+  DollarSign,
+  Users,
+  TrendingUp,
   Target,
   Activity,
   BarChart3,
@@ -29,7 +29,7 @@ import {
   Building2,
   TrendingDown,
   Info,
-  Share2
+  Share2,
 } from 'lucide-react';
 
 export interface APIProject {
@@ -80,26 +80,26 @@ export function InvestorProjectDetail({
     minInvestment: project.pricePerStock,
     launchDate: project.createdAt,
     featured: false,
-    
+
     // Additional details
     timeline: 'Q2 2025 - Q4 2026',
     industry: project.category,
     fundingStage: 'Series A',
-    
+
     // Mock team data
     team: [
       { name: 'John Doe', role: 'CEO & Founder', image: '/team1.jpg' },
       { name: 'Jane Smith', role: 'CTO', image: '/team2.jpg' },
       { name: 'Mike Johnson', role: 'CFO', image: '/team3.jpg' },
     ],
-    
+
     // Mock documents
     documents: [
       { name: 'Business Plan', type: 'PDF', size: '2.5 MB' },
       { name: 'Financial Projections', type: 'XLSX', size: '1.2 MB' },
       { name: 'Pitch Deck', type: 'PDF', size: '5.8 MB' },
     ],
-    
+
     // Mock milestones
     milestones: [
       { title: 'Product Development', status: 'completed', date: 'Q1 2025' },
@@ -149,22 +149,22 @@ export function InvestorProjectDetail({
       case 'low':
         return {
           className: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
-          label: 'Low Risk'
+          label: 'Low Risk',
         };
       case 'medium':
         return {
           className: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
-          label: 'Medium Risk'
+          label: 'Medium Risk',
         };
       case 'high':
         return {
           className: 'bg-red-500/10 text-red-700 border-red-500/20',
-          label: 'High Risk'
+          label: 'High Risk',
         };
       default:
         return {
           className: 'bg-gray-100 text-gray-800',
-          label: 'Risk'
+          label: 'Risk',
         };
     }
   };
@@ -214,7 +214,7 @@ export function InvestorProjectDetail({
             </div>
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-            
+
             {/* Project Title Over Image */}
             <div className="absolute bottom-6 left-6 right-6">
               <h1 className="text-3xl sm:text-4xl font-semibold text-white mb-2 drop-shadow-lg">
@@ -249,7 +249,9 @@ export function InvestorProjectDetail({
                     <TrendingUp className="h-5 w-5 text-emerald-600" />
                   </div>
                   <p className="text-xs text-gray-600 mb-1">Expected ROI</p>
-                  <p className="font-semibold text-emerald-600">{projectData.expectedROI}</p>
+                  <p className="font-semibold text-emerald-600">
+                    {projectData.expectedROI}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -259,7 +261,9 @@ export function InvestorProjectDetail({
                     <Clock className="h-5 w-5 text-blue-600" />
                   </div>
                   <p className="text-xs text-gray-600 mb-1">Duration</p>
-                  <p className="font-semibold text-gray-900">{projectData.duration}</p>
+                  <p className="font-semibold text-gray-900">
+                    {projectData.duration}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -269,7 +273,9 @@ export function InvestorProjectDetail({
                     <Users className="h-5 w-5 text-purple-600" />
                   </div>
                   <p className="text-xs text-gray-600 mb-1">Investors</p>
-                  <p className="font-semibold text-gray-900">{projectData.investorCount}</p>
+                  <p className="font-semibold text-gray-900">
+                    {projectData.investorCount}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -279,7 +285,9 @@ export function InvestorProjectDetail({
                     <Award className="h-5 w-5 text-amber-600" />
                   </div>
                   <p className="text-xs text-gray-600 mb-1">Stage</p>
-                  <p className="font-semibold text-gray-900">{projectData.fundingStage}</p>
+                  <p className="font-semibold text-gray-900">
+                    {projectData.fundingStage}
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -315,16 +323,24 @@ export function InvestorProjectDetail({
                       <div className="p-4 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-100 rounded-lg">
                         <div className="flex items-center gap-2 mb-2">
                           <Building2 className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm text-gray-600">Industry</span>
+                          <span className="text-sm text-gray-600">
+                            Industry
+                          </span>
                         </div>
-                        <p className="font-semibold text-gray-900 capitalize">{projectData.industry}</p>
+                        <p className="font-semibold text-gray-900 capitalize">
+                          {projectData.industry}
+                        </p>
                       </div>
                       <div className="p-4 bg-gradient-to-br from-purple-50/50 to-violet-50/30 border border-purple-100 rounded-lg">
                         <div className="flex items-center gap-2 mb-2">
                           <Calendar className="h-4 w-4 text-purple-600" />
-                          <span className="text-sm text-gray-600">Timeline</span>
+                          <span className="text-sm text-gray-600">
+                            Timeline
+                          </span>
                         </div>
-                        <p className="font-semibold text-gray-900">{projectData.timeline}</p>
+                        <p className="font-semibold text-gray-900">
+                          {projectData.timeline}
+                        </p>
                       </div>
                     </div>
                   </TabsContent>
@@ -338,13 +354,15 @@ export function InvestorProjectDetail({
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              milestone.status === 'completed'
-                                ? 'bg-emerald-500/10'
-                                : milestone.status === 'in-progress'
-                                ? 'bg-blue-500/10'
-                                : 'bg-gray-100'
-                            }`}>
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                milestone.status === 'completed'
+                                  ? 'bg-emerald-500/10'
+                                  : milestone.status === 'in-progress'
+                                    ? 'bg-blue-500/10'
+                                    : 'bg-gray-100'
+                              }`}
+                            >
                               {milestone.status === 'completed' ? (
                                 <CheckCircle className="h-4 w-4 text-emerald-600" />
                               ) : milestone.status === 'in-progress' ? (
@@ -354,8 +372,12 @@ export function InvestorProjectDetail({
                               )}
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900">{milestone.title}</h4>
-                              <p className="text-sm text-gray-600">{milestone.date}</p>
+                              <h4 className="font-semibold text-gray-900">
+                                {milestone.title}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {milestone.date}
+                              </p>
                             </div>
                           </div>
                           <Badge
@@ -363,15 +385,15 @@ export function InvestorProjectDetail({
                               milestone.status === 'completed'
                                 ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
                                 : milestone.status === 'in-progress'
-                                ? 'bg-blue-500/10 text-blue-700 border-blue-500/20'
-                                : 'bg-gray-100 text-gray-700'
+                                  ? 'bg-blue-500/10 text-blue-700 border-blue-500/20'
+                                  : 'bg-gray-100 text-gray-700'
                             }
                           >
                             {milestone.status === 'completed'
                               ? 'Completed'
                               : milestone.status === 'in-progress'
-                              ? 'In Progress'
-                              : 'Upcoming'}
+                                ? 'In Progress'
+                                : 'Upcoming'}
                           </Badge>
                         </div>
                       </div>
@@ -390,8 +412,12 @@ export function InvestorProjectDetail({
                             <Users className="h-8 w-8 text-white" />
                           </div>
                           <div>
-                            <h4 className="font-semibold text-gray-900">{member.name}</h4>
-                            <p className="text-sm text-gray-600">{member.role}</p>
+                            <h4 className="font-semibold text-gray-900">
+                              {member.name}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {member.role}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -411,7 +437,9 @@ export function InvestorProjectDetail({
                               <FileText className="h-5 w-5 text-amber-600" />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-900">{doc.name}</h4>
+                              <h4 className="font-semibold text-gray-900">
+                                {doc.name}
+                              </h4>
                               <p className="text-sm text-gray-600">
                                 {doc.type} • {doc.size}
                               </p>
@@ -474,7 +502,9 @@ export function InvestorProjectDetail({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-emerald-600" />
-                        <span className="text-sm text-gray-600">Share Price</span>
+                        <span className="text-sm text-gray-600">
+                          Share Price
+                        </span>
                       </div>
                       <p className="font-semibold text-emerald-600">
                         {formatCurrency(projectData.sharePrice)}
@@ -488,7 +518,9 @@ export function InvestorProjectDetail({
                         <BarChart3 className="h-4 w-4 text-blue-600" />
                         <span className="text-sm text-gray-600">Available</span>
                       </div>
-                      <p className="font-semibold text-gray-900">{projectData.totalShares}</p>
+                      <p className="font-semibold text-gray-900">
+                        {projectData.totalShares}
+                      </p>
                     </div>
                   </div>
 
@@ -496,7 +528,9 @@ export function InvestorProjectDetail({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Target className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm text-gray-600">Min. Investment</span>
+                        <span className="text-sm text-gray-600">
+                          Min. Investment
+                        </span>
                       </div>
                       <p className="font-semibold text-gray-900">
                         {formatCurrency(projectData.minInvestment)}
@@ -516,7 +550,10 @@ export function InvestorProjectDetail({
 
                   <div className="space-y-3">
                     <div>
-                      <Label htmlFor="shares" className="text-sm text-gray-700 mb-1.5 block">
+                      <Label
+                        htmlFor="shares"
+                        className="text-sm text-gray-700 mb-1.5 block"
+                      >
                         Number of Shares
                       </Label>
                       <Input
@@ -524,14 +561,19 @@ export function InvestorProjectDetail({
                         type="number"
                         min="1"
                         value={shareQuantity}
-                        onChange={(e) => handleShareQuantityChange(e.target.value)}
+                        onChange={(e) =>
+                          handleShareQuantityChange(e.target.value)
+                        }
                         className="border-gray-200 focus:border-[#90A5FB] focus:ring-[#90A5FB]/20"
                         placeholder="Enter shares"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="amount" className="text-sm text-gray-700 mb-1.5 block">
+                      <Label
+                        htmlFor="amount"
+                        className="text-sm text-gray-700 mb-1.5 block"
+                      >
                         Investment Amount (USD)
                       </Label>
                       <Input
@@ -540,7 +582,9 @@ export function InvestorProjectDetail({
                         min="0"
                         step="0.01"
                         value={investmentAmount}
-                        onChange={(e) => handleInvestmentAmountChange(e.target.value)}
+                        onChange={(e) =>
+                          handleInvestmentAmountChange(e.target.value)
+                        }
                         className="border-gray-200 focus:border-[#90A5FB] focus:ring-[#90A5FB]/20"
                         placeholder="Enter amount"
                       />
@@ -550,12 +594,16 @@ export function InvestorProjectDetail({
                   <div className="p-3 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-100 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <Info className="h-4 w-4 text-blue-600" />
-                      <span className="text-xs text-gray-600">Investment Summary</span>
+                      <span className="text-xs text-gray-600">
+                        Investment Summary
+                      </span>
                     </div>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Shares:</span>
-                        <span className="font-semibold text-gray-900">{shareQuantity || 0}</span>
+                        <span className="font-semibold text-gray-900">
+                          {shareQuantity || 0}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total:</span>
@@ -569,7 +617,10 @@ export function InvestorProjectDetail({
                   <Button
                     className="w-full bg-gradient-to-r from-[#123962] to-[#90A5FB] hover:from-[#123962]/90 hover:to-[#90A5FB]/90 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                     onClick={handleInvest}
-                    disabled={!investmentAmount || parseFloat(investmentAmount) < projectData.minInvestment}
+                    disabled={
+                      !investmentAmount ||
+                      parseFloat(investmentAmount) < projectData.minInvestment
+                    }
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
                     Confirm Investment

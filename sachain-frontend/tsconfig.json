@@ -20,6 +20,11 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "src/pages/api/hcs-messages.ts "],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "src/pages/api/hcs-messages.ts "
+  ],
   "exclude": ["node_modules"]
 }

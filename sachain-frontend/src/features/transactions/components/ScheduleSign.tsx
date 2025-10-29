@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useScheduleSign } from '../hook/useScheduleSign';
 import { useHcsPublish } from '../hook/useHcsPublish';
@@ -8,7 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { PenTool, Loader2, Shield, Key, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  PenTool,
+  Loader2,
+  Shield,
+  Key,
+  CheckCircle,
+  AlertCircle,
+} from 'lucide-react';
 
 interface ScheduleSignProps {
   scheduleId: string;
@@ -40,7 +46,6 @@ export default function ScheduleSign({
   const handleSignClick = async () => {
     const signed = await signSchedule(privateKeyInput);
     if (signed) {
-      
       const messagePayload = JSON.stringify({
         type: 'purchase_approved',
         projectId,
@@ -63,7 +68,7 @@ export default function ScheduleSign({
           <PenTool className="h-5 w-5 text-primary" />
           Sign Schedule Transaction
         </CardTitle>
-        
+
         {/* Schedule ID Display */}
         <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md border">
           <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -75,7 +80,7 @@ export default function ScheduleSign({
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* Private Key Input */}
         <div className="space-y-2">
@@ -117,7 +122,10 @@ export default function ScheduleSign({
 
         {/* Error Messages */}
         {signingError && (
-          <Alert variant="destructive" className="animate-in fade-in duration-200">
+          <Alert
+            variant="destructive"
+            className="animate-in fade-in duration-200"
+          >
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               <strong>Signing Error:</strong> {signingError}
@@ -126,7 +134,10 @@ export default function ScheduleSign({
         )}
 
         {publishError && (
-          <Alert variant="destructive" className="animate-in fade-in duration-200">
+          <Alert
+            variant="destructive"
+            className="animate-in fade-in duration-200"
+          >
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               <strong>Notification Error:</strong> {publishError}

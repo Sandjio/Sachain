@@ -1,28 +1,25 @@
-
-
 // src/lib/auth/cognitoProvider.ts
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore } from '@/store/authStore';
 import {
   CognitoIdentityProviderClient,
   SignUpCommand,
   ConfirmSignUpCommand,
   InitiateAuthCommand,
   GlobalSignOutCommand,
-} from "@aws-sdk/client-cognito-identity-provider";
-
+} from '@aws-sdk/client-cognito-identity-provider';
 
 const region = process.env.NEXT_PUBLIC_COGNITO_REGION!;
 const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
 
 if (!region || !clientId) {
   console.warn(
-    "[Cognito] Missing NEXT_PUBLIC_COGNITO_REGION or NEXT_PUBLIC_COGNITO_CLIENT_ID"
+    '[Cognito] Missing NEXT_PUBLIC_COGNITO_REGION or NEXT_PUBLIC_COGNITO_CLIENT_ID'
   );
 }
 
 const client = new CognitoIdentityProviderClient({ region });
 
-export type UserRole = "startup" | "investor";
+export type UserRole = 'startup' | 'investor';
 
 export interface CognitoTokens {
   idToken: string;
@@ -50,10 +47,10 @@ export async function cognitoSignUp({
       Username: email,
       Password: password,
       UserAttributes: [
-        { Name: "email", Value: email },
-        { Name: "given_name", Value: givenName },
-        { Name: "family_name", Value: familyName },
-        { Name: "custom:userType", Value: role },
+        { Name: 'email', Value: email },
+        { Name: 'given_name', Value: givenName },
+        { Name: 'family_name', Value: familyName },
+        { Name: 'custom:userType', Value: role },
       ],
     })
   );
@@ -74,7 +71,6 @@ export async function cognitoConfirmSignUp(params: {
     })
   );
 
-
   return { ok: true };
 }
 
@@ -88,7 +84,7 @@ export async function cognitoSignIn(params: {
   const res = await client.send(
     new InitiateAuthCommand({
       ClientId: clientId,
-      AuthFlow: "USER_PASSWORD_AUTH",
+      AuthFlow: 'USER_PASSWORD_AUTH',
       AuthParameters: {
         USERNAME: email,
         PASSWORD: password,
@@ -98,7 +94,7 @@ export async function cognitoSignIn(params: {
 
   const auth = res.AuthenticationResult;
   if (!auth?.IdToken || !auth?.AccessToken) {
-    throw new Error("No tokens returned from Cognito");
+    throw new Error('No tokens returned from Cognito');
   }
 
   return {
@@ -113,7 +109,7 @@ export async function cognitoSignOut() {
   const { tokens, logout } = useAuthStore.getState(); // get tokens and logout action from store
 
   if (!tokens?.accessToken) {
-    console.warn("[Cognito] No access token found for sign out");
+    console.warn('[Cognito] No access token found for sign out');
     logout(); // still clear store
     return;
   }
@@ -124,9 +120,9 @@ export async function cognitoSignOut() {
         AccessToken: tokens.accessToken,
       })
     );
-    console.log("[Cognito] User signed out successfully");
+    console.log('[Cognito] User signed out successfully');
   } catch (err) {
-    console.error("[Cognito] Error during sign out:", err);
+    console.error('[Cognito] Error during sign out:', err);
   } finally {
     // Always clear local store and localStorage
     logout();

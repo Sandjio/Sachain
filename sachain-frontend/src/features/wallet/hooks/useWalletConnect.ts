@@ -21,7 +21,6 @@ export function useManualWalletConnect(): UseManualWalletConnectReturn {
     process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY!
   );
 
-  
   const startValidation = async (): Promise<string | null> => {
     setError(null);
 

@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 export function FilterBar() {
   return (
@@ -32,7 +32,9 @@ export function FilterBar() {
         </FilterGroup>
       </div>
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-medium-gray">🔍</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-medium-gray">
+          🔍
+        </span>
         <input
           type="text"
           placeholder="Search projects..."
@@ -43,7 +45,13 @@ export function FilterBar() {
   );
 }
 
-function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function FilterGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center gap-3">
       <span className="text-sm font-semibold text-medium-gray">{label}:</span>

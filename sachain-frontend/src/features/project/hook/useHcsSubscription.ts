@@ -1,5 +1,3 @@
-
-
 import { useEffect, useState } from 'react';
 import { Client, TopicMessageQuery } from '@hashgraph/sdk';
 
@@ -20,26 +18,21 @@ export function useHcsSubscription() {
     const client = Client.forTestnet();
     client.setOperator(operatorId, operatorKey);
 
-let subscription: { unsubscribe: () => void } | null = null;
+    let subscription: { unsubscribe: () => void } | null = null;
 
-try {
-  subscription = new TopicMessageQuery()
-    .setTopicId(topicIdStr)
-    .subscribe(
-      client,
-      null,
-      (message) => {
-        
-        const messageText = new TextDecoder("utf-8").decode(message.contents);
-        console.log(`Received message at ${message.consensusTimestamp.toDate()}: ${messageText}`);
-        
-      }
-    );
-} catch (err: any) {
-  console.error('Error subscribing to topic:', err);
-  setError('Topic subscription error: ' + (err?.message || String(err)));
-}
-
+    try {
+      subscription = new TopicMessageQuery()
+        .setTopicId(topicIdStr)
+        .subscribe(client, null, (message) => {
+          const messageText = new TextDecoder('utf-8').decode(message.contents);
+          console.log(
+            `Received message at ${message.consensusTimestamp.toDate()}: ${messageText}`
+          );
+        });
+    } catch (err: any) {
+      console.error('Error subscribing to topic:', err);
+      setError('Topic subscription error: ' + (err?.message || String(err)));
+    }
 
     return () => {
       if (subscription) {

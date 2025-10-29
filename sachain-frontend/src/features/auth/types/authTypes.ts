@@ -6,7 +6,7 @@ export interface SignupPayload {
   password: string;
   givenName: string;
   familyName: string;
-  role: "startup" | "investor";
+  role: 'startup' | 'investor';
 }
 
 // Payload for confirming signup
@@ -32,5 +32,5 @@ export interface AuthUser {
   email: string;
   givenName?: string;
   familyName?: string;
-  role: "startup" | "investor";
+  role: 'startup' | 'investor';
 }

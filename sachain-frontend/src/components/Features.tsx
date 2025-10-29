@@ -1,6 +1,5 @@
-
-import { Section, SectionHeader } from "./ui/section";
-import { Card, CardContent } from "./ui/card";
+import { Section, SectionHeader } from './ui/section';
+import { Card, CardContent } from './ui/card';
 import {
   Shield,
   Zap,
@@ -10,8 +9,8 @@ import {
   Coins,
   FileText,
   CheckCircle,
-} from "lucide-react";
-import svgPaths from "@/utils/svg-tzs4efenma";
+} from 'lucide-react';
+import svgPaths from '@/utils/svg-tzs4efenma';
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -43,90 +42,88 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
   );
 }
 
-
 export function PlatformFeatures() {
   const features = [
-    
     {
       icon: <Zap className="w-10 h-10 text-primary-foreground" />,
-      title: "Instant HBAR Transactions",
+      title: 'Instant HBAR Transactions',
       description:
-        "Lightning-fast payments and settlements using HBAR cryptocurrency with minimal fees.",
+        'Lightning-fast payments and settlements using HBAR cryptocurrency with minimal fees.',
     },
     {
       icon: <Users className="w-10 h-10 text-primary-foreground" />,
-      title: "Community Driven",
+      title: 'Community Driven',
       description:
-        "Connect with investors and entrepreneurs across Africa to build the future together.",
+        'Connect with investors and entrepreneurs across Africa to build the future together.',
     },
-  
+
     {
       icon: <Globe className="w-10 h-10 text-primary-foreground" />,
-      title: "Pan-African Focus",
+      title: 'Pan-African Focus',
       description:
-        "Specifically designed to support and scale African startups and innovation.",
+        'Specifically designed to support and scale African startups and innovation.',
     },
     {
       icon: <Coins className="w-10 h-10 text-primary-foreground" />,
-      title: "Fractional Ownership",
+      title: 'Fractional Ownership',
       description:
-        "Invest in startups with any amount through tokenized shares and smart contracts.",
+        'Invest in startups with any amount through tokenized shares and smart contracts.',
     },
     {
       icon: <FileText className="w-10 h-10 text-primary-foreground" />,
-      title: "Transparent Reporting",
+      title: 'Transparent Reporting',
       description:
-        "Complete transparency with real-time project updates and financial reporting.",
+        'Complete transparency with real-time project updates and financial reporting.',
     },
     {
       icon: <CheckCircle className="w-10 h-10 text-primary-foreground" />,
-      title: "KYC & Compliance",
+      title: 'KYC & Compliance',
       description:
-        "Fully compliant with international regulations and comprehensive KYC verification.",
+        'Fully compliant with international regulations and comprehensive KYC verification.',
     },
   ];
 
   return (
-  <Section size="md" className="bg-[#E3E3E3]/50">
-    <SectionHeader
-      title="Platform Features"
-      subtitle="SACHAIN combines cutting-edge blockchain technology with user-friendly design to create the most powerful crowdfunding platform for African innovation."
-    />
-    {/* Features Grid */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3  gap-6 lg:gap-8 lg:mb-24 p-12 lg:px-10">
-      {features.map((feature, index) => (
-        <FeatureCard
-          key={index}
-          icon={feature.icon}
-          title={feature.title}
-          description={feature.description}
-        />
-      ))}
-    </div>
-
-    {/* MVP Badge: place inside the big container but below the grid */}
-    <div className="flex justify-center ">
-      <div className="inline-flex items-center gap-3 bg-brand-light rounded-lg shadow-sm px-6 py-4 border bg-[#90A5FB]/50 border-primary/10">
-        <div className="flex-shrink-0">
-          <svg
-            className="w-5 h-5 text-primary"
-            fill="none"
-            viewBox="0 0 20 20"
-          >
-            <path
-              d={svgPaths.p750f180}
-              fill="currentColor"
-              fillRule="evenodd"
-              clipRule="evenodd"
-            />
-          </svg>
-        </div>
-        <p className="font-medium text-primary">
-          MVP Coming Soon - Built for <span className="font-bold uppercase">Hedera Hackathon</span>
-        </p>
+    <Section size="md" className="bg-[#E3E3E3]/50">
+      <SectionHeader
+        title="Platform Features"
+        subtitle="SACHAIN combines cutting-edge blockchain technology with user-friendly design to create the most powerful crowdfunding platform for African innovation."
+      />
+      {/* Features Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3  gap-6 lg:gap-8 lg:mb-24 p-12 lg:px-10">
+        {features.map((feature, index) => (
+          <FeatureCard
+            key={index}
+            icon={feature.icon}
+            title={feature.title}
+            description={feature.description}
+          />
+        ))}
       </div>
-    </div>
-  </Section>
-);
 
+      {/* MVP Badge: place inside the big container but below the grid */}
+      <div className="flex justify-center ">
+        <div className="inline-flex items-center gap-3 bg-brand-light rounded-lg shadow-sm px-6 py-4 border bg-[#90A5FB]/50 border-primary/10">
+          <div className="flex-shrink-0">
+            <svg
+              className="w-5 h-5 text-primary"
+              fill="none"
+              viewBox="0 0 20 20"
+            >
+              <path
+                d={svgPaths.p750f180}
+                fill="currentColor"
+                fillRule="evenodd"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+          <p className="font-medium text-primary">
+            MVP Coming Soon - Built for{' '}
+            <span className="font-bold uppercase">Hedera Hackathon</span>
+          </p>
+        </div>
+      </div>
+    </Section>
+  );
 }

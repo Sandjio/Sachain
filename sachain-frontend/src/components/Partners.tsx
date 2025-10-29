@@ -1,7 +1,5 @@
 import Image from 'next/image';
 
-
-
 export function Partners() {
   return (
     <section className="py-6 lg:py-8 px-4 lg:px-8 bg-brand-surface/50">
@@ -13,17 +11,17 @@ export function Partners() {
               Partners
             </h2>
           </div>
-          
+
           {/* Partners Image */}
           <div className="flex-shrink-0">
             <div className="bg-white rounded-lg p-4 lg:p-6 shadow-md border border-border">
-               <Image
-          src="/images/partner.png"
-          alt="Trusted Partners - Orange Digital Center and Hedera Network"
-          width={500}
-          height={80}
-          className="object-contain"
-        />
+              <Image
+                src="/images/partner.png"
+                alt="Trusted Partners - Orange Digital Center and Hedera Network"
+                width={500}
+                height={80}
+                className="object-contain"
+              />
             </div>
           </div>
         </div>

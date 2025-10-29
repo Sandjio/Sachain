@@ -11,7 +11,11 @@ interface ScheduleInfoInputProps {
   error: string | null;
 }
 
-export default function ScheduleInfoInput({ onFetchSchedule, loading, error }: ScheduleInfoInputProps) {
+export default function ScheduleInfoInput({
+  onFetchSchedule,
+  loading,
+  error,
+}: ScheduleInfoInputProps) {
   const [scheduleId, setScheduleId] = useState('');
 
   const onFetchClick = () => {
@@ -38,7 +42,7 @@ export default function ScheduleInfoInput({ onFetchSchedule, loading, error }: S
             Enter a schedule ID to fetch information
           </p>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Input
@@ -51,9 +55,9 @@ export default function ScheduleInfoInput({ onFetchSchedule, loading, error }: S
               disabled={loading}
             />
           </div>
-          
-          <Button 
-            onClick={onFetchClick} 
+
+          <Button
+            onClick={onFetchClick}
             disabled={!scheduleId.trim() || loading}
             className="w-full transition-all duration-200 hover:shadow-md"
           >
@@ -71,7 +75,10 @@ export default function ScheduleInfoInput({ onFetchSchedule, loading, error }: S
           </Button>
 
           {error && (
-            <Alert variant="destructive" className="animate-in fade-in duration-200">
+            <Alert
+              variant="destructive"
+              className="animate-in fade-in duration-200"
+            >
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

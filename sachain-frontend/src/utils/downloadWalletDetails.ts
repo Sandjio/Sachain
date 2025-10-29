@@ -15,8 +15,8 @@ Balance: ${walletDetails.balance} HBAR
 
 ⚠️ KEEP THIS FILE SECURE AND PRIVATE ⚠️`;
 
-  const file = new Blob([fileContent], { type: "text/plain" });
-  const element = document.createElement("a");
+  const file = new Blob([fileContent], { type: 'text/plain' });
+  const element = document.createElement('a');
   element.href = URL.createObjectURL(file);
   element.download = `hedera-wallet-${walletDetails.accountId}.txt`;
   document.body.appendChild(element);

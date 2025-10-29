@@ -1,110 +1,140 @@
-import { useState } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
-import { Badge } from "./ui/badge"
-import { Button } from "./ui/button"
-import { Input } from "./ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { Search, Filter, Download, MoreHorizontal } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
+import { useState } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './ui/table';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Search, Filter, Download, MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 const tableData = [
   {
-    id: "PRJ-001",
-    name: "Website Redesign",
-    status: "In Progress",
-    priority: "High",
-    assignee: "John Smith",
-    dueDate: "2024-02-15",
+    id: 'PRJ-001',
+    name: 'Website Redesign',
+    status: 'In Progress',
+    priority: 'High',
+    assignee: 'John Smith',
+    dueDate: '2024-02-15',
     progress: 75,
-    budget: "$25,000"
+    budget: '$25,000',
   },
   {
-    id: "PRJ-002",
-    name: "Mobile App Development",
-    status: "Planning",
-    priority: "Medium",
-    assignee: "Sarah Johnson",
-    dueDate: "2024-03-01",
+    id: 'PRJ-002',
+    name: 'Mobile App Development',
+    status: 'Planning',
+    priority: 'Medium',
+    assignee: 'Sarah Johnson',
+    dueDate: '2024-03-01',
     progress: 20,
-    budget: "$45,000"
+    budget: '$45,000',
   },
   {
-    id: "PRJ-003",
-    name: "Database Migration",
-    status: "Completed",
-    priority: "High",
-    assignee: "Mike Wilson",
-    dueDate: "2024-01-30",
+    id: 'PRJ-003',
+    name: 'Database Migration',
+    status: 'Completed',
+    priority: 'High',
+    assignee: 'Mike Wilson',
+    dueDate: '2024-01-30',
     progress: 100,
-    budget: "$15,000"
+    budget: '$15,000',
   },
   {
-    id: "PRJ-004",
-    name: "API Integration",
-    status: "In Progress",
-    priority: "Low",
-    assignee: "Emily Davis",
-    dueDate: "2024-02-28",
+    id: 'PRJ-004',
+    name: 'API Integration',
+    status: 'In Progress',
+    priority: 'Low',
+    assignee: 'Emily Davis',
+    dueDate: '2024-02-28',
     progress: 45,
-    budget: "$12,000"
+    budget: '$12,000',
   },
   {
-    id: "PRJ-005",
-    name: "Security Audit",
-    status: "On Hold",
-    priority: "High",
-    assignee: "Robert Brown",
-    dueDate: "2024-03-15",
+    id: 'PRJ-005',
+    name: 'Security Audit',
+    status: 'On Hold',
+    priority: 'High',
+    assignee: 'Robert Brown',
+    dueDate: '2024-03-15',
     progress: 10,
-    budget: "$8,000"
+    budget: '$8,000',
   },
   {
-    id: "PRJ-006",
-    name: "User Training",
-    status: "Planning",
-    priority: "Medium",
-    assignee: "Lisa Anderson",
-    dueDate: "2024-04-01",
+    id: 'PRJ-006',
+    name: 'User Training',
+    status: 'Planning',
+    priority: 'Medium',
+    assignee: 'Lisa Anderson',
+    dueDate: '2024-04-01',
     progress: 5,
-    budget: "$3,500"
-  }
-]
+    budget: '$3,500',
+  },
+];
 
 export function DataTable() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [priorityFilter, setPriorityFilter] = useState("all")
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
-  const filteredData = tableData.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.assignee.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.id.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter
-    const matchesPriority = priorityFilter === "all" || item.priority === priorityFilter
-    
-    return matchesSearch && matchesStatus && matchesPriority
-  })
+  const filteredData = tableData.filter((item) => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.assignee.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.id.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === 'all' || item.status === statusFilter;
+    const matchesPriority =
+      priorityFilter === 'all' || item.priority === priorityFilter;
+
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Completed": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-      case "In Progress": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-      case "Planning": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-      case "On Hold": return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
-      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+      case 'Completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'In Progress':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'Planning':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'On Hold':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }
-  }
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "High": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-      case "Medium": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
-      case "Low": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+      case 'High':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      case 'Medium':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
+      case 'Low':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }
-  }
+  };
 
   return (
     <Card>
@@ -118,7 +148,7 @@ export function DataTable() {
             </Button>
           </div>
         </div>
-        
+
         {/* Filters */}
         <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
           <div className="relative flex-1">
@@ -130,7 +160,7 @@ export function DataTable() {
               className="pl-10"
             />
           </div>
-          
+
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <Filter className="h-4 w-4 mr-2" />
@@ -144,7 +174,7 @@ export function DataTable() {
               <SelectItem value="On Hold">On Hold</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by priority" />
@@ -158,7 +188,7 @@ export function DataTable() {
           </Select>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="rounded-md border">
           <Table>
@@ -186,7 +216,10 @@ export function DataTable() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={getPriorityColor(item.priority)}>
+                    <Badge
+                      variant="outline"
+                      className={getPriorityColor(item.priority)}
+                    >
                       {item.priority}
                     </Badge>
                   </TableCell>
@@ -195,12 +228,14 @@ export function DataTable() {
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${item.progress}%` }}
                         ></div>
                       </div>
-                      <span className="text-xs text-muted-foreground">{item.progress}%</span>
+                      <span className="text-xs text-muted-foreground">
+                        {item.progress}%
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>{item.budget}</TableCell>
@@ -226,7 +261,7 @@ export function DataTable() {
             </TableBody>
           </Table>
         </div>
-        
+
         {filteredData.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             No projects found matching your filters.
@@ -234,5 +269,5 @@ export function DataTable() {
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

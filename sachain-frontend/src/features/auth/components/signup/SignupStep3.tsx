@@ -1,30 +1,33 @@
-
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Upload, FileText } from "lucide-react";
-import { useTranslate } from "@/hooks/useTranslate";
-import { useKyc, DocumentType } from "@/features/auth/hook/useKyc";
-import { useAuthStore } from "@/store/authStore";
-import { useState } from "react";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Upload, FileText } from 'lucide-react';
+import { useTranslate } from '@/hooks/useTranslate';
+import { useKyc, DocumentType } from '@/features/auth/hook/useKyc';
+import { useAuthStore } from '@/store/authStore';
+import { useState } from 'react';
 
 const uploadSchema = z.object({
   file: z
     .any()
-    .refine((files) => files?.length === 1, "You must upload a file"),
+    .refine((files) => files?.length === 1, 'You must upload a file'),
 });
 
 interface SignupStep3Props {
-  role: "startup" | "investor";
+  role: 'startup' | 'investor';
   onNext: () => void;
   onBack: () => void;
 }
 
-export default function SignupStep3({ role, onNext, onBack }: SignupStep3Props) {
-  const translate = useTranslate("getStartedModal");
+export default function SignupStep3({
+  role,
+  onNext,
+  onBack,
+}: SignupStep3Props) {
+  const translate = useTranslate('getStartedModal');
   const { uploadDocument, loading, error } = useKyc();
   const { user, tokens } = useAuthStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -39,12 +42,12 @@ export default function SignupStep3({ role, onNext, onBack }: SignupStep3Props) 
 
   const onSubmit = async (data: { file: FileList }) => {
     if (!tokens?.idToken) {
-      alert("You must be logged in to upload KYC document");
+      alert('You must be logged in to upload KYC document');
       return;
     }
 
     const documentType: DocumentType =
-      user?.role === "investor" ? "passport" : "national_id";
+      user?.role === 'investor' ? 'passport' : 'national_id';
 
     try {
       await uploadDocument({
@@ -54,7 +57,7 @@ export default function SignupStep3({ role, onNext, onBack }: SignupStep3Props) 
       });
       onNext();
     } catch (err) {
-      console.error("KYC upload failed:", err);
+      console.error('KYC upload failed:', err);
     }
   };
 
@@ -116,60 +119,61 @@ export default function SignupStep3({ role, onNext, onBack }: SignupStep3Props) 
     // </form>
 
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-  {/* Instruction */}
-  <p className="text-muted-foreground text-sm">
-    {role === "investor"
-      ? "Please upload a valid government-issued ID (image or PDF)."
-      : "Please upload your business registration certificate or startup ID (image or PDF)."}
-  </p>
+      {/* Instruction */}
+      <p className="text-muted-foreground text-sm">
+        {role === 'investor'
+          ? 'Please upload a valid government-issued ID (image or PDF).'
+          : 'Please upload your business registration certificate or startup ID (image or PDF).'}
+      </p>
 
-  {/* Upload box */}
-  <Card className="border-dashed border-2 hover:border-primary transition-colors">
-    <CardContent className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
-      <Upload className="w-10 h-10 text-muted-foreground" />
-      <div>
-        <label
-          htmlFor="file-upload"
-          className="cursor-pointer text-primary font-medium hover:underline"
-        >
-          Click to upload
-        </label>{" "}
-        or drag and drop
+      {/* Upload box */}
+      <Card className="border-dashed border-2 hover:border-primary transition-colors">
+        <CardContent className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
+          <Upload className="w-10 h-10 text-muted-foreground" />
+          <div>
+            <label
+              htmlFor="file-upload"
+              className="cursor-pointer text-primary font-medium hover:underline"
+            >
+              Click to upload
+            </label>{' '}
+            or drag and drop
+          </div>
+          <Input
+            id="file-upload"
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            {...register('file', {
+              onChange: (e) => setSelectedFile(e.target.files?.[0] ?? null),
+            })}
+          />
+          {selectedFile && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <FileText className="w-4 h-4" />
+              <span>{selectedFile.name}</span>
+            </div>
+          )}
+          {errors.file && (
+            <span className="text-destructive text-sm">
+              {errors.file.message}
+            </span>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Actions */}
+      <div className="flex justify-between">
+        <Button type="button" variant="outline" onClick={onBack}>
+          Back
+        </Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Uploading...' : 'Next'}
+        </Button>
       </div>
-      <Input
-        id="file-upload"
-        type="file"
-        accept="image/*,application/pdf"
-        className="hidden"
-        {...register("file", {
-          onChange: (e) => setSelectedFile(e.target.files?.[0] ?? null),
-        })}
-      />
-      {selectedFile && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <FileText className="w-4 h-4" />
-          <span>{selectedFile.name}</span>
-        </div>
-      )}
-      {errors.file && (
-        <span className="text-destructive text-sm">{errors.file.message}</span>
-      )}
-    </CardContent>
-  </Card>
 
-  {/* Actions */}
-  <div className="flex justify-between">
-    <Button type="button" variant="outline" onClick={onBack}>
-      Back
-    </Button>
-    <Button type="submit" disabled={loading}>
-      {loading ? "Uploading..." : "Next"}
-    </Button>
-  </div>
-
-  {/* Error */}
-  {error && <p className="text-destructive text-sm">{error}</p>}
-</form>
-
+      {/* Error */}
+      {error && <p className="text-destructive text-sm">{error}</p>}
+    </form>
   );
 }

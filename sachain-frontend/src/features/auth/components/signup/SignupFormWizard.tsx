@@ -1,14 +1,18 @@
-
-
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import SignupStep1 from "./SignupStep1";
-import SignupStep2 from "./SignupStep2";
-import SignupStep3 from "./SignupStep3";
-import Step4Success from "./Step4Success";
-import { useSignup } from "@/features/auth/hook/useSignup";
-import { useAuthStore } from "@/store/authStore";
+import { useState } from 'react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import SignupStep1 from './SignupStep1';
+import SignupStep2 from './SignupStep2';
+import SignupStep3 from './SignupStep3';
+import Step4Success from './Step4Success';
+import { useSignup } from '@/features/auth/hook/useSignup';
+import { useAuthStore } from '@/store/authStore';
 
 export type SignupData = {
   givenName?: string;
@@ -35,10 +39,10 @@ export default function SignupFormWizard() {
   const progress = (step / totalSteps) * 100;
 
   const stepTitles: Record<number, string> = {
-    1: "Personal Information",
-    2: "Verify Your Email",
-    3: role === "investor" ? "Upload ID Document" : "Upload Business Documents",
-    4: "Welcome to Sachain!",
+    1: 'Personal Information',
+    2: 'Verify Your Email',
+    3: role === 'investor' ? 'Upload ID Document' : 'Upload Business Documents',
+    4: 'Welcome to Sachain!',
   };
 
   // --- Handlers ---
@@ -56,7 +60,7 @@ export default function SignupFormWizard() {
         password: data.password,
         givenName: data.firstName,
         familyName: data.lastName,
-        role
+        role,
       });
 
       setUser({
@@ -67,14 +71,14 @@ export default function SignupFormWizard() {
       });
       setStep(2);
 
-      console.log("User signed up successfully:", {
+      console.log('User signed up successfully:', {
         givenName: data.firstName,
         familyName: data.lastName,
         email: data.email,
         role,
       });
     } catch (err) {
-      console.error("Signup failed:", err);
+      console.error('Signup failed:', err);
     }
   };
 
@@ -83,7 +87,7 @@ export default function SignupFormWizard() {
       await confirm({ email: formData.email!, code });
       setStep(3);
     } catch (err) {
-      console.error("Confirmation failed:", err);
+      console.error('Confirmation failed:', err);
     }
   };
 

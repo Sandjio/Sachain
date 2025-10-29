@@ -31,7 +31,7 @@ interface SignupStep1Props {
 export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const {
     register,
     handleSubmit,
@@ -75,10 +75,10 @@ export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
         type="password"
       /> */}
       <div className="relative">
-        <Input 
-          {...register('password')} 
-          placeholder="Password" 
-          type={showPassword ? "text" : "password"} 
+        <Input
+          {...register('password')}
+          placeholder="Password"
+          type={showPassword ? 'text' : 'password'}
         />
         <Button
           type="button"
@@ -86,9 +86,13 @@ export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
           size="sm"
           className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
           onClick={() => setShowPassword(!showPassword)}
-          aria-label={showPassword ? "Hide password" : "Show password"}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
         >
-          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {showPassword ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
         </Button>
       </div>
       {errors.password && (
@@ -99,7 +103,7 @@ export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
         <Input
           {...register('confirmPassword')}
           placeholder="Confirm Password"
-          type={showConfirmPassword ? "text" : "password"}
+          type={showConfirmPassword ? 'text' : 'password'}
         />
         <Button
           type="button"
@@ -107,9 +111,13 @@ export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
           size="sm"
           className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
         >
-          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {showConfirmPassword ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
         </Button>
       </div>
       {errors.confirmPassword && (

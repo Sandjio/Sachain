@@ -1,18 +1,17 @@
-import React from "react";
-import { useRouter } from "next/router";
-import { Button } from "@/components/ui/button";
-// Import your project details component or fetch logic here
+import React from 'react';
+import { useRouter } from 'next/router';
+import { Button } from '@/components/ui/button';
 
 export default function ProjectDetailsPage() {
   const router = useRouter();
   const { id } = router.query;
 
-  if (!id || typeof id !== "string") {
+  if (!id || typeof id !== 'string') {
     return <p>Loading...</p>;
   }
 
   const handleBack = () => {
-    router.push("/dashboards/startup/projects");
+    router.push('/dashboards/startup/projects');
   };
 
   return (
@@ -22,7 +21,6 @@ export default function ProjectDetailsPage() {
       </Button>
 
       <h1>Project Details Page for {id}</h1>
-      {/* Render your project details here, fetch using id */}
     </div>
   );
 }

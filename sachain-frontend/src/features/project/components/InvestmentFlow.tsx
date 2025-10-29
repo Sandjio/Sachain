@@ -184,3 +184,5 @@ export function InvestmentFlow({
     </div>
   );
 }
+
+export default InvestmentFlow;
