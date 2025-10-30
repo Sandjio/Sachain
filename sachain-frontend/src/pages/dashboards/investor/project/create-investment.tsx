@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/layout/DashboardLayout';
-import  InvestmentModal  from '@/features/project/components/InvestmentFlow';
+import InvestmentModal from '@/features/project/components/InvestmentFlow';
 
 type Project = {
   projectId: string;

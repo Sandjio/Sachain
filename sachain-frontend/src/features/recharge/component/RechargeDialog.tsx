@@ -21,7 +21,6 @@ export function RechargeDialog({ open, onOpenChange }: RechargeDialogProps) {
   const handleSuccess = () => {
     console.log('Recharge successful!');
     onOpenChange(false);
-    
   };
 
   const handleError = (msg: string) => {

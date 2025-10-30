@@ -1,6 +1,3 @@
-
-
-
 import { useState } from 'react';
 import { cognitoSignOut } from '@/features/auth/core/cognitoProvider';
 

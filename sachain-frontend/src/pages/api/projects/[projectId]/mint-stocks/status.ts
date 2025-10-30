@@ -29,7 +29,7 @@ export default async function handler(
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': req.headers.authorization || '',
+          Authorization: req.headers.authorization || '',
         },
       }
     );
@@ -37,11 +37,11 @@ export default async function handler(
     console.log('📡 Status response:', response.status);
 
     const contentType = response.headers.get('content-type');
-    
+
     if (!contentType || !contentType.includes('application/json')) {
       const text = await response.text();
       console.log('Non-JSON response, assuming completed');
-      
+
       return res.status(200).json({
         progress: {
           status: 'completed',
@@ -56,10 +56,9 @@ export default async function handler(
     console.log('✅ Status data:', data);
 
     return res.status(200).json(data);
-
   } catch (error) {
     console.error(' Status error:', error);
-    
+
     return res.status(200).json({
       progress: {
         status: 'completed',

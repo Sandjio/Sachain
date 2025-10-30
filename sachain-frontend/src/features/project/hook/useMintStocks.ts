@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { mintStocks, getMintStocksStatus } from '../core/api';
 import { MintStocksStatusProgress, MintStocksStatus } from '../core/types';
@@ -13,7 +12,7 @@ export function useMintStocks(projectId: string) {
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const pollCountRef = useRef(0);
-  const MAX_POLLS = 50; 
+  const MAX_POLLS = 50;
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -25,7 +24,7 @@ export function useMintStocks(projectId: string) {
 
   const pollMintingStatus = useCallback(async () => {
     pollCountRef.current += 1;
-    
+
     console.log(`🔍 Poll ${pollCountRef.current}/${MAX_POLLS}`);
 
     if (pollCountRef.current >= MAX_POLLS) {
@@ -45,7 +44,7 @@ export function useMintStocks(projectId: string) {
     try {
       const statusResponse = await getMintStocksStatus(projectId);
       console.log('Status:', statusResponse);
-      
+
       const mintingProgress = statusResponse.progress;
       setProgress(mintingProgress);
 
@@ -63,7 +62,7 @@ export function useMintStocks(projectId: string) {
       }
     } catch (err: any) {
       console.error(' Poll error:', err);
-      
+
       if (pollCountRef.current < MAX_POLLS) {
         pollingRef.current = setTimeout(pollMintingStatus, 2000);
       } else {

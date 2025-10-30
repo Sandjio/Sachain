@@ -531,7 +531,7 @@ export function ProjectDetailView({
         <ConfirmDeleteModal
           isOpen={isModalOpen}
           title={`Delete "${project?.name}"?`}
-          description="This action cannot be undone and will permanently remove this project&apos;s data."
+          description="This action cannot be undone and will permanently remove this project's data."
           onConfirm={confirmDelete}
           onCancel={() => setIsModalOpen(false)}
           loading={isDeleting}
@@ -556,4 +556,3 @@ export function ProjectDetailView({
     </div>
   );
 }
-

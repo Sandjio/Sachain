@@ -139,9 +139,6 @@ export async function deleteProject(projectId: string) {
   return true;
 }
 
-
-
-
 export async function mintStocks(
   projectId: string,
   walletAddress: string,
@@ -174,8 +171,6 @@ export async function mintStocks(
   return res.json(); // expected to match your backend's success response format
 }
 
-
-
 export async function getMintStocksStatus(
   projectId: string
 ): Promise<MintStocksStatus> {
@@ -205,8 +200,6 @@ export async function getMintStocksStatus(
 
   return res.json() as Promise<MintStocksStatus>;
 }
-
-
 
 export async function buyProjectShares(
   projectId: string,
@@ -242,6 +235,3 @@ export async function buyProjectShares(
 
   return res.json();
 }
-
-
-

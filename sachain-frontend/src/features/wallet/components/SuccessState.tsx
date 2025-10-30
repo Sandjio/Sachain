@@ -1,19 +1,19 @@
-import React from "react";
-import { 
+import React from 'react';
+import {
   CheckCircle,
-  Clipboard, 
-  Download, 
-  Shield, 
+  Clipboard,
+  Download,
+  Shield,
   Wallet,
   DollarSign,
   AlertTriangle,
   ArrowRight,
-  Sparkles
-} from "lucide-react"; 
-import { Button } from "@/components/ui/button"; 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { downloadWalletDetails } from "@/utils/downloadWalletDetails";
+  Sparkles,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { downloadWalletDetails } from '@/utils/downloadWalletDetails';
 
 interface SuccessStateProps {
   walletName: string;
@@ -76,7 +76,9 @@ export default function SuccessState({
           <CardContent className="p-6 space-y-4">
             {/* Account ID */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Account ID</label>
+              <label className="text-sm font-medium text-gray-700">
+                Account ID
+              </label>
               <div className="flex items-center gap-2">
                 <code className="flex-1 p-3 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-100 rounded-lg text-sm font-mono text-gray-900">
                   {walletDetails.accountId}
@@ -96,7 +98,9 @@ export default function SuccessState({
             {/* Private Key */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-red-700">Private Key</label>
+                <label className="text-sm font-medium text-red-700">
+                  Private Key
+                </label>
                 <Badge className="bg-red-500/10 text-red-700 border-red-500/20 text-xs">
                   <Shield className="h-3 w-3 mr-1" />
                   Keep Secret
@@ -113,7 +117,9 @@ export default function SuccessState({
                   variant="ghost"
                   size="icon"
                   className="flex-shrink-0 hover:bg-red-50 hover:text-red-600"
-                  onClick={() => copyToClipboard(walletDetails.privateKey || "")}
+                  onClick={() =>
+                    copyToClipboard(walletDetails.privateKey || '')
+                  }
                   aria-label="Copy Private Key"
                 >
                   <Clipboard className="w-4 h-4" />
@@ -131,10 +137,13 @@ export default function SuccessState({
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
               </div>
               <div className="flex-1">
-                <h5 className="font-semibold text-gray-900 text-sm mb-1">Security Notice</h5>
+                <h5 className="font-semibold text-gray-900 text-sm mb-1">
+                  Security Notice
+                </h5>
                 <p className="text-xs text-gray-700 leading-relaxed">
-                  Your private key is the <strong>only way</strong> to access your wallet. 
-                  Download and store it securely. Never share it with anyone.
+                  Your private key is the <strong>only way</strong> to access
+                  your wallet. Download and store it securely. Never share it
+                  with anyone.
                 </p>
               </div>
             </div>
@@ -151,7 +160,7 @@ export default function SuccessState({
             <Download className="w-4 h-4 mr-2" />
             Download
           </Button>
-          <Button 
+          <Button
             className="bg-gradient-to-r from-[#123962] to-[#90A5FB] hover:from-[#123962]/90 hover:to-[#90A5FB]/90 text-white shadow-lg hover:shadow-xl transition-all duration-300"
             onClick={onContinue}
           >
@@ -178,7 +187,8 @@ export default function SuccessState({
           Successfully Connected!
         </h3>
         <p className="text-gray-600">
-          <span className="font-semibold text-[#123962]">{walletName}</span> wallet is now connected
+          <span className="font-semibold text-[#123962]">{walletName}</span>{' '}
+          wallet is now connected
         </p>
       </div>
 
@@ -221,7 +231,7 @@ export default function SuccessState({
       </Card>
 
       {/* Continue Button */}
-      <Button 
+      <Button
         className="w-full bg-gradient-to-r from-[#123962] to-[#90A5FB] hover:from-[#123962]/90 hover:to-[#90A5FB]/90 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-12"
         onClick={onContinue}
       >

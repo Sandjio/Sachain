@@ -67,8 +67,6 @@ export function useLogin() {
       // Decode ID token to extract user info including role
       const idTokenPayload = parseJwt(tokens.idToken);
 
-      
-
       // Extract role from token payload; fallback safe default or throw error
       const userRole =
         idTokenPayload?.['custom:userType'] ||

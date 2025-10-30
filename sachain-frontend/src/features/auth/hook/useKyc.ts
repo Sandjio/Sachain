@@ -48,8 +48,6 @@ export function useKyc() {
         );
       }
 
-      
-
       const res = await uploadKycDocument({
         idToken: tokens.idToken,
         file,

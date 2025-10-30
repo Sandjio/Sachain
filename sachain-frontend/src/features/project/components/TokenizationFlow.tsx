@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { ProgressIndicator } from './tokenisation/ProgressIndicator';
 import { ConnectWalletStep } from './tokenisation/ConnectWalletStep';
@@ -69,7 +67,6 @@ export function TokenizationFlow({
   const handleMintSuccess = () => {
     setError(null);
     setCurrentStep(5);
-    
   };
 
   return (
@@ -83,23 +80,23 @@ export function TokenizationFlow({
             currentStep === 1
               ? 'Connect Wallet'
               : currentStep === 2
-              ? 'Verify Balance'
-              : currentStep === 3
-              ? 'Enter Private Key'
-              : currentStep === 4
-              ? 'Minting Tokens'
-              : 'Complete!'
+                ? 'Verify Balance'
+                : currentStep === 3
+                  ? 'Enter Private Key'
+                  : currentStep === 4
+                    ? 'Minting Tokens'
+                    : 'Complete!'
           }
           icon={
             currentStep === 1
               ? '👛'
               : currentStep === 2
-              ? '🧐'
-              : currentStep === 3
-              ? '🔑'
-              : currentStep === 4
-              ? '🪙'
-              : '✅'
+                ? '🧐'
+                : currentStep === 3
+                  ? '🔑'
+                  : currentStep === 4
+                    ? '🪙'
+                    : '✅'
           }
         />
         {currentStep === 1 && (

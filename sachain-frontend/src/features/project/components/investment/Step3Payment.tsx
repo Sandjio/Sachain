@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import {
   CheckCircle,
@@ -253,7 +251,8 @@ export default function Step3Payment({
                   </h5>
                   <p className="text-xs text-gray-700">
                     Your private key is encrypted and never stored on our
-                    servers.It&apos;s only used to sign this transaction securely.
+                    servers.It&apos;s only used to sign this transaction
+                    securely.
                   </p>
                 </div>
               </div>
@@ -284,8 +283,9 @@ export default function Step3Payment({
                   type="button"
                   onClick={() => setShowPrivateKey(!showPrivateKey)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                  aria-label={showPrivateKey ? 'Hide private key' : 'Show private key'}
-
+                  aria-label={
+                    showPrivateKey ? 'Hide private key' : 'Show private key'
+                  }
                 >
                   {showPrivateKey ? (
                     <EyeOff className="h-4 w-4" />
@@ -305,8 +305,8 @@ export default function Step3Payment({
               <div className="flex items-center gap-2 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
                 <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
                 <p className="text-xs text-gray-600">
-                    Make sure you&apos;re entering the correct private key for your wallet
-
+                  Make sure you&apos;re entering the correct private key for
+                  your wallet
                 </p>
               </div>
             </div>

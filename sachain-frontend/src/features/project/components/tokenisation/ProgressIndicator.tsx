@@ -1,4 +1,3 @@
-
 //refactor
 
 import React from 'react';
@@ -74,8 +73,6 @@ export function ProgressIndicator({
 
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
         {/* Icon with gradient background */}
-
-       
 
         {/* Step indicator with brand styling */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-full border border-[#90A5FB]/20 shadow-sm">

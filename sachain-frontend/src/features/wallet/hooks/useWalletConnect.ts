@@ -54,8 +54,6 @@
 //   };
 // }
 
-
-
 import { useState, useCallback } from 'react';
 import { Client, AccountBalanceQuery, PrivateKey } from '@hashgraph/sdk';
 
@@ -109,7 +107,8 @@ export function useManualWalletConnect(): UseManualWalletConnectReturn {
     } catch (err: any) {
       setLoading(false);
       setError(
-        err.message || 'Unable to fetch balance. Check Account ID and network connection.'
+        err.message ||
+          'Unable to fetch balance. Check Account ID and network connection.'
       );
       return null;
     } finally {

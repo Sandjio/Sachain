@@ -1,6 +1,3 @@
-
-
-
 import { useState } from 'react';
 import {
   cognitoSignUp,
@@ -85,8 +82,6 @@ export function useSignup() {
 
       // Save user + tokens to global store
       loginToStore(userForFlow, tokens);
-
-     
 
       return { ok: true, tokens };
     } catch (err: unknown) {

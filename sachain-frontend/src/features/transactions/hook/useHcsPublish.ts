@@ -47,10 +47,12 @@
 //   return { publishMessage, loading, error, success };
 // }
 
-
-
 import { useState, useCallback } from 'react';
-import { Client, TopicMessageSubmitTransaction, PrivateKey } from '@hashgraph/sdk';
+import {
+  Client,
+  TopicMessageSubmitTransaction,
+  PrivateKey,
+} from '@hashgraph/sdk';
 
 export function useHcsPublish() {
   const [loading, setLoading] = useState(false);
@@ -64,7 +66,8 @@ export function useHcsPublish() {
 
     try {
       const operatorId = process.env.NEXT_PUBLIC_HEDERA_OPERATOR_ID || '';
-      const operatorKeyString = process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY || '';
+      const operatorKeyString =
+        process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY || '';
       const topicId = process.env.NEXT_PUBLIC_HCS_TOPIC_ID || '';
 
       if (!operatorId || !operatorKeyString || !topicId) {
@@ -75,7 +78,7 @@ export function useHcsPublish() {
       const operatorKey = PrivateKey.fromStringDer(operatorKeyString);
 
       const client = Client.forTestnet();
-      
+
       // FIX 2: Pass PrivateKey object instead of string
       client.setOperator(operatorId, operatorKey);
 
@@ -96,7 +99,6 @@ export function useHcsPublish() {
 
       // FIX 3: Close the client to clean up resources
       client.close();
-
     } catch (e: any) {
       console.error('HCS Publish Error:', e);
       setError(e.message);

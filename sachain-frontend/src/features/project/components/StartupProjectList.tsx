@@ -49,9 +49,8 @@ export function StartupProjectList({
   }, [fetchProjects, refreshProjects]);
 
   // Memoize projects to avoid recomputation in map if projects haven't changed
- 
 
-  const projectsMemo: Project[] = useMemo(() => projects || [], [projects])
+  const projectsMemo: Project[] = useMemo(() => projects || [], [projects]);
 
   const LoadingSkeleton = useMemo(
     () => (
@@ -150,8 +149,7 @@ export function StartupProjectList({
         <div className="flex items-center gap-2">
           {projectsMemo.length > 0 && (
             <Badge variant="secondary" className="text-xs">
-                {projectsMemo.filter(p => p.status === 'active').length} Active
-
+              {projectsMemo.filter((p) => p.status === 'active').length} Active
             </Badge>
           )}
           <Button

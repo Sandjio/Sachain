@@ -65,7 +65,6 @@
 //   return { loading, error, successMessage, signSchedule };
 // }
 
-
 import { useState, useCallback } from 'react';
 import {
   Client,
@@ -93,7 +92,8 @@ export function useScheduleSign(scheduleId: string) {
         if (!privateKeyInput.trim()) throw new Error('Private key is required');
 
         const operatorId = process.env.NEXT_PUBLIC_HEDERA_OPERATOR_ID || '';
-        const operatorKeyString = process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY || '';
+        const operatorKeyString =
+          process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY || '';
 
         if (!operatorId || !operatorKeyString) {
           throw new Error('Missing Hedera operator credentials');

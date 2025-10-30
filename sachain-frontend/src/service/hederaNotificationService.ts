@@ -1,6 +1,8 @@
-
-
-import { Client, TopicMessageSubmitTransaction, PrivateKey } from '@hashgraph/sdk';
+import {
+  Client,
+  TopicMessageSubmitTransaction,
+  PrivateKey,
+} from '@hashgraph/sdk';
 
 // Don't create client at module level!
 let client: Client | null = null;

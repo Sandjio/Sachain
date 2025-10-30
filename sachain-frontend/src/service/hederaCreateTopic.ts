@@ -1,5 +1,3 @@
-
-
 import { Client, TopicCreateTransaction, PrivateKey } from '@hashgraph/sdk';
 
 let client: Client | null = null;

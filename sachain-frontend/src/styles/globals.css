@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@100..900&display=swap');
 @import 'tailwindcss';
-@import 'tw-animate-css'; 
-
+@import 'tw-animate-css';
 
 /* Custom Backgrounds */
 .bg-hero-svg {
@@ -192,7 +191,7 @@
   body {
     @apply bg-background text-foreground;
     font-size: var(--font-size);
-    font-family: 'Open Sans', 'Outfit', sans-serif;  /* Added font family */
+    font-family: 'Open Sans', 'Outfit', sans-serif; /* Added font family */
   }
 }
 

@@ -24,23 +24,25 @@ export default async function handler(
 
     console.log('🪙 Proxying mint request for project:', projectId);
 
-    const response = await fetch(`${API_URL}/projects/${projectId}/mint-stocks`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-      body: JSON.stringify(req.body),
-    });
+    const response = await fetch(
+      `${API_URL}/projects/${projectId}/mint-stocks`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: req.headers.authorization || '',
+        },
+        body: JSON.stringify(req.body),
+      }
+    );
 
     const data = await response.json();
     console.log('✅ Mint response:', response.status);
 
     return res.status(response.status).json(data);
-
   } catch (error) {
     console.error('❌ Mint proxy error:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       message: error instanceof Error ? error.message : 'Internal server error',
     });
   }

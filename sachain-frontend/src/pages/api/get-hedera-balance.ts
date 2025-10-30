@@ -25,10 +25,8 @@ export default async function handler(
 
     res.status(200).json({ hbarBalance });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }

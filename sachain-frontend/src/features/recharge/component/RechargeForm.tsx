@@ -1,10 +1,10 @@
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useRecharge } from "../hook/useRecharge";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useRecharge } from '../hook/useRecharge';
 import {
   Smartphone,
   DollarSign,
@@ -19,7 +19,7 @@ import {
   Phone,
   Clock,
   CheckCheck,
-} from "lucide-react";
+} from 'lucide-react';
 
 const MINT_FEE_HBAR = 5.0;
 
@@ -153,7 +153,7 @@ export function RechargeForm({
               <div className="relative">
                 <Input
                   type="tel"
-                  {...register("customerNumber")}
+                  {...register('customerNumber')}
                   placeholder="e.g., 695456849"
                   disabled={isSubmitting || isPaymentSuccessful}
                   className="w-full border-gray-200 focus:border-orange-400 focus:ring-orange-400/20 pl-10 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -181,7 +181,7 @@ export function RechargeForm({
               <div className="relative">
                 <Input
                   type="number"
-                  {...register("amount")}
+                  {...register('amount')}
                   placeholder="e.g., 10000"
                   disabled={isSubmitting || isPaymentSuccessful}
                   className="w-full border-gray-200 focus:border-[#90A5FB] focus:ring-[#90A5FB]/20 pl-10 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -274,7 +274,8 @@ export function RechargeForm({
               </Button>
               {!isPaymentSuccessful && (
                 <p className="text-xs text-gray-500 text-center mt-3">
-                  You will receive a prompt on your phone to complete the transaction
+                  You will receive a prompt on your phone to complete the
+                  transaction
                 </p>
               )}
             </div>
@@ -302,7 +303,6 @@ export function RechargeForm({
       </Card>
 
       {/* Info Card */}
-     
 
       {/* Security Notice */}
       <div className="flex items-center justify-center gap-2 text-xs text-gray-500">

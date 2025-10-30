@@ -1,4 +1,3 @@
-
 import {
   Calculator,
   ArrowRight,
@@ -35,7 +34,6 @@ export default function Step1Calculator({
   formatCurrency,
 }: Step1Props) {
   const handleTokensChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    
     let tokens = parseInt(e.target.value, 10);
 
     // Handle invalid input
@@ -43,7 +41,6 @@ export default function Step1Calculator({
       tokens = 1;
     }
 
-  
     tokens = Math.min(tokens, project.stockSupply);
 
     onUpdateTokens(tokens);

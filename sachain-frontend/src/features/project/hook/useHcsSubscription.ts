@@ -45,7 +45,6 @@
 //   return { messages, error };
 // }
 
-
 import { useEffect, useState } from 'react';
 import { Client, TopicMessageQuery, PrivateKey } from '@hashgraph/sdk';
 
@@ -79,9 +78,9 @@ export function useHcsSubscription() {
         .subscribe(client, null, (message) => {
           const messageText = new TextDecoder('utf-8').decode(message.contents);
           const timestamp = message.consensusTimestamp.toDate();
-          
+
           console.log(`Received message at ${timestamp}: ${messageText}`);
-          
+
           // Add message to state
           setMessages((prev) => [
             ...prev,

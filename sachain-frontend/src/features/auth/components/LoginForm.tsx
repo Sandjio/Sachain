@@ -62,7 +62,6 @@ export default function LoginForm() {
     }
   }, [isSuccess, user, router]);
 
-
   const role = isSuccess && user?.role ? user.role : '';
 
   return (

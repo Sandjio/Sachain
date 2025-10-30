@@ -150,8 +150,6 @@ export default function SignupStep2({
 
       {/* Actions */}
       <div className="flex gap-3">
-       
-
         <Button
           type="button"
           variant="outline"

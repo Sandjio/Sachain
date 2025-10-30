@@ -1,8 +1,3 @@
-
-
-
-
-
 // hederaService.ts
 import { Client, ScheduleInfoQuery, PrivateKey } from '@hashgraph/sdk';
 
@@ -14,7 +9,9 @@ function getClient(): Client {
     const operatorKeyString = process.env.NEXT_PUBLIC_HEDERA_OPERATOR_KEY || '';
 
     if (!operatorId || !operatorKeyString) {
-      throw new Error('Missing Hedera operator credentials in environment variables');
+      throw new Error(
+        'Missing Hedera operator credentials in environment variables'
+      );
     }
 
     const operatorKey = PrivateKey.fromStringDer(operatorKeyString);

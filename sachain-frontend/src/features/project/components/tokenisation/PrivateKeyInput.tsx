@@ -1,5 +1,3 @@
-
-
 //refactor
 
 import { PrivateKey } from '@hashgraph/sdk';
