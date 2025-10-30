@@ -10,7 +10,9 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <IntlProvider locale={locale} messages={messages} timeZone={timeZone}>
       <AuthProvider>
-        <Component {...pageProps} />
+        <div style={{ fontFamily: `'Open Sans', 'Outfit', sans-serif` }}>
+          <Component {...pageProps} />
+        </div>
       </AuthProvider>
     </IntlProvider>
   );
