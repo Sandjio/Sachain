@@ -48,7 +48,7 @@ export function useKyc() {
         );
       }
 
-      console.log('Using ID Token:', tokens.idToken);
+      
 
       const res = await uploadKycDocument({
         idToken: tokens.idToken,
