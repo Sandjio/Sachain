@@ -19,7 +19,7 @@ export interface StatItem {
 export const DefaultStats: StatItem[] = [
   {
     icon: Building,
-    value: '500K+',
+    value: '1000+',
     label: 'African Startups',
     description: 'Seeking funding opportunities',
     color: 'text-blue-600',
@@ -27,7 +27,7 @@ export const DefaultStats: StatItem[] = [
   },
   {
     icon: DollarSign,
-    value: '$2.3B',
+    value: '$1.3M',
     label: 'Funding Gap',
     description: 'Unmet capital needs in Africa',
     color: 'text-green-600',
@@ -35,7 +35,7 @@ export const DefaultStats: StatItem[] = [
   },
   {
     icon: Users,
-    value: '200M+',
+    value: '1000+',
     label: 'Potential Investors',
     description: 'African diaspora worldwide',
     color: 'text-purple-600',
@@ -59,7 +59,7 @@ export const DefaultStats: StatItem[] = [
   },
   {
     icon: Lightbulb,
-    value: '1M+',
+    value: '1000+',
     label: 'Ideas Waiting',
     description: 'For funding and support',
     color: 'text-yellow-600',

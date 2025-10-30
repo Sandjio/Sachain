@@ -49,7 +49,7 @@ export function StartupProjectList({
   }, [fetchProjects, refreshProjects]);
 
   // Memoize projects to avoid recomputation in map if projects haven't changed
-  //const projectsMemo = useMemo(() => projects || [], [projects]);
+ 
 
   const projectsMemo: Project[] = useMemo(() => projects || [], [projects])
 

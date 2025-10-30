@@ -152,7 +152,7 @@ export function useInvestment(notifications: NotificationData[] = []) {
 
     if (approvedNotification) {
       nextStep();
-      setPurchaseTimestamp(null); // Prevent multiple triggers
+      setPurchaseTimestamp(null);
     }
   }, [notifications, purchaseTimestamp, nextStep, state.projectId]);
 

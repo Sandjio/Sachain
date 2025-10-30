@@ -31,13 +31,13 @@ export default function Header() {
 
           <Link href="/login">
             <Button variant="outline" className="text-sm">
-              {translate('login')}
+              login
             </Button>
           </Link>
 
           <Link href="/signup">
             <Button className="text-sm bg-accent hover:bg-accent/90 text-accent-foreground">
-              {translate('signup')}
+              signup
             </Button>
           </Link>
         </nav>

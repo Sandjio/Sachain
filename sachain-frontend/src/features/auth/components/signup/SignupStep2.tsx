@@ -150,13 +150,7 @@ export default function SignupStep2({
 
       {/* Actions */}
       <div className="flex gap-3">
-        {/* <Button type="button" variant="outline" className="flex-1" onClick={onBack}>
-          {translate("actions.back")}
-        </Button>
-        <Button type="submit" className="flex-1" disabled={loading || codeValue.length !== 6}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {translate("actions.verify")}
-        </Button> */}
+       
 
         <Button
           type="button"

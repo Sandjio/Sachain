@@ -100,30 +100,6 @@ export function PlatformFeatures() {
           />
         ))}
       </div>
-
-      {/* MVP Badge: place inside the big container but below the grid */}
-      <div className="flex justify-center ">
-        <div className="inline-flex items-center gap-3 bg-brand-light rounded-lg shadow-sm px-6 py-4 border bg-[#90A5FB]/50 border-primary/10">
-          <div className="flex-shrink-0">
-            <svg
-              className="w-5 h-5 text-primary"
-              fill="none"
-              viewBox="0 0 20 20"
-            >
-              <path
-                d={svgPaths.p750f180}
-                fill="currentColor"
-                fillRule="evenodd"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-          <p className="font-medium text-primary">
-            MVP Coming Soon - Built for{' '}
-            <span className="font-bold uppercase">Hedera Hackathon</span>
-          </p>
-        </div>
-      </div>
     </Section>
   );
 }

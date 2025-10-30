@@ -33,7 +33,7 @@ export default function GetStartedModal({
 
   const handleChooseRole = (role: 'startup' | 'investor') => {
     setRole(role);
-    onOpenChange(false); // close modal
+    onOpenChange(false);
     router.push({
       pathname: '/auth/signup',
       query: { role, tab: 'signup' },

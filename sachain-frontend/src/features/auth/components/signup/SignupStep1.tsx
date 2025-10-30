@@ -64,16 +64,7 @@ export default function SignupStep1({ onNext, loading }: SignupStep1Props) {
         <span className="text-destructive">{errors.email.message}</span>
       )}
 
-      {/* <Input {...register('password')} placeholder="Password" type="password" />
-      {errors.password && (
-        <span className="text-destructive">{errors.password.message}</span>
-      )}
-
-      <Input
-        {...register('confirmPassword')}
-        placeholder="Confirm Password"
-        type="password"
-      /> */}
+    
       <div className="relative">
         <Input
           {...register('password')}

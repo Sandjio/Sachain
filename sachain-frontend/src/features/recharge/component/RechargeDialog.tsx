@@ -21,12 +21,11 @@ export function RechargeDialog({ open, onOpenChange }: RechargeDialogProps) {
   const handleSuccess = () => {
     console.log('Recharge successful!');
     onOpenChange(false);
-    // Optionally show a success toast/notification
+    
   };
 
   const handleError = (msg: string) => {
     console.error('Recharge error:', msg);
-    // Optionally show an error toast/notification
   };
 
   if (!walletAddress) {
