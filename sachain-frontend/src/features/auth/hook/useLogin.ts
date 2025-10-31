@@ -62,7 +62,7 @@ export function useLogin() {
 
     try {
       const tokens = await cognitoSignIn({ email, password });
-      console.log('Cognito tokens:', tokens.idToken);
+    
 
       // Decode ID token to extract user info including role
       const idTokenPayload = parseJwt(tokens.idToken);

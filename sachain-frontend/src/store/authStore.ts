@@ -4,7 +4,7 @@ import type { CognitoTokens } from '@/features/auth/core/cognitoProvider';
 import { useWalletStore } from '@/features/wallet/store/walletStore';
 
 interface AuthState {
-  [x: string]: any;
+  [x: string]: any; // for dynamic access
   user: AuthUser | null;
   tokens: CognitoTokens | null;
   isHydrated: boolean;
@@ -26,8 +26,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem('auth_tokens', JSON.stringify(tokens));
     }
     set({ user, tokens });
-    console.log('User logged in:', user);
-    console.log('Tokens stored:', tokens);
+    //console.log('User logged in:', user);
+    //console.log('Tokens stored:', tokens);
   },
 
   logout: () => {
@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ user: null, tokens: null });
     useWalletStore.getState().disconnectWallet();
-    console.log('User logged out, cleared localStorage and store');
+    //console.log('User logged out, cleared localStorage and store');
   },
 
   setRole: (role) => {
@@ -78,15 +78,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       const storedUser = localStorage.getItem('auth_user');
       const storedTokens = localStorage.getItem('auth_tokens');
 
-      console.group('Hydrating auth store from localStorage');
-      console.log('Raw stored user:', storedUser);
-      console.log('Raw stored tokens:', storedTokens);
+      
 
       const user = storedUser ? JSON.parse(storedUser) : null;
       const tokens = storedTokens ? JSON.parse(storedTokens) : null;
 
-      console.log('Parsed stored user:', user);
-      console.log('Parsed stored tokens:', tokens);
 
       if (user && tokens) {
         set({ user, tokens, isHydrated: true });
